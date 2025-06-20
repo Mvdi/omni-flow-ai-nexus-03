@@ -9,6 +9,127 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      support_tickets: {
+        Row: {
+          assignee_id: string | null
+          content: string | null
+          created_at: string
+          customer_email: string
+          customer_name: string | null
+          id: string
+          last_response_at: string | null
+          priority: string
+          response_time_hours: number | null
+          status: string
+          subject: string
+          ticket_number: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          content?: string | null
+          created_at?: string
+          customer_email: string
+          customer_name?: string | null
+          id?: string
+          last_response_at?: string | null
+          priority?: string
+          response_time_hours?: number | null
+          status?: string
+          subject: string
+          ticket_number: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          content?: string | null
+          created_at?: string
+          customer_email?: string
+          customer_name?: string | null
+          id?: string
+          last_response_at?: string | null
+          priority?: string
+          response_time_hours?: number | null
+          status?: string
+          subject?: string
+          ticket_number?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ticket_messages: {
+        Row: {
+          attachments: Json | null
+          created_at: string
+          id: string
+          is_ai_generated: boolean | null
+          is_internal: boolean | null
+          message_content: string
+          sender_email: string
+          sender_name: string | null
+          ticket_id: string | null
+        }
+        Insert: {
+          attachments?: Json | null
+          created_at?: string
+          id?: string
+          is_ai_generated?: boolean | null
+          is_internal?: boolean | null
+          message_content: string
+          sender_email: string
+          sender_name?: string | null
+          ticket_id?: string | null
+        }
+        Update: {
+          attachments?: Json | null
+          created_at?: string
+          id?: string
+          is_ai_generated?: boolean | null
+          is_internal?: boolean | null
+          message_content?: string
+          sender_email?: string
+          sender_name?: string | null
+          ticket_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_tags: {
+        Row: {
+          created_at: string
+          id: string
+          tag_name: string
+          ticket_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tag_name: string
+          ticket_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tag_name?: string
+          ticket_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_tags_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           avatar_url: string | null
@@ -53,7 +174,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_ticket_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
