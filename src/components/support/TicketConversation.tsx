@@ -124,11 +124,11 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   };
 
   if (isLoading) {
-    return <div className="p-8 text-center">Indlæser conversation...</div>;
+    return <div className="p-6 text-center">Indlæser conversation...</div>;
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
       {/* Customer Info Sidebar */}
       <div className="lg:col-span-1">
         <CustomerInfo ticket={ticket} />
@@ -137,23 +137,23 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
       {/* Main Conversation */}
       <div className="lg:col-span-2 flex flex-col h-full">
         {/* Header */}
-        <Card className="mb-4">
-          <CardHeader className="pb-4">
+        <Card className="mb-3">
+          <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <Avatar className="h-12 w-12">
+                <Avatar className="h-10 w-10">
                   <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
                     {getCustomerInitials(ticket.customer_name, ticket.customer_email)}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <CardTitle className="flex items-center gap-2 mb-1">
+                  <CardTitle className="flex items-center gap-2 mb-1 text-lg">
                     <span>{ticket.ticket_number}</span>
                     <Badge className={getStatusColor(ticket.status)}>
                       {ticket.status}
                     </Badge>
                   </CardTitle>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h2 className="text-base font-semibold text-gray-900 mb-2">
                     {ticket.subject}
                   </h2>
                   <div className="flex items-center gap-4 text-sm text-gray-600">
@@ -210,7 +210,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
         {/* Messages */}
         <Card className="flex-1 flex flex-col">
           <CardContent className="flex-1 flex flex-col p-0">
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {/* Initial ticket content */}
               <div className="flex gap-3">
                 <Avatar className="h-8 w-8 mt-1">
@@ -219,7 +219,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="bg-gray-50 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="font-medium text-sm">
                         {ticket.customer_name || ticket.customer_email}
@@ -256,7 +256,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    <div className={`rounded-lg p-4 ${
+                    <div className={`rounded-lg p-3 ${
                       message.is_internal 
                         ? "bg-purple-50 border border-purple-200" 
                         : message.sender_email.includes('@company.com')
@@ -299,7 +299,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
 
             {/* AI Suggestion */}
             {aiSuggestion && (
-              <div className="p-4 bg-blue-50 border-t border-blue-200">
+              <div className="p-3 bg-blue-50 border-t border-blue-200">
                 <div className="flex items-start gap-2 mb-3">
                   <Sparkles className="h-5 w-5 text-blue-600 mt-0.5" />
                   <div className="flex-1">
@@ -322,7 +322,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
             )}
 
             {/* Reply Input */}
-            <div className="p-4 border-t">
+            <div className="p-3 border-t">
               <div className="flex gap-2 mb-3">
                 <Button 
                   size="sm" 

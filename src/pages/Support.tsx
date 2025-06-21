@@ -61,10 +61,10 @@ const Support = () => {
 
   if (selectedTicket) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-orange-50">
+      <div className="min-h-screen bg-gray-50">
         <Navigation />
-        <div className="container mx-auto px-6 py-8">
-          <div className="flex items-center justify-between mb-6">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-4">
             <Button 
               variant="outline" 
               onClick={() => setSelectedTicket(null)}
@@ -80,15 +80,15 @@ const Support = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-orange-50">
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
       
-      <div className="container mx-auto px-6 py-8">
+      <div className="p-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              <Ticket className="h-8 w-8 text-orange-600" />
+            <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
+              <Ticket className="h-7 w-7 text-orange-600" />
               Support Ticket System
             </h1>
             <p className="text-gray-600">Administrer og løs kundesupport tickets effektivt</p>
@@ -96,58 +96,58 @@ const Support = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="shadow-lg border-0">
-            <CardContent className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Åbne Tickets</p>
-                  <p className="text-2xl font-bold text-gray-900">{openTickets}</p>
+                  <p className="text-xl font-bold text-gray-900">{openTickets}</p>
                 </div>
-                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="h-6 w-6 text-red-600" />
+                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-0">
-            <CardContent className="p-6">
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">I Gang</p>
-                  <p className="text-2xl font-bold text-gray-900">{inProgressTickets}</p>
+                  <p className="text-xl font-bold text-gray-900">{inProgressTickets}</p>
                 </div>
-                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-yellow-600" />
+                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Clock className="h-5 w-5 text-yellow-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-0">
-            <CardContent className="p-6">
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Løst i dag</p>
-                  <p className="text-2xl font-bold text-gray-900">{solvedToday}</p>
+                  <p className="text-xl font-bold text-gray-900">{solvedToday}</p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Ticket className="h-6 w-6 text-green-600" />
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Ticket className="h-5 w-5 text-green-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-0">
-            <CardContent className="p-6">
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Gns. Responstid</p>
-                  <p className="text-2xl font-bold text-gray-900">2.4h</p>
+                  <p className="text-xl font-bold text-gray-900">2.4h</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Mail className="h-6 w-6 text-blue-600" />
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Mail className="h-5 w-5 text-blue-600" />
                 </div>
               </div>
             </CardContent>
@@ -155,7 +155,7 @@ const Support = () => {
         </div>
 
         {/* Filters */}
-        <Card className="shadow-lg border-0 mb-6">
+        <Card className="shadow-sm border-0 mb-4">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">Ticket Oversigt</CardTitle>
           </CardHeader>
@@ -203,14 +203,14 @@ const Support = () => {
         </Card>
 
         {/* Ticket List */}
-        <Card className="shadow-lg border-0">
+        <Card className="shadow-sm border-0">
           <CardContent className="p-0">
             {isLoading ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-6 text-gray-500">
                 Indlæser tickets...
               </div>
             ) : filteredTickets.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-6 text-gray-500">
                 Ingen tickets fundet
               </div>
             ) : (
@@ -218,7 +218,7 @@ const Support = () => {
                 {filteredTickets.map((ticket) => (
                   <div
                     key={ticket.id}
-                    className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
                     onClick={() => setSelectedTicket(ticket)}
                   >
                     <div className="flex items-center justify-between">
