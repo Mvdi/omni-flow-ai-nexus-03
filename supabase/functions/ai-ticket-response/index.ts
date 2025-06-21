@@ -29,7 +29,10 @@ Retningslinjer:
 - Bed om mere information hvis nødvendigt
 - Henvis til relevante ressourcer hvis det er passende
 - Hold svaret kort men informativt (max 200 ord)
-- Tilpas tonen baseret på problemets prioritet (${priority})`;
+- Tilpas tonen baseret på problemets prioritet (${priority})
+- Brug korrekt formatering med linjeskift og afsnit
+- Undgå markdown formatering som ** eller __ - skriv kun almindelig tekst
+- Strukturer svaret med nummererede punkter eller korte afsnit for læsbarhed`;
 
     const userPrompt = `Support ticket indhold:
 ${ticketContent}
@@ -37,7 +40,7 @@ ${ticketContent}
 Kundehistorik:
 ${customerHistory || 'Ingen tidligere historik tilgængelig'}
 
-Generer et passende svar på denne support henvendelse.`;
+Generer et passende svar på denne support henvendelse. Sørg for at svaret er korrekt formateret med passende linjeskift og afsnit.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

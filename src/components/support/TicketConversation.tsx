@@ -224,9 +224,9 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                         })}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700">
+                    <div className="text-sm text-gray-700 whitespace-pre-wrap">
                       {ticket.content}
-                    </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -278,9 +278,9 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                           })}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-700">
+                      <div className="text-sm text-gray-700 whitespace-pre-wrap">
                         {message.message_content}
-                      </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -296,7 +296,9 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                   <Sparkles className="h-5 w-5 text-blue-600 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-blue-900 mb-2">AI Foreslår:</p>
-                    <p className="text-sm text-blue-800 mb-3">{aiSuggestion}</p>
+                    <div className="text-sm text-blue-800 mb-3 whitespace-pre-wrap">
+                      {aiSuggestion}
+                    </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={useAiSuggestion}>
                         Brug forslag
