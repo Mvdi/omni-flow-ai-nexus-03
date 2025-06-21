@@ -7,14 +7,14 @@ import { Database, Plus, Search, Filter, Phone, Mail, MapPin } from 'lucide-reac
 
 const Customers = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-green-50">
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
       
-      <div className="container mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
+      <div className="p-2">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              <Database className="h-8 w-8 text-green-600" />
+            <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
+              <Database className="h-7 w-7 text-green-600" />
               Kundekartotek
             </h1>
             <p className="text-gray-600">Centraliseret administration af alle kundedata</p>
@@ -35,7 +35,7 @@ const Customers = () => {
           </div>
         </div>
 
-        <Card className="shadow-lg border-0">
+        <Card className="shadow-sm border-0">
           <CardHeader>
             <CardTitle>Kundekartotek kommer snart</CardTitle>
             <CardDescription>

@@ -48,15 +48,15 @@ const Planning = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50">
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
       
-      <div className="container mx-auto px-6 py-8">
+      <div className="p-2">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              <Calendar className="h-8 w-8 text-purple-600" />
+            <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
+              <Calendar className="h-7 w-7 text-purple-600" />
               Intelligent Ruteplanlægning
             </h1>
             <p className="text-gray-600">AI-drevet optimering af ruter for maksimal effektivitet</p>
@@ -74,9 +74,9 @@ const Planning = () => {
         </div>
 
         {/* Week Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           {currentWeek.map((day) => (
-            <Card key={day.day} className="shadow-lg border-0">
+            <Card key={day.day} className="shadow-sm border-0">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-semibold text-gray-900">{day.day}</CardTitle>
                 <CardDescription className="text-sm text-gray-600">{day.date}</CardDescription>
@@ -102,8 +102,8 @@ const Planning = () => {
         </div>
 
         {/* Performance Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="shadow-lg border-0">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card className="shadow-sm border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -118,7 +118,7 @@ const Planning = () => {
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-0">
+          <Card className="shadow-sm border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -133,7 +133,7 @@ const Planning = () => {
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-0">
+          <Card className="shadow-sm border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -148,7 +148,7 @@ const Planning = () => {
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-0">
+          <Card className="shadow-sm border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -165,7 +165,7 @@ const Planning = () => {
         </div>
 
         {/* Current Routes */}
-        <Card className="shadow-lg border-0 mb-8">
+        <Card className="shadow-sm border-0 mb-6">
           <CardHeader>
             <CardTitle>Dagens Ruter</CardTitle>
             <CardDescription>Oversigt over optimerede ruter for i dag</CardDescription>
@@ -219,7 +219,7 @@ const Planning = () => {
         </Card>
 
         {/* AI Optimization Insights */}
-        <Card className="shadow-lg border-0 bg-gradient-to-r from-purple-50 to-blue-50">
+        <Card className="shadow-sm border-0 bg-gradient-to-r from-purple-50 to-blue-50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">

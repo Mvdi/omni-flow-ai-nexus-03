@@ -6,21 +6,21 @@ import { Settings as SettingsIcon, Users, Mail, Bell, Shield, Database } from 'l
 
 const Settings = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
       
-      <div className="container mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
+      <div className="p-2">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              <SettingsIcon className="h-8 w-8 text-gray-600" />
+            <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
+              <SettingsIcon className="h-7 w-7 text-gray-600" />
               Indstillinger
             </h1>
             <p className="text-gray-600">Konfigurér dit system og administrér medarbejdere</p>
           </div>
         </div>
 
-        <Card className="shadow-lg border-0">
+        <Card className="shadow-sm border-0">
           <CardHeader>
             <CardTitle>Systemindstillinger kommer snart</CardTitle>
             <CardDescription>
