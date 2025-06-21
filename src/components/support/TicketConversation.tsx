@@ -19,6 +19,13 @@ interface TicketConversationProps {
   ticket: SupportTicket;
 }
 
+// Helper function to format text for display (convert markdown-like formatting to HTML)
+const formatTextForDisplay = (text: string) => {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
+    .replace(/\*(.*?)\*/g, '<em>$1</em>'); // Italic text
+};
+
 export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [aiSuggestion, setAiSuggestion] = useState('');
@@ -278,9 +285,10 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                           })}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                        {message.message_content}
-                      </div>
+                      <div 
+                        className="text-sm text-gray-700 whitespace-pre-wrap"
+                        dangerouslySetInnerHTML={{ __html: formatTextForDisplay(message.message_content) }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -296,9 +304,10 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                   <Sparkles className="h-5 w-5 text-blue-600 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-blue-900 mb-2">AI Foreslår:</p>
-                    <div className="text-sm text-blue-800 mb-3 whitespace-pre-wrap">
-                      {aiSuggestion}
-                    </div>
+                    <div 
+                      className="text-sm text-blue-800 mb-3 whitespace-pre-wrap"
+                      dangerouslySetInnerHTML={{ __html: formatTextForDisplay(aiSuggestion) }}
+                    />
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={useAiSuggestion}>
                         Brug forslag
@@ -330,7 +339,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                   placeholder="Skriv dit svar..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  className="flex-1 min-h-[80px]"
+                  className="flex-1 min-h-[200px] resize-y"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                       handleSendMessage();
