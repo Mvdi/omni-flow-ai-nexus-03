@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,8 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { TicketConversation } from '@/components/support/TicketConversation';
 import { TicketOverview } from '@/components/support/TicketOverview';
+import { CreateTicketDialog } from '@/components/support/CreateTicketDialog';
+import { SignatureSettings } from '@/components/support/SignatureSettings';
 import { useTickets, SupportTicket } from '@/hooks/useTickets';
-import { Ticket, Plus, Filter, Search, Mail, Clock, User, AlertTriangle, Bot, Inbox } from 'lucide-react';
+import { Ticket, Plus, Filter, Search, Mail, Clock, User, AlertTriangle, Bot, Inbox, Settings } from 'lucide-react';
 
 const Support = () => {
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
@@ -17,6 +18,7 @@ const Support = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showOverview, setShowOverview] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
 
   const { data: tickets = [], isLoading } = useTickets();
 
@@ -59,11 +61,31 @@ const Support = () => {
     }
   };
 
+  if (showSettings) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="p-2">
+          <div className="flex items-center justify-between mb-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowSettings(false)}
+              className="flex items-center gap-2"
+            >
+              ← Tilbage til tickets
+            </Button>
+          </div>
+          <SignatureSettings />
+        </div>
+      </div>
+    );
+  }
+
   if (selectedTicket) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />
-        <div className="p-4">
+        <div className="p-2">
           <div className="flex items-center justify-between mb-4">
             <Button 
               variant="outline" 
@@ -83,9 +105,9 @@ const Support = () => {
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       
-      <div className="p-4">
+      <div className="p-2">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
               <Ticket className="h-7 w-7 text-orange-600" />
@@ -93,6 +115,14 @@ const Support = () => {
             </h1>
             <p className="text-gray-600">Administrer og løs kundesupport tickets effektivt</p>
           </div>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowSettings(true)}
+            className="flex items-center gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Indstillinger
+          </Button>
         </div>
 
         {/* Stats Cards */}
@@ -194,10 +224,7 @@ const Support = () => {
                   <SelectItem value="Lav">Lav</SelectItem>
                 </SelectContent>
               </Select>
-              <Button className="bg-orange-600 hover:bg-orange-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Ny Ticket
-              </Button>
+              <CreateTicketDialog />
             </div>
           </CardContent>
         </Card>

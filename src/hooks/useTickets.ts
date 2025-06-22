@@ -96,6 +96,38 @@ export const useUpdateTicket = () => {
   });
 };
 
+export const useAddTicket = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (ticket: Omit<SupportTicket, 'id' | 'ticket_number' | 'created_at' | 'updated_at' | 'last_response_at' | 'response_time_hours'>) => {
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .insert(ticket)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      toast({
+        title: "Ticket oprettet",
+        description: "Den nye ticket er blevet oprettet succesfuldt.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Fejl",
+        description: "Kunne ikke oprette ticket: " + error.message,
+        variant: "destructive",
+      });
+    },
+  });
+};
+
 export const useAddTicketMessage = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();

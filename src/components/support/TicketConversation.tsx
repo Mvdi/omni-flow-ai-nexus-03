@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SupportTicket, TicketMessage, useTicketMessages, useUpdateTicket, useAddTicketMessage } from '@/hooks/useTickets';
 import { CustomerInfo } from '@/components/support/CustomerInfo';
 import { formatDistanceToNow } from 'date-fns';
@@ -30,11 +30,19 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [signature, setSignature] = useState('');
   const { toast } = useToast();
   
   const { data: messages = [], isLoading } = useTicketMessages(ticket.id);
   const updateTicket = useUpdateTicket();
   const addMessage = useAddTicketMessage();
+
+  useEffect(() => {
+    const savedSignature = localStorage.getItem('support-signature');
+    if (savedSignature) {
+      setSignature(savedSignature);
+    }
+  }, []);
 
   const handleStatusChange = (newStatus: string) => {
     updateTicket.mutate({ 
@@ -53,11 +61,16 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const handleSendMessage = () => {
     if (!newMessage.trim()) return;
     
+    let messageWithSignature = newMessage;
+    if (signature) {
+      messageWithSignature = `${newMessage}\n\n${signature}`;
+    }
+    
     addMessage.mutate({
       ticket_id: ticket.id,
       sender_email: 'support@company.com',
       sender_name: 'Support Team',
-      message_content: newMessage,
+      message_content: messageWithSignature,
       is_internal: false,
       is_ai_generated: false,
       attachments: []
@@ -354,6 +367,14 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
+              {signature && (
+                <div className="mt-2 p-2 bg-gray-50 rounded border-l-4 border-orange-500">
+                  <p className="text-xs text-gray-600 mb-1">Din signatur vil blive tilføjet:</p>
+                  <div className="text-sm text-gray-700 whitespace-pre-line">
+                    {signature}
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
