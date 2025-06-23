@@ -101,10 +101,21 @@ export const useAddTicket = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (ticket: Omit<SupportTicket, 'id' | 'ticket_number' | 'created_at' | 'updated_at' | 'last_response_at' | 'response_time_hours'>) => {
+    mutationFn: async (ticket: {
+      subject: string;
+      content: string | null;
+      customer_email: string;
+      customer_name: string | null;
+      priority: 'Høj' | 'Medium' | 'Lav';
+      status: 'Åben' | 'I gang' | 'Afventer kunde' | 'Løst' | 'Lukket';
+      assignee_id: string | null;
+    }) => {
       const { data, error } = await supabase
         .from('support_tickets')
-        .insert(ticket)
+        .insert({
+          ...ticket,
+          ticket_number: '' // This will trigger the database function to generate a ticket number
+        })
         .select()
         .single();
       
