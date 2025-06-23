@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,12 +39,15 @@ export const SignatureSettings = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const savedSignature = localStorage.getItem('detailed-signature');
-    if (savedSignature) {
+    // Load both old and new signature formats for compatibility
+    const savedDetailedSignature = localStorage.getItem('detailed-signature');
+    if (savedDetailedSignature) {
       try {
-        setSignatureData(JSON.parse(savedSignature));
+        const parsedData = JSON.parse(savedDetailedSignature);
+        setSignatureData(parsedData);
+        console.log('Loaded detailed signature from localStorage:', parsedData);
       } catch (error) {
-        console.error('Error parsing saved signature:', error);
+        console.error('Error parsing saved detailed signature:', error);
       }
     }
   }, []);
@@ -122,8 +124,33 @@ export const SignatureSettings = () => {
   };
 
   const handleSaveSignature = () => {
+    // Save the detailed signature data
     localStorage.setItem('detailed-signature', JSON.stringify(signatureData));
-    localStorage.setItem('signature-html', generateSignatureHtml());
+    
+    // Generate and save the HTML signature for use in tickets
+    const htmlSignature = generateSignatureHtml();
+    localStorage.setItem('signature-html', htmlSignature);
+    
+    // Also save a simple text version for backwards compatibility
+    const textSignature = [
+      signatureData.name,
+      signatureData.title,
+      signatureData.company,
+      signatureData.email,
+      signatureData.phone,
+      signatureData.website,
+      signatureData.address,
+      signatureData.customText
+    ].filter(Boolean).join('\n');
+    
+    localStorage.setItem('support-signature', textSignature);
+    
+    console.log('Signature saved:', {
+      data: signatureData,
+      html: htmlSignature,
+      text: textSignature
+    });
+    
     toast({
       title: "Signatur gemt",
       description: "Din detaljerede signatur er nu gemt og vil blive tilføjet til alle dine svar.",

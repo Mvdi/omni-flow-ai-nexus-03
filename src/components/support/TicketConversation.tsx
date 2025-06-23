@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +29,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [signature, setSignature] = useState('');
+  const [signatureHtml, setSignatureHtml] = useState('');
   const { toast } = useToast();
   
   const { data: messages = [], isLoading } = useTicketMessages(ticket.id);
@@ -38,9 +37,17 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const addMessage = useAddTicketMessage();
 
   useEffect(() => {
-    const savedSignature = localStorage.getItem('support-signature');
-    if (savedSignature) {
-      setSignature(savedSignature);
+    // Load the HTML signature from localStorage
+    const savedSignatureHtml = localStorage.getItem('signature-html');
+    if (savedSignatureHtml) {
+      setSignatureHtml(savedSignatureHtml);
+      console.log('Loaded signature HTML:', savedSignatureHtml);
+    } else {
+      // Fallback to simple text signature if no HTML signature exists
+      const savedSignature = localStorage.getItem('support-signature');
+      if (savedSignature) {
+        setSignatureHtml(savedSignature.replace(/\n/g, '<br>'));
+      }
     }
   }, []);
 
@@ -62,9 +69,13 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
     if (!newMessage.trim()) return;
     
     let messageWithSignature = newMessage;
-    if (signature) {
-      messageWithSignature = `${newMessage}\n\n${signature}`;
+    
+    // Always add signature if it exists
+    if (signatureHtml) {
+      messageWithSignature = `${newMessage}\n\n${signatureHtml}`;
     }
+    
+    console.log('Sending message with signature:', messageWithSignature);
     
     addMessage.mutate({
       ticket_id: ticket.id,
@@ -134,6 +145,15 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
       return name.split(' ').map(n => n[0]).join('').toUpperCase();
     }
     return email.substring(0, 2).toUpperCase();
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'Høj': return 'destructive';
+      case 'Medium': return 'secondary';
+      case 'Lav': return 'outline';
+      default: return 'secondary';
+    }
   };
 
   if (isLoading) {
@@ -367,12 +387,13 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
-              {signature && (
+              {signatureHtml && (
                 <div className="mt-2 p-2 bg-gray-50 rounded border-l-4 border-orange-500">
                   <p className="text-xs text-gray-600 mb-1">Din signatur vil blive tilføjet:</p>
-                  <div className="text-sm text-gray-700 whitespace-pre-line">
-                    {signature}
-                  </div>
+                  <div 
+                    className="text-sm text-gray-700"
+                    dangerouslySetInnerHTML={{ __html: signatureHtml }}
+                  />
                 </div>
               )}
             </div>
