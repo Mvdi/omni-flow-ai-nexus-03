@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketConversation } from '@/components/support/TicketConversation';
 import { TicketOverview } from '@/components/support/TicketOverview';
 import { CreateTicketDialog } from '@/components/support/CreateTicketDialog';
@@ -19,6 +21,7 @@ const Support = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showOverview, setShowOverview] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [activeTab, setActiveTab] = useState('alle');
 
   const { data: tickets = [], isLoading } = useTickets();
 
@@ -34,8 +37,27 @@ const Support = () => {
     return matchesStatus && matchesPriority && matchesSearch;
   });
 
+  // Filter tickets by tab
+  const getTicketsByTab = (tab: string) => {
+    switch (tab) {
+      case 'aabne':
+        return filteredTickets.filter(t => t.status === 'Åben');
+      case 'i-gang':
+        return filteredTickets.filter(t => t.status === 'I gang');
+      case 'afventer':
+        return filteredTickets.filter(t => t.status === 'Afventer kunde');
+      case 'loest':
+        return filteredTickets.filter(t => t.status === 'Løst');
+      case 'lukket':
+        return filteredTickets.filter(t => t.status === 'Lukket');
+      default:
+        return filteredTickets;
+    }
+  };
+
   const openTickets = tickets.filter(t => t.status === 'Åben').length;
   const inProgressTickets = tickets.filter(t => t.status === 'I gang').length;
+  const awaitingTickets = tickets.filter(t => t.status === 'Afventer kunde').length;
   const solvedToday = tickets.filter(t => {
     const today = new Date().toDateString();
     return t.status === 'Løst' && new Date(t.updated_at).toDateString() === today;
@@ -159,11 +181,11 @@ const Support = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Løst i dag</p>
-                  <p className="text-xl font-bold text-gray-900">{solvedToday}</p>
+                  <p className="text-sm font-medium text-gray-600">Afventer Kunde</p>
+                  <p className="text-xl font-bold text-gray-900">{awaitingTickets}</p>
                 </div>
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Ticket className="h-5 w-5 text-green-600" />
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Inbox className="h-5 w-5 text-blue-600" />
                 </div>
               </div>
             </CardContent>
@@ -173,11 +195,11 @@ const Support = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Gns. Responstid</p>
-                  <p className="text-xl font-bold text-gray-900">2.4h</p>
+                  <p className="text-sm font-medium text-gray-600">Løst i dag</p>
+                  <p className="text-xl font-bold text-gray-900">{solvedToday}</p>
                 </div>
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Mail className="h-5 w-5 text-blue-600" />
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Ticket className="h-5 w-5 text-green-600" />
                 </div>
               </div>
             </CardContent>
@@ -187,7 +209,10 @@ const Support = () => {
         {/* Filters */}
         <Card className="shadow-sm border-0 mb-4">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Ticket Oversigt</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Ticket Oversigt</CardTitle>
+              <CreateTicketDialog />
+            </div>
           </CardHeader>
           <CardContent className="pb-3">
             <div className="flex gap-4 items-center">
@@ -200,19 +225,6 @@ const Support = () => {
                   className="pl-10"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alle status</SelectItem>
-                  <SelectItem value="Åben">Åben</SelectItem>
-                  <SelectItem value="I gang">I gang</SelectItem>
-                  <SelectItem value="Afventer kunde">Afventer kunde</SelectItem>
-                  <SelectItem value="Løst">Løst</SelectItem>
-                  <SelectItem value="Lukket">Lukket</SelectItem>
-                </SelectContent>
-              </Select>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Prioritet" />
@@ -224,59 +236,73 @@ const Support = () => {
                   <SelectItem value="Lav">Lav</SelectItem>
                 </SelectContent>
               </Select>
-              <CreateTicketDialog />
             </div>
           </CardContent>
         </Card>
 
-        {/* Ticket List */}
+        {/* Ticket Tabs */}
         <Card className="shadow-sm border-0">
           <CardContent className="p-0">
-            {isLoading ? (
-              <div className="text-center py-6 text-gray-500">
-                Indlæser tickets...
-              </div>
-            ) : filteredTickets.length === 0 ? (
-              <div className="text-center py-6 text-gray-500">
-                Ingen tickets fundet
-              </div>
-            ) : (
-              <div className="divide-y">
-                {filteredTickets.map((ticket) => (
-                  <div
-                    key={ticket.id}
-                    className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => setSelectedTicket(ticket)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className="flex items-center gap-3">
-                          <span className="font-mono text-sm font-medium text-blue-600">
-                            {ticket.ticket_number}
-                          </span>
-                          <Badge variant={getPriorityColor(ticket.priority)} className="text-xs">
-                            {ticket.priority}
-                          </Badge>
-                          <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
-                            {ticket.status}
-                          </Badge>
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-gray-900 mb-1">
-                            {ticket.subject}
-                          </h3>
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
-                            <span>{ticket.customer_name || ticket.customer_email}</span>
-                            <span>•</span>
-                            <span>{new Date(ticket.created_at).toLocaleDateString('da-DK')}</span>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-6 mb-4">
+                <TabsTrigger value="alle">Alle ({filteredTickets.length})</TabsTrigger>
+                <TabsTrigger value="aabne">Åbne ({tickets.filter(t => t.status === 'Åben').length})</TabsTrigger>
+                <TabsTrigger value="i-gang">I Gang ({tickets.filter(t => t.status === 'I gang').length})</TabsTrigger>
+                <TabsTrigger value="afventer">Afventer ({tickets.filter(t => t.status === 'Afventer kunde').length})</TabsTrigger>
+                <TabsTrigger value="loest">Løst ({tickets.filter(t => t.status === 'Løst').length})</TabsTrigger>
+                <TabsTrigger value="lukket">Lukket ({tickets.filter(t => t.status === 'Lukket').length})</TabsTrigger>
+              </TabsList>
+
+              {['alle', 'aabne', 'i-gang', 'afventer', 'loest', 'lukket'].map((tab) => (
+                <TabsContent key={tab} value={tab} className="mt-0">
+                  {isLoading ? (
+                    <div className="text-center py-6 text-gray-500">
+                      Indlæser tickets...
+                    </div>
+                  ) : getTicketsByTab(tab).length === 0 ? (
+                    <div className="text-center py-6 text-gray-500">
+                      Ingen tickets fundet
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {getTicketsByTab(tab).map((ticket) => (
+                        <div
+                          key={ticket.id}
+                          className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                          onClick={() => setSelectedTicket(ticket)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4 flex-1">
+                              <div className="flex items-center gap-3">
+                                <span className="font-mono text-sm font-medium text-blue-600">
+                                  {ticket.ticket_number}
+                                </span>
+                                <Badge variant={getPriorityColor(ticket.priority)} className="text-xs">
+                                  {ticket.priority}
+                                </Badge>
+                                <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
+                                  {ticket.status}
+                                </Badge>
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="font-medium text-gray-900 mb-1">
+                                  {ticket.subject}
+                                </h3>
+                                <div className="flex items-center gap-4 text-sm text-gray-600">
+                                  <span>{ticket.customer_name || ticket.customer_email}</span>
+                                  <span>•</span>
+                                  <span>{new Date(ticket.created_at).toLocaleDateString('da-DK')}</span>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  )}
+                </TabsContent>
+              ))}
+            </Tabs>
           </CardContent>
         </Card>
       </div>
