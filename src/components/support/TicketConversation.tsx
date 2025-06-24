@@ -1,387 +1,339 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { useState, useEffect } from 'react';
-import { SupportTicket, TicketMessage, useTicketMessages, useUpdateTicket, useAddTicketMessage } from '@/hooks/useTickets';
-import { CustomerInfo } from '@/components/support/CustomerInfo';
-import { formatDistanceToNow } from 'date-fns';
-import { da } from 'date-fns/locale';
-import { Send, Bot, User, Clock, Mail, Tag, Sparkles } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { ArrowLeft, Bot, User, Mail, Phone, Building, Tag, Clock, Star, Send } from 'lucide-react';
+import { useTickets, useTicketMessages, useAddTicketMessage, useUpdateTicket } from '@/hooks/useTickets';
+import { useCustomers } from '@/hooks/useCustomers';
 import { useToast } from '@/hooks/use-toast';
+import { useSendEmail } from '@/hooks/useSendEmail';
 
-interface TicketConversationProps {
-  ticket: SupportTicket;
-}
-
-// Helper function to format text for display (convert markdown-like formatting to HTML)
-const formatTextForDisplay = (text: string) => {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
-    .replace(/\*(.*?)\*/g, '<em>$1</em>') // Italic text
-    .replace(/\n/g, '<br>'); // Preserve newlines
+const formatText = (text: string | null): string => {
+  if (!text) return '';
+  // Basic formatting: replace newlines with <br /> tags
+  return text.replace(/\n/g, '<br />');
 };
 
-export const TicketConversation = ({ ticket }: TicketConversationProps) => {
-  const [newMessage, setNewMessage] = useState('');
-  const [aiSuggestion, setAiSuggestion] = useState('');
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [signatureHtml, setSignatureHtml] = useState('');
+const formatMessage = (text: string): string => {
+  // Basic formatting: replace newlines with <br /> tags
+  return text.replace(/\n/g, '<br />');
+};
+
+export const TicketConversation = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  
-  const { data: messages = [], isLoading } = useTicketMessages(ticket.id);
-  const updateTicket = useUpdateTicket();
+  const [newMessage, setNewMessage] = useState('');
+  const [signature, setSignature] = useState('');
+
+  const { data: tickets } = useTickets();
+  const { data: messages, isLoading: messagesLoading } = useTicketMessages(id || '');
+  const { data: customers } = useCustomers();
   const addMessage = useAddTicketMessage();
+  const updateTicket = useUpdateTicket();
+  const { sendEmail, status: emailStatus } = useSendEmail();
+
+  const ticket = tickets?.find(t => t.id === id);
+  const customer = customers?.find(c => c.email === ticket?.customer_email);
 
   useEffect(() => {
-    // Load the HTML signature from localStorage
-    const savedSignatureHtml = localStorage.getItem('signature-html');
-    if (savedSignatureHtml) {
-      setSignatureHtml(savedSignatureHtml);
-      console.log('Loaded signature HTML:', savedSignatureHtml);
-    } else {
-      // Fallback to simple text signature if no HTML signature exists
-      const savedSignature = localStorage.getItem('support-signature');
-      if (savedSignature) {
-        setSignatureHtml(savedSignature.replace(/\n/g, '<br>'));
-      }
+    const storedSignature = localStorage.getItem('signature');
+    if (storedSignature) {
+      setSignature(storedSignature);
     }
   }, []);
 
-  const handleStatusChange = (newStatus: string) => {
-    updateTicket.mutate({ 
-      id: ticket.id, 
-      updates: { status: newStatus as any } 
-    });
-  };
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !ticket) return;
 
-  const handlePriorityChange = (newPriority: string) => {
-    updateTicket.mutate({ 
-      id: ticket.id, 
-      updates: { priority: newPriority as any } 
-    });
-  };
-
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
+    const messageWithSignature = `${newMessage}\n\n${signature}`;
     
-    let messageWithSignature = newMessage;
-    
-    // Always add signature if it exists
-    if (signatureHtml) {
-      messageWithSignature = `${newMessage}\n\n${signatureHtml}`;
-    }
-    
-    console.log('Sending message with signature:', messageWithSignature);
-    
-    addMessage.mutate({
-      ticket_id: ticket.id,
-      sender_email: 'support@company.com',
-      sender_name: 'Support Team',
-      message_content: messageWithSignature,
-      is_internal: false,
-      is_ai_generated: false,
-      attachments: []
-    });
-    
-    setNewMessage('');
-  };
-
-  const generateAiResponse = async () => {
-    setIsGeneratingAI(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-ticket-response', {
-        body: {
-          ticketContent: `${ticket.subject}\n\n${ticket.content}`,
-          customerHistory: `Kunde: ${ticket.customer_name || ticket.customer_email}\nPrioritet: ${ticket.priority}\nStatus: ${ticket.status}`,
-          priority: ticket.priority
-        }
+      // Add message to ticket
+      await addMessage.mutateAsync({
+        ticket_id: ticket.id,
+        sender_email: 'support@company.com', // This should be the logged in user's email
+        sender_name: 'Support Team',
+        message_content: messageWithSignature,
+        is_internal: false,
+        is_ai_generated: false,
+        attachments: [],
       });
 
-      if (error) throw error;
+      // Send email to customer
+      const emailSent = await sendEmail(
+        ticket.customer_email,
+        `Re: ${ticket.subject}`,
+        formatMessage(messageWithSignature),
+        ticket.id
+      );
 
-      if (data.success) {
-        setAiSuggestion(data.response);
+      if (emailSent) {
+        // Update ticket status if it was resolved
+        if (ticket.status === 'Åben') {
+          await updateTicket.mutateAsync({
+            id: ticket.id,
+            updates: { status: 'I gang' }
+          });
+        }
+
         toast({
-          title: "AI forslag genereret",
-          description: "Et forslag til svar er nu tilgængeligt.",
+          title: "Besked sendt",
+          description: "Besked er sendt til kunden via email.",
         });
       } else {
-        throw new Error(data.error || 'Ukendt fejl');
+        toast({
+          title: "Besked gemt",
+          description: "Besked er gemt i ticketen, men email kunne ikke sendes.",
+          variant: "destructive",
+        });
       }
+
+      setNewMessage('');
     } catch (error) {
-      console.error('Error generating AI response:', error);
+      console.error('Error sending message:', error);
       toast({
         title: "Fejl",
-        description: "Kunne ikke generere AI forslag. Prøv igen.",
+        description: "Kunne ikke sende besked.",
         variant: "destructive",
       });
-    } finally {
-      setIsGeneratingAI(false);
     }
   };
 
-  const useAiSuggestion = () => {
-    setNewMessage(aiSuggestion);
-    setAiSuggestion('');
+  const handleAiSuggestion = () => {
+    toast({
+      title: "AI Forslag",
+      description: "Denne funktion er ikke implementeret endnu.",
+    });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Åben': return 'bg-red-100 text-red-800';
-      case 'I gang': return 'bg-yellow-100 text-yellow-800';
-      case 'Afventer kunde': return 'bg-blue-100 text-blue-800';
-      case 'Løst': return 'bg-green-100 text-green-800';
-      case 'Lukket': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  if (!id) {
+    return <div>Ticket ID er påkrævet.</div>;
+  }
 
-  const getCustomerInitials = (name: string | null, email: string) => {
-    if (name) {
-      return name.split(' ').map(n => n[0]).join('').toUpperCase();
-    }
-    return email.substring(0, 2).toUpperCase();
-  };
+  if (!ticket) {
+    return <div>Ticket ikke fundet.</div>;
+  }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'Høj': return 'destructive';
-      case 'Medium': return 'secondary';
-      case 'Lav': return 'outline';
-      default: return 'secondary';
-    }
-  };
-
-  if (isLoading) {
-    return <div className="p-6 text-center">Indlæser conversation...</div>;
+  if (messagesLoading) {
+    return <div>Loading messages...</div>;
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <Card className="mb-3">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                  {getCustomerInitials(ticket.customer_name, ticket.customer_email)}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle className="flex items-center gap-2 mb-1 text-lg">
-                  <span>{ticket.ticket_number}</span>
-                  <Badge className={getStatusColor(ticket.status)}>
-                    {ticket.status}
-                  </Badge>
+    <div className="min-h-screen bg-gray-50 p-2">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-4">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/support')}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Tilbage til Support
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Customer Information Panel */}
+          <div className="lg:col-span-1">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Kunde Info
                 </CardTitle>
-                <h2 className="text-base font-semibold text-gray-900 mb-2">
-                  {ticket.subject}
-                </h2>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <User className="h-4 w-4" />
-                    <span>{ticket.customer_name || 'Anonym'}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Mail className="h-4 w-4" />
-                    <span>{ticket.customer_email}</span>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <Avatar>
+                    <AvatarFallback>{customer?.navn?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="text-lg font-semibold">{customer?.navn}</h3>
+                    <p className="text-sm text-gray-500">{customer?.email}</p>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Select value={ticket.priority} onValueChange={handlePriorityChange}>
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Høj">Høj</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="Lav">Lav</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={ticket.status} onValueChange={handleStatusChange}>
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Åben">Åben</SelectItem>
-                  <SelectItem value="I gang">I gang</SelectItem>
-                  <SelectItem value="Afventer kunde">Afventer kunde</SelectItem>
-                  <SelectItem value="Løst">Løst</SelectItem>
-                  <SelectItem value="Lukket">Lukket</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Kontakt Info</div>
+                  <div className="text-sm text-gray-600">
+                    {customer?.telefon && (
+                      <p className="flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        {customer.telefon}
+                      </p>
+                    )}
+                    <p className="flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      {customer?.email}
+                    </p>
+                    {customer?.virksomhedsnavn && (
+                      <p className="flex items-center gap-2">
+                        <Building className="h-4 w-4" />
+                        {customer.virksomhedsnavn}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Adresse</div>
+                  <div className="text-sm text-gray-600">
+                    <p>{customer?.adresse}</p>
+                    <p>
+                      {customer?.postnummer} {customer?.by}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Kundetype</div>
+                  <div className="text-sm text-gray-600">
+                    {customer?.kundetype || 'Ikke angivet'}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Score</div>
+                  <div className="text-sm text-gray-600 flex items-center gap-1">
+                    <Star className="h-4 w-4 text-yellow-500" />
+                    {customer?.score || 0}
+                  </div>
+                </div>
+                {customer?.noter && (
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Noter</div>
+                    <div className="text-sm text-gray-600">{customer.noter}</div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-        </CardHeader>
-      </Card>
 
-      {/* Messages */}
-      <Card className="flex-1 flex flex-col">
-        <CardContent className="flex-1 flex flex-col p-0">
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {/* Initial ticket content */}
-            <div className="flex gap-3">
-              <Avatar className="h-8 w-8 mt-1">
-                <AvatarFallback className="bg-blue-100 text-blue-600">
-                  {getCustomerInitials(ticket.customer_name, ticket.customer_email)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-medium text-sm">
-                      {ticket.customer_name || ticket.customer_email}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {formatDistanceToNow(new Date(ticket.created_at), { 
-                        addSuffix: true, 
-                        locale: da 
-                      })}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {ticket.content}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Additional messages */}
-            {messages.map((message) => (
-              <div key={message.id} className="flex gap-3">
-                <Avatar className="h-8 w-8 mt-1">
-                  <AvatarFallback className={
-                    message.is_internal 
-                      ? "bg-purple-100 text-purple-600" 
-                      : message.sender_email.includes('@company.com')
-                      ? "bg-green-100 text-green-600"
-                      : "bg-blue-100 text-blue-600"
-                  }>
-                    {message.sender_name 
-                      ? message.sender_name.split(' ').map(n => n[0]).join('').toUpperCase()
-                      : message.sender_email.substring(0, 2).toUpperCase()
-                    }
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className={`rounded-lg p-3 ${
-                    message.is_internal 
-                      ? "bg-purple-50 border border-purple-200" 
-                      : message.sender_email.includes('@company.com')
-                      ? "bg-green-50 border border-green-200"
-                      : "bg-gray-50"
-                  }`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-medium text-sm">
-                        {message.sender_name || message.sender_email}
-                      </span>
-                      {message.is_ai_generated && (
-                        <Badge variant="outline" className="text-xs">
-                          <Bot className="h-3 w-3 mr-1" />
-                          AI
-                        </Badge>
-                      )}
-                      {message.is_internal && (
-                        <Badge variant="outline" className="text-xs bg-purple-100">
-                          Intern
-                        </Badge>
-                      )}
-                      <span className="text-xs text-gray-500">
-                        {formatDistanceToNow(new Date(message.created_at), { 
-                          addSuffix: true, 
-                          locale: da 
-                        })}
-                      </span>
+          {/* Conversation Panel */}
+          <div className="lg:col-span-2">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg mb-2">{ticket.subject}</CardTitle>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Badge variant={ticket.priority === 'Høj' ? 'destructive' : ticket.priority === 'Medium' ? 'default' : 'secondary'}>
+                        {ticket.priority}
+                      </Badge>
+                      <Badge variant={ticket.status === 'Åben' ? 'destructive' : ticket.status === 'I gang' ? 'default' : 'secondary'}>
+                        {ticket.status}
+                      </Badge>
+                      <span>#{ticket.ticket_number}</span>
                     </div>
-                    <div 
-                      className="text-sm text-gray-700 whitespace-pre-wrap"
-                      dangerouslySetInnerHTML={{ __html: formatTextForDisplay(message.message_content) }}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* Messages */}
+                <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
+                  {messages?.map((message) => (
+                    <div key={message.id} className="flex flex-col">
+                      <div className="flex items-center space-x-2">
+                        <div className="font-semibold">{message.sender_name || message.sender_email}</div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(message.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="prose prose-sm w-full">
+                        <p dangerouslySetInnerHTML={{ __html: formatText(message.message_content) }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Reply Section */}
+                <div className="border-t pt-4">
+                  <div className="space-y-3">
+                    <Textarea
+                      placeholder="Skriv dit svar her..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      className="min-h-[200px] resize-none"
                     />
+                    
+                    {signature && (
+                      <div className="text-xs text-gray-500 border-t pt-2">
+                        <div dangerouslySetInnerHTML={{ __html: signature }} />
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center">
+                      <Button 
+                        variant="outline" 
+                        onClick={handleAiSuggestion}
+                        disabled={!newMessage.trim()}
+                        className="flex items-center gap-2"
+                      >
+                        <Bot className="h-4 w-4" />
+                        AI Forslag
+                      </Button>
+                      
+                      <Button 
+                        onClick={handleSendMessage}
+                        disabled={!newMessage.trim() || emailStatus === 'sending'}
+                        className="flex items-center gap-2"
+                      >
+                        {emailStatus === 'sending' ? (
+                          <>Sender...</>
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4" />
+                            Send Email
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              </CardContent>
+            </Card>
           </div>
 
-          <Separator />
-
-          {/* AI Suggestion */}
-          {aiSuggestion && (
-            <div className="p-3 bg-blue-50 border-t border-blue-200">
-              <div className="flex items-start gap-2 mb-3">
-                <Sparkles className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-900 mb-2">AI Foreslår:</p>
-                  <div 
-                    className="text-sm text-blue-800 mb-3 whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ __html: formatTextForDisplay(aiSuggestion) }}
-                  />
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={useAiSuggestion}>
-                      Brug forslag
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setAiSuggestion('')}>
-                      Afvis
-                    </Button>
+          {/* Stats Panel */}
+          <div className="lg:col-span-1">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Tag className="h-5 w-5" />
+                  Ticket Info
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Oprettet</div>
+                  <div className="text-sm text-gray-600">
+                    {new Date(ticket.created_at).toLocaleString()}
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Reply Input */}
-          <div className="p-3 border-t">
-            <div className="flex gap-2 mb-3">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={generateAiResponse}
-                disabled={isGeneratingAI}
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                {isGeneratingAI ? 'Genererer...' : 'AI Forslag'}
-              </Button>
-            </div>
-            <div className="flex gap-2">
-              <Textarea
-                placeholder="Skriv dit svar..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-1 min-h-[200px] resize-y"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                    handleSendMessage();
-                  }
-                }}
-              />
-              <Button 
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim() || addMessage.isPending}
-                className="self-end"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-            {signatureHtml && (
-              <div className="mt-2 p-2 bg-gray-50 rounded border-l-4 border-orange-500">
-                <p className="text-xs text-gray-600 mb-1">Din signatur vil blive tilføjet:</p>
-                <div 
-                  className="text-sm text-gray-700"
-                  dangerouslySetInnerHTML={{ __html: signatureHtml }}
-                />
-              </div>
-            )}
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Sidst Opdateret</div>
+                  <div className="text-sm text-gray-600">
+                    {new Date(ticket.updated_at).toLocaleString()}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Assignee</div>
+                  <div className="text-sm text-gray-600">
+                    {ticket.assignee_id || 'Ingen'}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Response Time</div>
+                  <div className="text-sm text-gray-600 flex items-center gap-1">
+                    <Clock className="h-4 w-4" />
+                    {ticket.response_time_hours || 0} timer
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
