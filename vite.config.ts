@@ -8,6 +8,13 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/functions/v1': {
+        target: 'http://localhost:54321',
+        changeOrigin: true,
+        rewrite: path => path,
+      },
+    },
   },
   plugins: [
     react(),

@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -32,7 +31,8 @@ Retningslinjer:
 - Tilpas tonen baseret på problemets prioritet (${priority})
 - Brug korrekt formatering med linjeskift og afsnit
 - Undgå markdown formatering som ** eller __ - skriv kun almindelig tekst
-- Strukturer svaret med nummererede punkter eller korte afsnit for læsbarhed`;
+- Strukturer svaret med nummererede punkter eller korte afsnit for læsbarhed
+- INGEN signatur eller afslutning som 'Venlig hilsen', 'Med venlig hilsen', navn, eller lignende. Svaret skal slutte direkte efter selve beskeden.`;
 
     const userPrompt = `Support ticket indhold:
 ${ticketContent}
@@ -40,7 +40,7 @@ ${ticketContent}
 Kundehistorik:
 ${customerHistory || 'Ingen tidligere historik tilgængelig'}
 
-Generer et passende svar på denne support henvendelse. Sørg for at svaret er korrekt formateret med passende linjeskift og afsnit.`;
+Generer et passende svar på denne support henvendelse. Sørg for at svaret er korrekt formateret med passende linjeskift og afsnit. INGEN signatur eller afslutning som 'Venlig hilsen', 'Med venlig hilsen', navn, eller lignende. Svaret skal slutte direkte efter selve beskeden.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

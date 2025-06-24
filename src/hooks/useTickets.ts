@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -81,6 +80,7 @@ export const useUpdateTicket = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast({
         title: "Ticket opdateret",
         description: "Ticket er blevet opdateret succesfuldt.",
@@ -110,6 +110,15 @@ export const useAddTicket = () => {
       status: 'Åben' | 'I gang' | 'Afventer kunde' | 'Løst' | 'Lukket';
       assignee_id: string | null;
     }) => {
+      // Always upsert customer (create if not exists, update if exists)
+      await supabase
+        .from('customers')
+        .upsert({
+          email: ticket.customer_email,
+          navn: ticket.customer_name
+        }, { onConflict: 'email', ignoreDuplicates: true });
+
+      // Then create the ticket
       const { data, error } = await supabase
         .from('support_tickets')
         .insert({
@@ -124,6 +133,7 @@ export const useAddTicket = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast({
         title: "Ticket oprettet",
         description: "Den nye ticket er blevet oprettet succesfuldt.",

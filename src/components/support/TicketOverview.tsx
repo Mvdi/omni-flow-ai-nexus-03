@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SupportTicket } from '@/hooks/useTickets';
@@ -39,6 +38,9 @@ export const TicketOverview = ({ tickets, onTicketSelect }: TicketOverviewProps)
     return null;
   };
 
+  // Only show tickets that are not closed
+  const visibleTickets = tickets.filter(ticket => ticket.status !== 'Lukket');
+
   return (
     <Card className="shadow-lg border-0">
       <CardHeader>
@@ -47,7 +49,7 @@ export const TicketOverview = ({ tickets, onTicketSelect }: TicketOverviewProps)
       <CardContent className="p-0">
         <div className="max-h-[600px] overflow-y-auto">
           <div className="divide-y">
-            {tickets.map((ticket) => (
+            {visibleTickets.map((ticket) => (
               <div
                 key={ticket.id}
                 className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"

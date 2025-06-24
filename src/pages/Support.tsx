@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketConversation } from '@/components/support/TicketConversation';
+import { CustomerInfo } from '@/components/support/CustomerInfo';
 import { TicketOverview } from '@/components/support/TicketOverview';
 import { CreateTicketDialog } from '@/components/support/CreateTicketDialog';
 import { SignatureSettings } from '@/components/support/SignatureSettings';
@@ -24,6 +24,16 @@ const Support = () => {
   const [activeTab, setActiveTab] = useState('alle');
 
   const { data: tickets = [], isLoading } = useTickets();
+
+  useEffect(() => {
+    // Ved load: hvis ?ticket=... i URL, vælg det ticket
+    const params = new URLSearchParams(window.location.search);
+    const ticketId = params.get('ticket');
+    if (ticketId && tickets.length > 0) {
+      const ticket = tickets.find(t => t.id === ticketId);
+      if (ticket) setSelectedTicket(ticket);
+    }
+  }, [tickets]);
 
   const filteredTickets = tickets.filter(ticket => {
     const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
@@ -51,17 +61,21 @@ const Support = () => {
       case 'lukket':
         return filteredTickets.filter(t => t.status === 'Lukket');
       default:
-        return filteredTickets;
+        // 'alle' tab: show only open, in progress, or awaiting
+        return filteredTickets.filter(t => t.status === 'Åben' || t.status === 'I gang' || t.status === 'Afventer kunde');
     }
   };
 
-  const openTickets = tickets.filter(t => t.status === 'Åben').length;
-  const inProgressTickets = tickets.filter(t => t.status === 'I gang').length;
-  const awaitingTickets = tickets.filter(t => t.status === 'Afventer kunde').length;
-  const solvedToday = tickets.filter(t => {
+  // Count tickets for each tab
+  const alleTicketsCount = filteredTickets.filter(t => t.status === 'Åben' || t.status === 'I gang' || t.status === 'Afventer kunde').length;
+  const openTickets = filteredTickets.filter(t => t.status === 'Åben').length;
+  const inProgressTickets = filteredTickets.filter(t => t.status === 'I gang').length;
+  const awaitingTickets = filteredTickets.filter(t => t.status === 'Afventer kunde').length;
+  const solvedToday = filteredTickets.filter(t => {
     const today = new Date().toDateString();
     return t.status === 'Løst' && new Date(t.updated_at).toDateString() === today;
   }).length;
+  const closedTickets = filteredTickets.filter(t => t.status === 'Lukket').length;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -80,6 +94,17 @@ const Support = () => {
       case 'Medium': return 'secondary';
       case 'Lav': return 'outline';
       default: return 'secondary';
+    }
+  };
+
+  const handleTicketSelect = (ticketId: string) => {
+    const ticket = tickets.find(t => t.id === ticketId);
+    if (ticket) {
+      setSelectedTicket(ticket);
+      // Opdater URL uden reload
+      const params = new URLSearchParams(window.location.search);
+      params.set('ticket', ticketId);
+      window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
     }
   };
 
@@ -111,13 +136,30 @@ const Support = () => {
           <div className="flex items-center justify-between mb-4">
             <Button 
               variant="outline" 
-              onClick={() => setSelectedTicket(null)}
+              onClick={() => {
+                setSelectedTicket(null);
+                // Fjern ticket-param fra URL
+                const params = new URLSearchParams(window.location.search);
+                params.delete('ticket');
+                window.history.pushState({}, '', `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`);
+              }}
               className="flex items-center gap-2"
             >
               ← Tilbage til oversigt
             </Button>
           </div>
-          <TicketConversation ticket={selectedTicket} />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <CustomerInfo 
+                ticket={selectedTicket} 
+                onTicketSelect={handleTicketSelect}
+                currentTicketId={selectedTicket.id}
+              />
+            </div>
+            <div className="lg:col-span-2">
+              <TicketConversation ticket={selectedTicket} />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -245,12 +287,12 @@ const Support = () => {
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-6 mb-4">
-                <TabsTrigger value="alle">Alle ({filteredTickets.length})</TabsTrigger>
-                <TabsTrigger value="aabne">Åbne ({tickets.filter(t => t.status === 'Åben').length})</TabsTrigger>
-                <TabsTrigger value="i-gang">I Gang ({tickets.filter(t => t.status === 'I gang').length})</TabsTrigger>
-                <TabsTrigger value="afventer">Afventer ({tickets.filter(t => t.status === 'Afventer kunde').length})</TabsTrigger>
-                <TabsTrigger value="loest">Løst ({tickets.filter(t => t.status === 'Løst').length})</TabsTrigger>
-                <TabsTrigger value="lukket">Lukket ({tickets.filter(t => t.status === 'Lukket').length})</TabsTrigger>
+                <TabsTrigger value="alle">Alle ({alleTicketsCount})</TabsTrigger>
+                <TabsTrigger value="aabne">Åbne ({openTickets})</TabsTrigger>
+                <TabsTrigger value="i-gang">I Gang ({inProgressTickets})</TabsTrigger>
+                <TabsTrigger value="afventer">Afventer ({awaitingTickets})</TabsTrigger>
+                <TabsTrigger value="loest">Løst</TabsTrigger>
+                <TabsTrigger value="lukket">Lukket</TabsTrigger>
               </TabsList>
 
               {['alle', 'aabne', 'i-gang', 'afventer', 'loest', 'lukket'].map((tab) => (
@@ -269,7 +311,7 @@ const Support = () => {
                         <div
                           key={ticket.id}
                           className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
-                          onClick={() => setSelectedTicket(ticket)}
+                          onClick={() => handleTicketSelect(ticket.id)}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4 flex-1">

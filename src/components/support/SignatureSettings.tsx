@@ -6,6 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { User, Upload, X, Eye } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+
+const FONT_OPTIONS = [
+  'Arial', 'Verdana', 'Times New Roman', 'Georgia', 'Tahoma', 'Trebuchet MS', 'Courier New', 'Lucida Console'
+];
 
 interface SignatureData {
   name: string;
@@ -21,6 +26,8 @@ interface SignatureData {
     url: string;
     alt: string;
   }>;
+  fontFamily: string;
+  extraText: string;
 }
 
 export const SignatureSettings = () => {
@@ -34,35 +41,48 @@ export const SignatureSettings = () => {
     address: '',
     customText: '',
     images: [],
+    fontFamily: 'Arial',
+    extraText: '',
   });
   const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Load both old and new signature formats for compatibility
-    const savedDetailedSignature = localStorage.getItem('detailed-signature');
-    if (savedDetailedSignature) {
-      try {
-        const parsedData = JSON.parse(savedDetailedSignature);
-        setSignatureData(parsedData);
-        console.log('Loaded detailed signature from localStorage:', parsedData);
-      } catch (error) {
-        console.error('Error parsing saved detailed signature:', error);
+    (async () => {
+      setLoading(true);
+      const user = (await supabase.auth.getUser()).data.user;
+      if (user) {
+        const { data, error } = await supabase
+          .from('user_signatures')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        if (data) {
+          setSignatureData({ ...signatureData, ...data, images: data.images || [] });
+        } else if (error && error.code !== 'PGRST116') {
+          toast({ title: 'Fejl', description: 'Kunne ikke hente signatur fra cloud.', variant: 'destructive' });
+        }
       }
-    }
+      // Fallback til localStorage
+      const savedDetailedSignature = localStorage.getItem('detailed-signature');
+      if (savedDetailedSignature) {
+        try {
+          const parsedData = JSON.parse(savedDetailedSignature);
+          setSignatureData(prev => ({ ...prev, ...parsedData }));
+        } catch {}
+      }
+      setLoading(false);
+    })();
   }, []);
 
   const handleInputChange = (field: keyof SignatureData, value: string) => {
-    setSignatureData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setSignatureData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
-
     Array.from(files).forEach(file => {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
@@ -73,11 +93,7 @@ export const SignatureSettings = () => {
             url: imageUrl,
             alt: file.name
           };
-          
-          setSignatureData(prev => ({
-            ...prev,
-            images: [...prev.images, newImage]
-          }));
+          setSignatureData(prev => ({ ...prev, images: [...prev.images, newImage] }));
         };
         reader.readAsDataURL(file);
       }
@@ -85,29 +101,22 @@ export const SignatureSettings = () => {
   };
 
   const removeImage = (imageId: string) => {
-    setSignatureData(prev => ({
-      ...prev,
-      images: prev.images.filter(img => img.id !== imageId)
-    }));
+    setSignatureData(prev => ({ ...prev, images: prev.images.filter(img => img.id !== imageId) }));
   };
 
   const generateSignatureHtml = () => {
-    const { name, title, company, email, phone, website, address, customText, images } = signatureData;
-    
-    let html = '<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.4; color: #333;">';
-    
+    const { name, title, company, email, phone, website, address, customText, images, fontFamily, extraText } = signatureData;
+    let html = `<div style="font-family: ${fontFamily}, sans-serif; font-size: 14px; line-height: 1.4; color: #333;">`;
+    if (extraText) html += `<div style="margin-bottom: 8px;">${extraText.replace(/\n/g, '<br>')}</div>`;
     if (name) html += `<div style="font-weight: bold; font-size: 16px; margin-bottom: 4px;">${name}</div>`;
     if (title) html += `<div style="color: #666; margin-bottom: 2px;">${title}</div>`;
     if (company) html += `<div style="font-weight: 500; margin-bottom: 8px;">${company}</div>`;
-    
     html += '<div style="margin-bottom: 8px;">';
     if (email) html += `<div>✉ <a href="mailto:${email}" style="color: #0066cc; text-decoration: none;">${email}</a></div>`;
     if (phone) html += `<div>📞 <a href="tel:${phone}" style="color: #0066cc; text-decoration: none;">${phone}</a></div>`;
     if (website) html += `<div>🌐 <a href="${website}" style="color: #0066cc; text-decoration: none;">${website}</a></div>`;
     html += '</div>';
-    
     if (address) html += `<div style="color: #666; font-size: 12px; margin-bottom: 8px;">${address}</div>`;
-    
     if (images.length > 0) {
       html += '<div style="margin: 12px 0;">';
       images.forEach(image => {
@@ -115,24 +124,41 @@ export const SignatureSettings = () => {
       });
       html += '</div>';
     }
-    
     if (customText) html += `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; color: #666; font-size: 12px;">${customText.replace(/\n/g, '<br>')}</div>`;
-    
     html += '</div>';
-    
     return html;
   };
 
-  const handleSaveSignature = () => {
-    // Save the detailed signature data
+  const handleSaveSignature = async () => {
+    setLoading(true);
+    // Save to Supabase
+    const user = (await supabase.auth.getUser()).data.user;
+    if (user) {
+      const { error } = await supabase.from('user_signatures').upsert({
+        user_id: user.id,
+        html: generateSignatureHtml(),
+        plain: [
+          signatureData.name,
+          signatureData.title,
+          signatureData.company,
+          signatureData.email,
+          signatureData.phone,
+          signatureData.website,
+          signatureData.address,
+          signatureData.customText
+        ].filter(Boolean).join('\n'),
+        font_family: signatureData.fontFamily,
+        extra_text: signatureData.extraText,
+        images: signatureData.images
+      }, { onConflict: ['user_id'] });
+      if (error) {
+        toast({ title: 'Fejl', description: 'Kunne ikke gemme signatur i cloud.', variant: 'destructive' });
+      }
+    }
+    // Save to localStorage as backup
     localStorage.setItem('detailed-signature', JSON.stringify(signatureData));
-    
-    // Generate and save the HTML signature for use in tickets
-    const htmlSignature = generateSignatureHtml();
-    localStorage.setItem('signature-html', htmlSignature);
-    
-    // Also save a simple text version for backwards compatibility
-    const textSignature = [
+    localStorage.setItem('signature-html', generateSignatureHtml());
+    localStorage.setItem('support-signature', [
       signatureData.name,
       signatureData.title,
       signatureData.company,
@@ -141,19 +167,11 @@ export const SignatureSettings = () => {
       signatureData.website,
       signatureData.address,
       signatureData.customText
-    ].filter(Boolean).join('\n');
-    
-    localStorage.setItem('support-signature', textSignature);
-    
-    console.log('Signature saved:', {
-      data: signatureData,
-      html: htmlSignature,
-      text: textSignature
-    });
-    
+    ].filter(Boolean).join('\n'));
+    setLoading(false);
     toast({
-      title: "Signatur gemt",
-      description: "Din detaljerede signatur er nu gemt og vil blive tilføjet til alle dine svar.",
+      title: 'Signatur gemt',
+      description: 'Din detaljerede signatur er nu gemt i cloud og som backup i browseren.',
     });
   };
 
@@ -167,6 +185,20 @@ export const SignatureSettings = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Font and extra text */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="fontFamily">Skrifttype</Label>
+              <select id="fontFamily" className="w-full border rounded p-2" value={signatureData.fontFamily} onChange={e => handleInputChange('fontFamily', e.target.value)}>
+                {FONT_OPTIONS.map(font => <option key={font} value={font}>{font}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="extraText">Standard tekst over signatur</Label>
+              <Input id="extraText" value={signatureData.extraText} onChange={e => handleInputChange('extraText', e.target.value)} placeholder="F.eks. 'Du er altid velkommen til at kontakte mig'" />
+            </div>
+          </div>
+
           {/* Personal Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">

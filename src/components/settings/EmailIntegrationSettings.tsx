@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { Mail, Server, Key, Shield, CheckCircle } from 'lucide-react';
+import { useOffice365Integration } from '@/hooks/useOffice365Integration';
 
 interface EmailConfig {
   provider: 'smtp' | 'resend' | 'sendgrid';
@@ -41,6 +41,10 @@ export const EmailIntegrationSettings = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const [officeClientId, setOfficeClientId] = useState('');
+  const [officeClientSecret, setOfficeClientSecret] = useState('');
+  const [officeTenantId, setOfficeTenantId] = useState('');
+  const { saveCredentials, status: officeStatus, error: officeError } = useOffice365Integration();
 
   useEffect(() => {
     const savedConfig = localStorage.getItem('email-config');
@@ -118,6 +122,10 @@ export const EmailIntegrationSettings = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSaveOffice365 = async () => {
+    await saveCredentials(officeClientId, officeClientSecret, officeTenantId);
   };
 
   return (
@@ -271,6 +279,60 @@ export const EmailIntegrationSettings = () => {
               </div>
             </div>
           )}
+
+          {/* Office 365 Integration Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                Office 365 / Microsoft 365 (Graph API) Integration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-sm text-gray-700 mb-2">
+                <b>OBS:</b> Dine Office 365 nøgler gemmes <u>aldrig</u> i browseren eller frontend – de sendes kun sikkert til backend (Supabase) og kan kun læses af systemet.
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="officeClientId">Client ID</Label>
+                  <Input id="officeClientId" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value={officeClientId} onChange={e => setOfficeClientId(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="officeClientSecret">Client Secret</Label>
+                  <Input id="officeClientSecret" type="password" placeholder="••••••••••••••••••••••••" value={officeClientSecret} onChange={e => setOfficeClientSecret(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="officeTenantId">Tenant ID</Label>
+                  <Input id="officeTenantId" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value={officeTenantId} onChange={e => setOfficeTenantId(e.target.value)} />
+                </div>
+              </div>
+              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveOffice365} disabled={officeStatus === 'saving'}>
+                {officeStatus === 'saving' ? 'Gemmer...' : 'Gem Office 365 nøgler'}
+              </Button>
+              {officeStatus === 'success' && <div className="text-green-600 text-sm">Nøgler gemt!</div>}
+              {officeError && <div className="text-red-600 text-sm">{officeError}</div>}
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-semibold mb-2">Sådan finder du dine Office 365 nøgler (Azure App Registration)</h4>
+                <ol className="list-decimal list-inside space-y-1 text-sm">
+                  <li>Gå til <a href="https://portal.azure.com/" target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">Azure Portal</a></li>
+                  <li>Søg efter <b>App registrations</b> &rarr; <b>New registration</b></li>
+                  <li>Giv appen et navn, fx <i>CRM Ticket Integration</i></li>
+                  <li>Vælg <b>Accounts in this organizational directory only</b></li>
+                  <li>Redirect URI kan være tom eller fx <i>https://localhost</i></li>
+                  <li>Klik <b>Register</b></li>
+                  <li>Kopiér <b>Application (client) ID</b> og <b>Directory (tenant) ID</b></li>
+                  <li>Gå til <b>Certificates & secrets</b> &rarr; <b>New client secret</b> &rarr; kopier værdien</li>
+                  <li>Gå til <b>API permissions</b> &rarr; <b>Add a permission</b> &rarr; <b>Microsoft Graph</b> &rarr; <b>Application permissions</b>:
+                    <ul className="list-disc list-inside ml-4">
+                      <li>Tilføj: <code>Mail.Read</code>, <code>Mail.ReadWrite</code>, <code>MailboxSettings.Read</code>, <code>User.Read.All</code></li>
+                    </ul>
+                  </li>
+                  <li>Klik <b>Grant admin consent</b> (kræver admin-rettigheder)</li>
+                </ol>
+                <div className="mt-2 text-xs text-gray-500">Spørg evt. din IT-administrator hvis du ikke har adgang til Azure Portal.</div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-4 border-t">

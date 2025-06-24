@@ -9,6 +9,132 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      customers: {
+        Row: {
+          adresse: string | null
+          by: string | null
+          created_at: string
+          cvr: string | null
+          email: string
+          id: string
+          kundetype: string | null
+          navn: string | null
+          noter: string | null
+          postnummer: string | null
+          score: number | null
+          telefon: string | null
+          updated_at: string
+          virksomhedsnavn: string | null
+        }
+        Insert: {
+          adresse?: string | null
+          by?: string | null
+          created_at?: string
+          cvr?: string | null
+          email: string
+          id?: string
+          kundetype?: string | null
+          navn?: string | null
+          noter?: string | null
+          postnummer?: string | null
+          score?: number | null
+          telefon?: string | null
+          updated_at?: string
+          virksomhedsnavn?: string | null
+        }
+        Update: {
+          adresse?: string | null
+          by?: string | null
+          created_at?: string
+          cvr?: string | null
+          email?: string
+          id?: string
+          kundetype?: string | null
+          navn?: string | null
+          noter?: string | null
+          postnummer?: string | null
+          score?: number | null
+          telefon?: string | null
+          updated_at?: string
+          virksomhedsnavn?: string | null
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          adresse: string | null
+          ai_enriched_data: Json | null
+          ai_enrichment_notes: string[] | null
+          ai_last_enriched_at: string | null
+          ai_last_scored_at: string | null
+          ai_score: number | null
+          ai_score_factors: string[] | null
+          by: string | null
+          created_at: string
+          email: string
+          id: string
+          navn: string
+          noter: string | null
+          postnummer: string | null
+          prioritet: string | null
+          sidste_kontakt: string | null
+          status: string | null
+          telefon: string | null
+          updated_at: string
+          uploads: Json | null
+          vaerdi: number | null
+          virksomhed: string | null
+        }
+        Insert: {
+          adresse?: string | null
+          ai_enriched_data?: Json | null
+          ai_enrichment_notes?: string[] | null
+          ai_last_enriched_at?: string | null
+          ai_last_scored_at?: string | null
+          ai_score?: number | null
+          ai_score_factors?: string[] | null
+          by?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          navn: string
+          noter?: string | null
+          postnummer?: string | null
+          prioritet?: string | null
+          sidste_kontakt?: string | null
+          status?: string | null
+          telefon?: string | null
+          updated_at?: string
+          uploads?: Json | null
+          vaerdi?: number | null
+          virksomhed?: string | null
+        }
+        Update: {
+          adresse?: string | null
+          ai_enriched_data?: Json | null
+          ai_enrichment_notes?: string[] | null
+          ai_last_enriched_at?: string | null
+          ai_last_scored_at?: string | null
+          ai_score?: number | null
+          ai_score_factors?: string[] | null
+          by?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          navn?: string
+          noter?: string | null
+          postnummer?: string | null
+          prioritet?: string | null
+          sidste_kontakt?: string | null
+          status?: string | null
+          telefon?: string | null
+          updated_at?: string
+          uploads?: Json | null
+          vaerdi?: number | null
+          virksomhed?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -168,6 +294,39 @@ export type Database = {
           },
         ]
       }
+      user_signatures: {
+        Row: {
+          created_at: string | null
+          extra_text: string | null
+          font_family: string | null
+          html: string
+          id: string
+          plain: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          extra_text?: string | null
+          font_family?: string | null
+          html: string
+          id?: string
+          plain?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          extra_text?: string | null
+          font_family?: string | null
+          html?: string
+          id?: string
+          plain?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           avatar_url: string | null
@@ -212,8 +371,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      avg_response_time_for_customer: {
+        Args: { customer_email_input: string }
+        Returns: {
+          avg: number
+        }[]
+      }
+      calculate_customer_score: {
+        Args: { customer_email_param: string }
+        Returns: number
+      }
       generate_ticket_number: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      update_customer_type: {
+        Args: { customer_email_param: string }
         Returns: string
       }
     }
