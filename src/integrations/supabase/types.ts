@@ -60,63 +60,6 @@ export type Database = {
         }
         Relationships: []
       }
-      integration_secrets: {
-        Row: {
-          created_at: string | null
-          id: string
-          key_name: string
-          key_value: string
-          provider: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          key_name: string
-          key_value: string
-          provider: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          key_name?: string
-          key_value?: string
-          provider?: string
-        }
-        Relationships: []
-      }
-      kanban_columns: {
-        Row: {
-          color: string
-          column_id: string
-          created_at: string | null
-          id: number
-          is_active: boolean | null
-          sort_order: number
-          title: string
-          updated_at: string | null
-        }
-        Insert: {
-          color: string
-          column_id: string
-          created_at?: string | null
-          id?: number
-          is_active?: boolean | null
-          sort_order: number
-          title: string
-          updated_at?: string | null
-        }
-        Update: {
-          color?: string
-          column_id?: string
-          created_at?: string | null
-          id?: number
-          is_active?: boolean | null
-          sort_order?: number
-          title?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       leads: {
         Row: {
           adresse: string | null
