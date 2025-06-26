@@ -9,11 +9,38 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      authorized_emails: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          email: string
+          id: string
+          is_active: boolean | null
+          notes: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          email: string
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          email?: string
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           adresse: string | null
           by: string | null
-          created_at: string
+          created_at: string | null
           cvr: string | null
           email: string
           id: string
@@ -23,13 +50,13 @@ export type Database = {
           postnummer: string | null
           score: number | null
           telefon: string | null
-          updated_at: string
+          updated_at: string | null
           virksomhedsnavn: string | null
         }
         Insert: {
           adresse?: string | null
           by?: string | null
-          created_at?: string
+          created_at?: string | null
           cvr?: string | null
           email: string
           id?: string
@@ -39,13 +66,13 @@ export type Database = {
           postnummer?: string | null
           score?: number | null
           telefon?: string | null
-          updated_at?: string
+          updated_at?: string | null
           virksomhedsnavn?: string | null
         }
         Update: {
           adresse?: string | null
           by?: string | null
-          created_at?: string
+          created_at?: string | null
           cvr?: string | null
           email?: string
           id?: string
@@ -55,8 +82,65 @@ export type Database = {
           postnummer?: string | null
           score?: number | null
           telefon?: string | null
-          updated_at?: string
+          updated_at?: string | null
           virksomhedsnavn?: string | null
+        }
+        Relationships: []
+      }
+      integration_secrets: {
+        Row: {
+          created_at: string | null
+          id: string
+          key_name: string
+          key_value: string
+          provider: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          key_name: string
+          key_value: string
+          provider: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          key_name?: string
+          key_value?: string
+          provider?: string
+        }
+        Relationships: []
+      }
+      kanban_columns: {
+        Row: {
+          color: string
+          column_id: string
+          created_at: string | null
+          id: number
+          is_active: boolean | null
+          sort_order: number
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          color: string
+          column_id: string
+          created_at?: string | null
+          id?: number
+          is_active?: boolean | null
+          sort_order: number
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string
+          column_id?: string
+          created_at?: string | null
+          id?: number
+          is_active?: boolean | null
+          sort_order?: number
+          title?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -70,9 +154,10 @@ export type Database = {
           ai_score: number | null
           ai_score_factors: string[] | null
           by: string | null
-          created_at: string
+          created_at: string | null
           email: string
           id: string
+          kilde: string | null
           navn: string
           noter: string | null
           postnummer: string | null
@@ -80,7 +165,7 @@ export type Database = {
           sidste_kontakt: string | null
           status: string | null
           telefon: string | null
-          updated_at: string
+          updated_at: string | null
           uploads: Json | null
           vaerdi: number | null
           virksomhed: string | null
@@ -94,9 +179,10 @@ export type Database = {
           ai_score?: number | null
           ai_score_factors?: string[] | null
           by?: string | null
-          created_at?: string
+          created_at?: string | null
           email: string
           id?: string
+          kilde?: string | null
           navn: string
           noter?: string | null
           postnummer?: string | null
@@ -104,7 +190,7 @@ export type Database = {
           sidste_kontakt?: string | null
           status?: string | null
           telefon?: string | null
-          updated_at?: string
+          updated_at?: string | null
           uploads?: Json | null
           vaerdi?: number | null
           virksomhed?: string | null
@@ -118,9 +204,10 @@ export type Database = {
           ai_score?: number | null
           ai_score_factors?: string[] | null
           by?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string
           id?: string
+          kilde?: string | null
           navn?: string
           noter?: string | null
           postnummer?: string | null
@@ -128,7 +215,7 @@ export type Database = {
           sidste_kontakt?: string | null
           status?: string | null
           telefon?: string | null
-          updated_at?: string
+          updated_at?: string | null
           uploads?: Json | null
           vaerdi?: number | null
           virksomhed?: string | null
@@ -138,30 +225,30 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
-          created_at: string
+          created_at: string | null
           email: string | null
           full_name: string | null
           id: string
           role: string | null
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string | null
           full_name?: string | null
           id: string
           role?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
           role?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -169,88 +256,113 @@ export type Database = {
         Row: {
           assignee_id: string | null
           content: string | null
-          created_at: string
+          created_at: string | null
           customer_email: string
           customer_name: string | null
+          email_message_id: string | null
+          email_received_at: string | null
+          email_thread_id: string | null
           id: string
+          last_outgoing_message_id: string | null
           last_response_at: string | null
-          priority: string
+          mailbox_address: string | null
+          original_message_id: string | null
+          priority: string | null
           response_time_hours: number | null
-          status: string
+          source: string | null
+          status: string | null
           subject: string
           ticket_number: string
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           assignee_id?: string | null
           content?: string | null
-          created_at?: string
+          created_at?: string | null
           customer_email: string
           customer_name?: string | null
+          email_message_id?: string | null
+          email_received_at?: string | null
+          email_thread_id?: string | null
           id?: string
+          last_outgoing_message_id?: string | null
           last_response_at?: string | null
-          priority?: string
+          mailbox_address?: string | null
+          original_message_id?: string | null
+          priority?: string | null
           response_time_hours?: number | null
-          status?: string
+          source?: string | null
+          status?: string | null
           subject: string
           ticket_number: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           assignee_id?: string | null
           content?: string | null
-          created_at?: string
+          created_at?: string | null
           customer_email?: string
           customer_name?: string | null
+          email_message_id?: string | null
+          email_received_at?: string | null
+          email_thread_id?: string | null
           id?: string
+          last_outgoing_message_id?: string | null
           last_response_at?: string | null
-          priority?: string
+          mailbox_address?: string | null
+          original_message_id?: string | null
+          priority?: string | null
           response_time_hours?: number | null
-          status?: string
+          source?: string | null
+          status?: string | null
           subject?: string
           ticket_number?: string
-          updated_at?: string
+          updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "support_tickets_assignee_id_fkey"
-            columns: ["assignee_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       ticket_messages: {
         Row: {
           attachments: Json | null
-          created_at: string
+          created_at: string | null
+          email_message_id: string | null
           id: string
+          in_reply_to_message_id: string | null
           is_ai_generated: boolean | null
           is_internal: boolean | null
           message_content: string
+          message_type: string | null
+          references_header: string | null
           sender_email: string
           sender_name: string | null
           ticket_id: string | null
         }
         Insert: {
           attachments?: Json | null
-          created_at?: string
+          created_at?: string | null
+          email_message_id?: string | null
           id?: string
+          in_reply_to_message_id?: string | null
           is_ai_generated?: boolean | null
           is_internal?: boolean | null
           message_content: string
+          message_type?: string | null
+          references_header?: string | null
           sender_email: string
           sender_name?: string | null
           ticket_id?: string | null
         }
         Update: {
           attachments?: Json | null
-          created_at?: string
+          created_at?: string | null
+          email_message_id?: string | null
           id?: string
+          in_reply_to_message_id?: string | null
           is_ai_generated?: boolean | null
           is_internal?: boolean | null
           message_content?: string
+          message_type?: string | null
+          references_header?: string | null
           sender_email?: string
           sender_name?: string | null
           ticket_id?: string | null
@@ -267,19 +379,19 @@ export type Database = {
       }
       ticket_tags: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: string
           tag_name: string
           ticket_id: string | null
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           tag_name: string
           ticket_id?: string | null
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           tag_name?: string
           ticket_id?: string | null
@@ -327,45 +439,6 @@ export type Database = {
         }
         Relationships: []
       }
-      users: {
-        Row: {
-          avatar_url: string | null
-          created_at: string
-          email: string | null
-          full_name: string | null
-          id: string
-          image: string | null
-          name: string | null
-          token_identifier: string
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string
-          email?: string | null
-          full_name?: string | null
-          id: string
-          image?: string | null
-          name?: string | null
-          token_identifier: string
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string
-          email?: string | null
-          full_name?: string | null
-          id?: string
-          image?: string | null
-          name?: string | null
-          token_identifier?: string
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
@@ -383,10 +456,6 @@ export type Database = {
       }
       generate_ticket_number: {
         Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      update_customer_type: {
-        Args: { customer_email_param: string }
         Returns: string
       }
     }

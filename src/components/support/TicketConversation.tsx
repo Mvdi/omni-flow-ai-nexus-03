@@ -6,11 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useState, useEffect } from 'react';
-import { SupportTicket, TicketMessage, useTicketMessages, useUpdateTicket, useAddTicketMessage } from '@/hooks/useTickets';
+import { SupportTicket, useUpdateTicket, useAddTicketMessage } from '@/hooks/useTickets';
+import { useTicketMessages } from '@/hooks/useTicketMessages';
 import { CustomerInfo } from '@/components/support/CustomerInfo';
 import { formatDistanceToNow } from 'date-fns';
 import { da } from 'date-fns/locale';
-import { Send, Bot, User, Clock, Mail, Tag, Sparkles } from 'lucide-react';
+import { Send, Bot, User, Clock, Mail, Tag, Sparkles, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -33,7 +34,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const [signatureHtml, setSignatureHtml] = useState('');
   const { toast } = useToast();
   
-  const { data: messages = [], isLoading } = useTicketMessages(ticket.id);
+  const { data: messages = [], isLoading, error, isError } = useTicketMessages(ticket.id);
   const updateTicket = useUpdateTicket();
   const addMessage = useAddTicketMessage();
 
@@ -157,8 +158,28 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
     }
   };
 
+  // Show error state if there's an error
+  if (isError) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-red-600 mb-4">Der opstod en fejl ved indlæsning af samtalen.</p>
+        <Button onClick={() => window.location.reload()}>
+          Genindlæs siden
+        </Button>
+      </div>
+    );
+  }
+
+  // Show loading state
   if (isLoading) {
-    return <div className="p-6 text-center">Indlæser conversation...</div>;
+    return (
+      <div className="p-6 text-center">
+        <div className="flex items-center justify-center gap-2">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Indlæser conversation...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -227,32 +248,37 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
       <Card className="flex-1 flex flex-col">
         <CardContent className="flex-1 flex flex-col p-0">
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {/* Initial ticket content */}
-            <div className="flex gap-3">
-              <Avatar className="h-8 w-8 mt-1">
-                <AvatarFallback className="bg-blue-100 text-blue-600">
-                  {getCustomerInitials(ticket.customer_name, ticket.customer_email)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-medium text-sm">
-                      {ticket.customer_name || ticket.customer_email}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {formatDistanceToNow(new Date(ticket.created_at), { 
-                        addSuffix: true, 
-                        locale: da 
-                      })}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {ticket.content}
+            {/* Initial ticket content - only show if not duplicated in messages */}
+            {ticket.content && !messages.some(msg => 
+              msg.sender_email === ticket.customer_email && 
+              msg.message_content.includes(ticket.content?.substring(0, 50) || '')
+            ) && (
+              <div className="flex gap-3">
+                <Avatar className="h-8 w-8 mt-1">
+                  <AvatarFallback className="bg-blue-100 text-blue-600">
+                    {getCustomerInitials(ticket.customer_name, ticket.customer_email)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-medium text-sm">
+                        {ticket.customer_name || ticket.customer_email}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {formatDistanceToNow(new Date(ticket.created_at), { 
+                          addSuffix: true, 
+                          locale: da 
+                        })}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {ticket.content}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Additional messages */}
             {messages.map((message) => (
