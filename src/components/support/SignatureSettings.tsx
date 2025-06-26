@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,20 @@ export const SignatureSettings = () => {
           .eq('user_id', user.id)
           .single();
         if (data) {
-          setSignatureData({ ...signatureData, ...data, images: data.images || [] });
+          // Parse images from plain text if stored as JSON string
+          let images = [];
+          try {
+            if (data.plain && data.plain.includes('[{')) {
+              images = JSON.parse(data.plain.split('IMAGES:')[1] || '[]');
+            }
+          } catch {}
+          setSignatureData({ 
+            ...signatureData, 
+            ...data, 
+            images: images,
+            fontFamily: data.font_family || 'Arial',
+            extraText: data.extra_text || ''
+          });
         } else if (error && error.code !== 'PGRST116') {
           toast({ title: 'Fejl', description: 'Kunne ikke hente signatur fra cloud.', variant: 'destructive' });
         }
@@ -134,24 +148,28 @@ export const SignatureSettings = () => {
     // Save to Supabase
     const user = (await supabase.auth.getUser()).data.user;
     if (user) {
+      const plainTextSignature = [
+        signatureData.name,
+        signatureData.title,
+        signatureData.company,
+        signatureData.email,
+        signatureData.phone,
+        signatureData.website,
+        signatureData.address,
+        signatureData.customText,
+        signatureData.images.length > 0 ? `IMAGES:${JSON.stringify(signatureData.images)}` : ''
+      ].filter(Boolean).join('\n');
+
       const { error } = await supabase.from('user_signatures').upsert({
         user_id: user.id,
         html: generateSignatureHtml(),
-        plain: [
-          signatureData.name,
-          signatureData.title,
-          signatureData.company,
-          signatureData.email,
-          signatureData.phone,
-          signatureData.website,
-          signatureData.address,
-          signatureData.customText
-        ].filter(Boolean).join('\n'),
+        plain: plainTextSignature,
         font_family: signatureData.fontFamily,
-        extra_text: signatureData.extraText,
-        images: signatureData.images
-      }, { onConflict: ['user_id'] });
+        extra_text: signatureData.extraText
+      }, { onConflict: 'user_id' });
+      
       if (error) {
+        console.error('Supabase signature save error:', error);
         toast({ title: 'Fejl', description: 'Kunne ikke gemme signatur i cloud.', variant: 'destructive' });
       }
     }
@@ -338,8 +356,8 @@ export const SignatureSettings = () => {
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-4 border-t">
-            <Button onClick={handleSaveSignature} className="bg-orange-600 hover:bg-orange-700">
-              Gem Signatur
+            <Button onClick={handleSaveSignature} className="bg-orange-600 hover:bg-orange-700" disabled={loading}>
+              {loading ? 'Gemmer...' : 'Gem Signatur'}
             </Button>
             <Button 
               variant="outline" 

@@ -87,6 +87,39 @@ export type Database = {
         }
         Relationships: []
       }
+      email_sync_log: {
+        Row: {
+          emails_processed: number | null
+          error_details: string | null
+          errors_count: number | null
+          id: string
+          mailbox_address: string
+          status: string | null
+          sync_completed_at: string | null
+          sync_started_at: string | null
+        }
+        Insert: {
+          emails_processed?: number | null
+          error_details?: string | null
+          errors_count?: number | null
+          id?: string
+          mailbox_address: string
+          status?: string | null
+          sync_completed_at?: string | null
+          sync_started_at?: string | null
+        }
+        Update: {
+          emails_processed?: number | null
+          error_details?: string | null
+          errors_count?: number | null
+          id?: string
+          mailbox_address?: string
+          status?: string | null
+          sync_completed_at?: string | null
+          sync_started_at?: string | null
+        }
+        Relationships: []
+      }
       integration_secrets: {
         Row: {
           created_at: string | null
@@ -219,6 +252,36 @@ export type Database = {
           uploads?: Json | null
           vaerdi?: number | null
           virksomhed?: string | null
+        }
+        Relationships: []
+      }
+      monitored_mailboxes: {
+        Row: {
+          created_at: string | null
+          email_address: string
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          sync_token: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email_address: string
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          sync_token?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email_address?: string
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          sync_token?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
