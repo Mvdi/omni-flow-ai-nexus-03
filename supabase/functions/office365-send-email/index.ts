@@ -151,7 +151,7 @@ serve(async (req) => {
       }
     }
 
-    // Opbyg email med signatur - kun tilføj hvis der er en signatur
+    // Opbyg email med signatur
     const emailBody = signature 
       ? `${message_content}<br><br>${signature}`
       : message_content;
@@ -191,6 +191,7 @@ serve(async (req) => {
     const sendUrl = `https://graph.microsoft.com/v1.0/users/${fromAddress}/sendMail`;
 
     console.log(`Sending email from ${fromAddress} to ${ticket.customer_email}`);
+    console.log('Email message payload:', JSON.stringify(emailMessage, null, 2));
     
     const sendResponse = await fetch(sendUrl, {
       method: 'POST',
@@ -212,7 +213,7 @@ serve(async (req) => {
 
     console.log('Email sent successfully via Microsoft Graph');
 
-    // Opret ticket message record - brug 'internal' som message_type da det er en tilladt værdi
+    // Opret ticket message record
     const { error: messageError } = await supabase
       .from('ticket_messages')
       .insert({
@@ -220,7 +221,7 @@ serve(async (req) => {
         sender_email: fromAddress,
         sender_name: sender_name || 'Support Agent',
         message_content: message_content,
-        message_type: 'internal',
+        message_type: 'outgoing',
         is_internal: false
       });
 
@@ -253,14 +254,14 @@ serve(async (req) => {
       to: ticket.customer_email
     }), {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: corsHeaders
     });
 
   } catch (error) {
     console.error('Send email error:', error);
     return new Response(JSON.stringify({ error: String(error) }), { 
       status: 500, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: corsHeaders 
     });
   }
 });
