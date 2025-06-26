@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Save, Eye, EyeOff } from 'lucide-react';
 
 export const SignatureSettings = () => {
@@ -19,26 +18,20 @@ export const SignatureSettings = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      loadSignature();
-    }
-  }, [user]);
+    loadSignature();
+  }, []);
 
   const loadSignature = async () => {
-    if (!user) return;
-    
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('user_signatures')
         .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .single();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         throw error;
       }
 
@@ -69,21 +62,11 @@ export const SignatureSettings = () => {
   };
 
   const saveSignature = async () => {
-    if (!user) {
-      toast({
-        title: "Fejl", 
-        description: "Du skal være logget ind for at gemme signatur",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsSaving(true);
     try {
       const plainText = signature.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
       
       const signatureData = {
-        user_id: user.id,
         html: signature,
         plain: plainText,
         font_family: fontFamily,
@@ -124,20 +107,6 @@ export const SignatureSettings = () => {
       </div>
     `;
   };
-
-  if (!user) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center">
-              <p className="text-gray-600">Du skal være logget ind for at administrere signaturer.</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
