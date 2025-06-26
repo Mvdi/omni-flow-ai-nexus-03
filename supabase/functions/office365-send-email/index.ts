@@ -151,7 +151,7 @@ serve(async (req) => {
       }
     }
 
-    // Opbyg email med signatur
+    // Opbyg email med signatur - kun tilføj hvis der er en signatur
     const emailBody = signature 
       ? `${message_content}<br><br>${signature}`
       : message_content;
@@ -220,8 +220,8 @@ serve(async (req) => {
         sender_email: fromAddress,
         sender_name: sender_name || 'Support Agent',
         message_content: message_content,
-        message_type: 'internal', // Brug 'internal' i stedet for 'outbound'
-        is_internal: false // Marker som ikke intern da det er en email til kunden
+        message_type: 'internal',
+        is_internal: false
       });
 
     if (messageError) {
@@ -253,14 +253,14 @@ serve(async (req) => {
       to: ticket.customer_email
     }), {
       status: 200,
-      headers: corsHeaders
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
     console.error('Send email error:', error);
     return new Response(JSON.stringify({ error: String(error) }), { 
       status: 500, 
-      headers: corsHeaders 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
