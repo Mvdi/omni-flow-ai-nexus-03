@@ -156,7 +156,7 @@ serve(async (req) => {
       ? `${message_content}<br><br>${signature}`
       : message_content;
 
-    // Forbered email med korrekt reply headers
+    // Forbered email med korrekt reply headers - brug x- prefix for custom headers
     const emailMessage = {
       message: {
         subject: ticket.subject.startsWith('Re:') ? ticket.subject : `Re: ${ticket.subject}`,
@@ -174,11 +174,11 @@ serve(async (req) => {
         ],
         internetMessageHeaders: [
           ...(ticket.email_message_id ? [{
-            name: 'In-Reply-To',
+            name: 'X-In-Reply-To',
             value: ticket.email_message_id
           }] : []),
           ...(ticket.email_thread_id ? [{
-            name: 'References',
+            name: 'X-References',
             value: ticket.email_thread_id
           }] : [])
         ]
@@ -191,6 +191,7 @@ serve(async (req) => {
     const sendUrl = `https://graph.microsoft.com/v1.0/users/${fromAddress}/sendMail`;
 
     console.log(`Sending email from ${fromAddress} to ${ticket.customer_email}`);
+    console.log('Email message payload:', JSON.stringify(emailMessage, null, 2));
     
     const sendResponse = await fetch(sendUrl, {
       method: 'POST',
