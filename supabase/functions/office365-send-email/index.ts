@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -211,7 +212,7 @@ serve(async (req) => {
 
     console.log('Email sent successfully via Microsoft Graph');
 
-    // Opret ticket message record
+    // Opret ticket message record - brug 'internal' som message_type da det er en tilladt værdi
     const { error: messageError } = await supabase
       .from('ticket_messages')
       .insert({
@@ -219,8 +220,8 @@ serve(async (req) => {
         sender_email: fromAddress,
         sender_name: sender_name || 'Support Agent',
         message_content: message_content,
-        message_type: 'outbound',
-        is_internal: false
+        message_type: 'internal', // Brug 'internal' i stedet for 'outbound'
+        is_internal: false // Marker som ikke intern da det er en email til kunden
       });
 
     if (messageError) {
