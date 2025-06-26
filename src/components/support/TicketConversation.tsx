@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { useState, useEffect } from 'react';
 import { SupportTicket, useUpdateTicket, useAddTicketMessage } from '@/hooks/useTickets';
 import { useTicketMessages } from '@/hooks/useTicketMessages';
-import { CustomerInfo } from '@/components/support/CustomerInfo';
+import { useOffice365EmailSender } from '@/hooks/useOffice365EmailSender';
 import { formatDistanceToNow } from 'date-fns';
 import { da } from 'date-fns/locale';
 import { Send, Bot, User, Clock, Mail, Tag, Sparkles, Loader2 } from 'lucide-react';
@@ -37,20 +37,39 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const { data: messages = [], isLoading, error, isError } = useTicketMessages(ticket.id);
   const updateTicket = useUpdateTicket();
   const addMessage = useAddTicketMessage();
+  const { sendEmail, isSending } = useOffice365EmailSender();
 
   useEffect(() => {
-    // Load the HTML signature from localStorage
-    const savedSignatureHtml = localStorage.getItem('signature-html');
-    if (savedSignatureHtml) {
-      setSignatureHtml(savedSignatureHtml);
-      console.log('Loaded signature HTML:', savedSignatureHtml);
-    } else {
-      // Fallback to simple text signature if no HTML signature exists
-      const savedSignature = localStorage.getItem('support-signature');
-      if (savedSignature) {
-        setSignatureHtml(savedSignature.replace(/\n/g, '<br>'));
+    const loadSignature = async () => {
+      try {
+        const user = (await supabase.auth.getUser()).data.user;
+        if (user) {
+          const { data: userSignature } = await supabase
+            .from('user_signatures')
+            .select('html')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (userSignature?.html) {
+            setSignatureHtml(userSignature.html);
+            console.log('Loaded signature HTML from database:', userSignature.html);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading signature:', error);
       }
-    }
+      
+      // Fallback to localStorage
+      if (!signatureHtml) {
+        const savedSignatureHtml = localStorage.getItem('signature-html');
+        if (savedSignatureHtml) {
+          setSignatureHtml(savedSignatureHtml);
+          console.log('Loaded signature HTML from localStorage:', savedSignatureHtml);
+        }
+      }
+    };
+    
+    loadSignature();
   }, []);
 
   const handleStatusChange = (newStatus: string) => {
@@ -67,29 +86,30 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
     });
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
     
-    let messageWithSignature = newMessage;
-    
-    // Always add signature if it exists
-    if (signatureHtml) {
-      messageWithSignature = `${newMessage}\n\n${signatureHtml}`;
+    try {
+      console.log('Sending email via Office 365...');
+      
+      // Send email via Office 365
+      await sendEmail({
+        ticket_id: ticket.id,
+        message_content: newMessage,
+        sender_name: 'Support Team'
+      });
+      
+      console.log('Email sent successfully via Office 365');
+      setNewMessage('');
+      
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      toast({
+        title: "Fejl ved afsendelse",
+        description: "Kunne ikke sende email. Prøv igen senere.",
+        variant: "destructive",
+      });
     }
-    
-    console.log('Sending message with signature:', messageWithSignature);
-    
-    addMessage.mutate({
-      ticket_id: ticket.id,
-      sender_email: 'support@company.com',
-      sender_name: 'Support Team',
-      message_content: messageWithSignature,
-      is_internal: false,
-      is_ai_generated: false,
-      attachments: []
-    });
-    
-    setNewMessage('');
   };
 
   const generateAiResponse = async () => {
@@ -131,6 +151,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
     setAiSuggestion('');
   };
 
+  // ... keep existing code (getStatusColor, getCustomerInitials, getPriorityColor functions)
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Åben': return 'bg-red-100 text-red-800';
@@ -390,10 +411,10 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
               />
               <Button 
                 onClick={handleSendMessage}
-                disabled={!newMessage.trim() || addMessage.isPending}
+                disabled={!newMessage.trim() || isSending}
                 className="self-end"
               >
-                <Send className="h-4 w-4" />
+                {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
             {signatureHtml && (

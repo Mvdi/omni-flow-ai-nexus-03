@@ -54,6 +54,8 @@ serve(async (req) => {
       });
     }
 
+    console.log('Processing email send request for ticket:', ticket_id);
+
     // Hent ticket information
     const { data: ticket, error: ticketError } = await supabase
       .from('support_tickets')
@@ -68,6 +70,8 @@ serve(async (req) => {
         headers: corsHeaders 
       });
     }
+
+    console.log('Found ticket:', ticket.ticket_number);
 
     // Hent Office 365 credentials
     const { data: secrets, error: secretsError } = await supabase
@@ -126,6 +130,7 @@ serve(async (req) => {
     }
 
     const tokenData: GraphTokenResponse = await tokenResponse.json();
+    console.log('Successfully obtained access token');
 
     // Hent bruger signatur
     const authHeader = req.headers.get("authorization");
@@ -141,6 +146,7 @@ serve(async (req) => {
           .single();
         if (userSignature?.html) {
           signature = userSignature.html;
+          console.log('Using user signature');
         }
       }
     }
@@ -198,13 +204,13 @@ serve(async (req) => {
     if (!sendResponse.ok) {
       const sendError = await sendResponse.text();
       console.error('Failed to send email:', sendError);
-      return new Response(JSON.stringify({ error: "Failed to send email" }), { 
+      return new Response(JSON.stringify({ error: "Failed to send email", details: sendError }), { 
         status: 500, 
         headers: corsHeaders 
       });
     }
 
-    console.log('Email sent successfully');
+    console.log('Email sent successfully via Microsoft Graph');
 
     // Opret ticket message record
     const { error: messageError } = await supabase
@@ -220,6 +226,8 @@ serve(async (req) => {
 
     if (messageError) {
       console.error('Failed to save outgoing message:', messageError);
+    } else {
+      console.log('Saved outgoing message to database');
     }
 
     // Opdater ticket status og response time
@@ -234,6 +242,8 @@ serve(async (req) => {
 
     if (ticketUpdateError) {
       console.error('Failed to update ticket:', ticketUpdateError);
+    } else {
+      console.log('Updated ticket status');
     }
 
     return new Response(JSON.stringify({ 

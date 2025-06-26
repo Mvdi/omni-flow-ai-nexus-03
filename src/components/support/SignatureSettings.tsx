@@ -120,26 +120,63 @@ export const SignatureSettings = () => {
 
   const generateSignatureHtml = () => {
     const { name, title, company, email, phone, website, address, customText, images, fontFamily, extraText } = signatureData;
-    let html = `<div style="font-family: ${fontFamily}, sans-serif; font-size: 14px; line-height: 1.4; color: #333;">`;
-    if (extraText) html += `<div style="margin-bottom: 8px;">${extraText.replace(/\n/g, '<br>')}</div>`;
-    if (name) html += `<div style="font-weight: bold; font-size: 16px; margin-bottom: 4px;">${name}</div>`;
-    if (title) html += `<div style="color: #666; margin-bottom: 2px;">${title}</div>`;
-    if (company) html += `<div style="font-weight: 500; margin-bottom: 8px;">${company}</div>`;
-    html += '<div style="margin-bottom: 8px;">';
-    if (email) html += `<div>✉ <a href="mailto:${email}" style="color: #0066cc; text-decoration: none;">${email}</a></div>`;
-    if (phone) html += `<div>📞 <a href="tel:${phone}" style="color: #0066cc; text-decoration: none;">${phone}</a></div>`;
-    if (website) html += `<div>🌐 <a href="${website}" style="color: #0066cc; text-decoration: none;">${website}</a></div>`;
-    html += '</div>';
-    if (address) html += `<div style="color: #666; font-size: 12px; margin-bottom: 8px;">${address}</div>`;
+    
+    // Compact signature layout based on the first image
+    let html = `<div style="font-family: ${fontFamily}, sans-serif; font-size: 14px; line-height: 1.2; color: #333; max-width: 400px;">`;
+    
+    if (extraText) {
+      html += `<div style="margin-bottom: 8px; color: #666;">${extraText.replace(/\n/g, '<br>')}</div>`;
+    }
+    
+    // Main content container with logo and text side by side
+    html += '<div style="display: flex; align-items: flex-start; gap: 12px;">';
+    
+    // Logo section (left side)
     if (images.length > 0) {
-      html += '<div style="margin: 12px 0;">';
+      html += '<div style="flex-shrink: 0;">';
       images.forEach(image => {
-        html += `<img src="${image.url}" alt="${image.alt}" style="max-height: 60px; margin-right: 8px; vertical-align: middle;" />`;
+        html += `<img src="${image.url}" alt="${image.alt}" style="max-height: 50px; max-width: 80px; object-fit: contain;" />`;
       });
       html += '</div>';
     }
-    if (customText) html += `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; color: #666; font-size: 12px;">${customText.replace(/\n/g, '<br>')}</div>`;
-    html += '</div>';
+    
+    // Text content (right side)
+    html += '<div style="flex: 1; min-width: 0;">';
+    
+    if (name) {
+      html += `<div style="font-weight: bold; font-size: 16px; margin-bottom: 2px; color: #333;">${name}</div>`;
+    }
+    if (title) {
+      html += `<div style="color: #666; font-size: 13px; margin-bottom: 2px;">${title}</div>`;
+    }
+    if (company) {
+      html += `<div style="font-weight: 500; color: #444; font-size: 14px; margin-bottom: 6px;">${company}</div>`;
+    }
+    
+    // Contact info in compact format
+    const contactItems = [];
+    if (email) contactItems.push(`<a href="mailto:${email}" style="color: #0066cc; text-decoration: none;">${email}</a>`);
+    if (phone) contactItems.push(`<a href="tel:${phone}" style="color: #0066cc; text-decoration: none;">${phone}</a>`);
+    if (website) contactItems.push(`<a href="${website}" style="color: #0066cc; text-decoration: none;">${website}</a>`);
+    
+    if (contactItems.length > 0) {
+      html += `<div style="font-size: 13px; line-height: 1.3; margin-bottom: 4px;">`;
+      html += contactItems.join('<br>');
+      html += '</div>';
+    }
+    
+    if (address) {
+      html += `<div style="color: #666; font-size: 12px; margin-bottom: 4px;">${address}</div>`;
+    }
+    
+    html += '</div>'; // Close text content div
+    html += '</div>'; // Close main container
+    
+    if (customText) {
+      html += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; color: #666; font-size: 11px;">${customText.replace(/\n/g, '<br>')}</div>`;
+    }
+    
+    html += '</div>'; // Close main wrapper
     return html;
   };
 
@@ -213,7 +250,7 @@ export const SignatureSettings = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="extraText">Standard tekst over signatur</Label>
-              <Input id="extraText" value={signatureData.extraText} onChange={e => handleInputChange('extraText', e.target.value)} placeholder="F.eks. 'Du er altid velkommen til at kontakte mig'" />
+              <Input id="extraText" value={signatureData.extraText} onChange={e => handleInputChange('extraText', e.target.value)} placeholder="F.eks. 'Vi vaskes!'" />
             </div>
           </div>
 
@@ -234,7 +271,7 @@ export const SignatureSettings = () => {
                 id="title"
                 value={signatureData.title}
                 onChange={(e) => handleInputChange('title', e.target.value)}
-                placeholder="Kundeservice specialist"
+                placeholder="Servicetekniker"
               />
             </div>
           </div>
@@ -246,7 +283,7 @@ export const SignatureSettings = () => {
               id="company"
               value={signatureData.company}
               onChange={(e) => handleInputChange('company', e.target.value)}
-              placeholder="Virksomhedens navn"
+              placeholder="MM Multipartner"
             />
           </div>
 
@@ -259,7 +296,7 @@ export const SignatureSettings = () => {
                 type="email"
                 value={signatureData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="din@email.com"
+                placeholder="mani@mmmultipartner.dk"
               />
             </div>
             <div className="space-y-2">
@@ -268,7 +305,7 @@ export const SignatureSettings = () => {
                 id="phone"
                 value={signatureData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
-                placeholder="+45 12 34 56 78"
+                placeholder="39393038"
               />
             </div>
           </div>
@@ -279,7 +316,7 @@ export const SignatureSettings = () => {
               id="website"
               value={signatureData.website}
               onChange={(e) => handleInputChange('website', e.target.value)}
-              placeholder="https://www.virksomhed.dk"
+              placeholder="www.mmmultipartner.dk"
             />
           </div>
 
@@ -289,14 +326,14 @@ export const SignatureSettings = () => {
               id="address"
               value={signatureData.address}
               onChange={(e) => handleInputChange('address', e.target.value)}
-              placeholder="Gadenavn 123, 1234 By, Danmark"
+              placeholder="Adresse info"
             />
           </div>
 
           {/* Images */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label>Billeder i signatur</Label>
+              <Label>Logo/Billeder i signatur</Label>
               <div className="relative">
                 <input
                   type="file"
@@ -313,7 +350,7 @@ export const SignatureSettings = () => {
                   onClick={() => document.getElementById('image-upload')?.click()}
                 >
                   <Upload className="h-4 w-4 mr-2" />
-                  Upload billeder
+                  Upload logo
                 </Button>
               </div>
             </div>
@@ -344,7 +381,7 @@ export const SignatureSettings = () => {
 
           {/* Custom Text */}
           <div className="space-y-2">
-            <Label htmlFor="customText">Brugerdefineret tekst</Label>
+            <Label htmlFor="customText">Brugerdefineret tekst (footer)</Label>
             <Textarea
               id="customText"
               value={signatureData.customText}
