@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -191,7 +190,6 @@ serve(async (req) => {
     const sendUrl = `https://graph.microsoft.com/v1.0/users/${fromAddress}/sendMail`;
 
     console.log(`Sending email from ${fromAddress} to ${ticket.customer_email}`);
-    console.log('Email message payload:', JSON.stringify(emailMessage, null, 2));
     
     const sendResponse = await fetch(sendUrl, {
       method: 'POST',
@@ -221,7 +219,7 @@ serve(async (req) => {
         sender_email: fromAddress,
         sender_name: sender_name || 'Support Agent',
         message_content: message_content,
-        message_type: 'outgoing',
+        message_type: 'outbound',
         is_internal: false
       });
 
