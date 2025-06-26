@@ -14,6 +14,7 @@ import { da } from 'date-fns/locale';
 import { Send, Bot, User, Clock, Mail, Tag, Sparkles, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { EmailRenderer } from './EmailRenderer';
 
 interface TicketConversationProps {
   ticket: SupportTicket;
@@ -272,9 +273,10 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                         })}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                      {ticket.content}
-                    </div>
+                    <EmailRenderer 
+                      content={ticket.content}
+                      isHtml={ticket.content.includes('<')}
+                    />
                   </div>
                 </div>
               </div>
@@ -327,9 +329,9 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                         })}
                       </span>
                     </div>
-                    <div 
-                      className="text-sm text-gray-700 whitespace-pre-wrap"
-                      dangerouslySetInnerHTML={{ __html: formatTextForDisplay(message.message_content) }}
+                    <EmailRenderer 
+                      content={message.message_content}
+                      isHtml={message.message_content.includes('<')}
                     />
                   </div>
                 </div>
