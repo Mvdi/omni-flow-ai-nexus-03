@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useState, useEffect } from 'react';
-import { SupportTicket, useUpdateTicket, useAddTicketMessage } from '@/hooks/useTickets';
+import { SupportTicket, useUpdateTicket } from '@/hooks/useTickets';
 import { useTicketMessages } from '@/hooks/useTicketMessages';
 import { useOffice365EmailSender } from '@/hooks/useOffice365EmailSender';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,6 +15,7 @@ import { da } from 'date-fns/locale';
 import { Send, Bot, User, Clock, Mail, Tag, Sparkles, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface TicketConversationProps {
   ticket: SupportTicket;
@@ -33,10 +35,10 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [signatureHtml, setSignatureHtml] = useState('');
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
-  const { data: messages = [], isLoading, error, isError } = useTicketMessages(ticket.id);
+  const { data: messages = [], isLoading, error, isError, refetch } = useTicketMessages(ticket.id);
   const updateTicket = useUpdateTicket();
-  const addMessage = useAddTicketMessage();
   const { sendEmail, isSending } = useOffice365EmailSender();
 
   useEffect(() => {
@@ -52,7 +54,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
           
           if (userSignature?.html) {
             setSignatureHtml(userSignature.html);
-            console.log('Loaded signature HTML from database:', userSignature.html);
+            console.log('Loaded signature HTML from database');
           }
         }
       } catch (error) {
@@ -64,7 +66,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
         const savedSignatureHtml = localStorage.getItem('signature-html');
         if (savedSignatureHtml) {
           setSignatureHtml(savedSignatureHtml);
-          console.log('Loaded signature HTML from localStorage:', savedSignatureHtml);
+          console.log('Loaded signature HTML from localStorage');
         }
       }
     };
@@ -101,6 +103,12 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
       
       console.log('Email sent successfully via Office 365');
       setNewMessage('');
+      
+      // Refresh messages after sending
+      setTimeout(() => {
+        refetch();
+        queryClient.invalidateQueries({ queryKey: ['ticket-messages', ticket.id] });
+      }, 1000);
       
     } catch (error) {
       console.error('Failed to send email:', error);
@@ -308,7 +316,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                   <AvatarFallback className={
                     message.is_internal 
                       ? "bg-purple-100 text-purple-600" 
-                      : message.sender_email.includes('@company.com')
+                      : message.sender_email.includes('@mmmultipartner.dk')
                       ? "bg-green-100 text-green-600"
                       : "bg-blue-100 text-blue-600"
                   }>
@@ -322,7 +330,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                   <div className={`rounded-lg p-3 ${
                     message.is_internal 
                       ? "bg-purple-50 border border-purple-200" 
-                      : message.sender_email.includes('@company.com')
+                      : message.sender_email.includes('@mmmultipartner.dk')
                       ? "bg-green-50 border border-green-200"
                       : "bg-gray-50"
                   }`}>

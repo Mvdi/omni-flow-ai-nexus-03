@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -121,26 +120,26 @@ export const SignatureSettings = () => {
   const generateSignatureHtml = () => {
     const { name, title, company, email, phone, website, address, customText, images, fontFamily, extraText } = signatureData;
     
-    // Compact signature layout based on the first image
-    let html = `<div style="font-family: ${fontFamily}, sans-serif; font-size: 14px; line-height: 1.2; color: #333; max-width: 400px;">`;
+    // Compact signature layout matching image 2
+    let html = `<div style="font-family: ${fontFamily}, sans-serif; font-size: 14px; line-height: 1.4; color: #333; max-width: 400px;">`;
     
     if (extraText) {
-      html += `<div style="margin-bottom: 8px; color: #666;">${extraText.replace(/\n/g, '<br>')}</div>`;
+      html += `<div style="margin-bottom: 8px; color: #666; font-size: 13px;">${extraText.replace(/\n/g, '<br>')}</div>`;
     }
     
     // Main content container with logo and text side by side
     html += '<div style="display: flex; align-items: flex-start; gap: 12px;">';
     
-    // Logo section (left side)
+    // Logo section (left side) - only if image exists
     if (images.length > 0) {
       html += '<div style="flex-shrink: 0;">';
       images.forEach(image => {
-        html += `<img src="${image.url}" alt="${image.alt}" style="max-height: 50px; max-width: 80px; object-fit: contain;" />`;
+        html += `<img src="${image.url}" alt="${image.alt}" style="max-height: 60px; max-width: 100px; object-fit: contain; display: block;" />`;
       });
       html += '</div>';
     }
     
-    // Text content (right side)
+    // Text content (right side or full width if no logo)
     html += '<div style="flex: 1; min-width: 0;">';
     
     if (name) {
@@ -153,15 +152,22 @@ export const SignatureSettings = () => {
       html += `<div style="font-weight: 500; color: #444; font-size: 14px; margin-bottom: 6px;">${company}</div>`;
     }
     
-    // Contact info in compact format
-    const contactItems = [];
-    if (email) contactItems.push(`<a href="mailto:${email}" style="color: #0066cc; text-decoration: none;">${email}</a>`);
-    if (phone) contactItems.push(`<a href="tel:${phone}" style="color: #0066cc; text-decoration: none;">${phone}</a>`);
-    if (website) contactItems.push(`<a href="${website}" style="color: #0066cc; text-decoration: none;">${website}</a>`);
+    // Contact info in vertical format (like image 2)
+    if (email) {
+      html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 2px;">`;
+      html += `📧 <a href="mailto:${email}" style="color: #0066cc; text-decoration: none;">${email}</a>`;
+      html += '</div>';
+    }
     
-    if (contactItems.length > 0) {
-      html += `<div style="font-size: 13px; line-height: 1.3; margin-bottom: 4px;">`;
-      html += contactItems.join('<br>');
+    if (phone) {
+      html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 2px;">`;
+      html += `📞 <a href="tel:${phone}" style="color: #0066cc; text-decoration: none;">${phone}</a>`;
+      html += '</div>';
+    }
+    
+    if (website) {
+      html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 6px;">`;
+      html += `🌐 <a href="${website}" style="color: #0066cc; text-decoration: none;">${website}</a>`;
       html += '</div>';
     }
     
