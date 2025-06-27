@@ -36,6 +36,50 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_time_slots: {
+        Row: {
+          blocked_date: string
+          created_at: string
+          employee_id: string | null
+          end_time: string
+          id: string
+          reason: string | null
+          start_time: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          blocked_date: string
+          created_at?: string
+          employee_id?: string | null
+          end_time: string
+          id?: string
+          reason?: string | null
+          start_time: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          blocked_date?: string
+          created_at?: string
+          employee_id?: string | null
+          end_time?: string
+          id?: string
+          reason?: string | null
+          start_time?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocked_time_slots_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           adresse: string | null
@@ -775,6 +819,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      work_schedules: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          employee_id: string | null
+          end_time: string
+          id: string
+          is_working_day: boolean
+          start_time: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          employee_id?: string | null
+          end_time?: string
+          id?: string
+          is_working_day?: boolean
+          start_time?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          employee_id?: string | null
+          end_time?: string
+          id?: string
+          is_working_day?: boolean
+          start_time?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_schedules_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

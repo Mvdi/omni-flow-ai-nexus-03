@@ -1,346 +1,241 @@
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Order } from '@/hooks/useOrders';
 
 interface OrderDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  order?: Order | null;
+  order?: any;
   onSave: (orderData: any) => void;
 }
 
-// Default status options - these will be used if no custom settings are provided
-const DEFAULT_STATUS_OPTIONS = [
-  'Ikke planlagt',
-  'Planlagt',
-  'I gang',
-  'Færdig',
-  'Skal impregneres',
-  'Skal algebehandles',
-  'Skal planlægges om',
-  'Annulleret'
-];
-
-export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps) => {
+export const OrderDialog: React.FC<OrderDialogProps> = ({
+  isOpen,
+  onClose,
+  order,
+  onSave
+}) => {
   const [formData, setFormData] = useState({
-    order_type: '',
     customer: '',
     customer_email: '',
-    price: '',
-    scheduled_week: '',
+    order_type: '',
+    address: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
+    bfe_number: '',
+    price: 0,
+    priority: 'Normal',
+    estimated_duration: 120, // Default 2 hours in minutes
+    comment: '',
     scheduled_date: '',
     scheduled_time: '',
-    status: 'Ikke planlagt',
-    comment: '',
-    address: '',
-    priority: 'Normal',
-    estimated_duration: '',
-    latitude: undefined as number | undefined,
-    longitude: undefined as number | undefined,
-    bfe_number: undefined as string | undefined
+    scheduled_week: null as number | null
   });
-
-  // Get saved settings from localStorage
-  const [statusOptions, setStatusOptions] = useState(DEFAULT_STATUS_OPTIONS);
-  const [orderTypes, setOrderTypes] = useState([
-    'Vinduespolering',
-    'Rengøring',
-    'Algebehandling',
-    'Impregnering',
-    'Facaderengøring',
-    'Gulvbehandling',
-    'Andet'
-  ]);
-
-  useEffect(() => {
-    // Load saved settings from localStorage if available
-    const savedSettings = localStorage.getItem('orderSettings');
-    if (savedSettings) {
-      try {
-        const settings = JSON.parse(savedSettings);
-        if (settings.statusOptions && settings.statusOptions.length > 0) {
-          setStatusOptions(settings.statusOptions.map((s: any) => s.name));
-        }
-        if (settings.orderTypes && settings.orderTypes.length > 0) {
-          setOrderTypes(settings.orderTypes.map((t: any) => t.name));
-        }
-      } catch (error) {
-        console.error('Error loading settings:', error);
-      }
-    }
-  }, []);
 
   useEffect(() => {
     if (order) {
       setFormData({
-        order_type: order.order_type || '',
         customer: order.customer || '',
         customer_email: order.customer_email || '',
-        price: order.price?.toString() || '',
-        scheduled_week: order.scheduled_week?.toString() || '',
+        order_type: order.order_type || '',
+        address: order.address || '',
+        latitude: order.latitude,
+        longitude: order.longitude,
+        bfe_number: order.bfe_number || '',
+        price: order.price || 0,
+        priority: order.priority || 'Normal',
+        estimated_duration: order.estimated_duration || 120,
+        comment: order.comment || '',
         scheduled_date: order.scheduled_date || '',
         scheduled_time: order.scheduled_time || '',
-        status: order.status || 'Ikke planlagt',
-        comment: order.comment || '',
-        address: order.address || '',
-        priority: order.priority || 'Normal',
-        estimated_duration: order.estimated_duration?.toString() || '',
-        latitude: undefined,
-        longitude: undefined,
-        bfe_number: order.bfe_number
+        scheduled_week: order.scheduled_week
       });
     } else {
-      // Reset form for new order with default status
       setFormData({
-        order_type: '',
         customer: '',
         customer_email: '',
-        price: '',
-        scheduled_week: '',
+        order_type: '',
+        address: '',
+        latitude: null,
+        longitude: null,
+        bfe_number: '',
+        price: 0,
+        priority: 'Normal',
+        estimated_duration: 120,
+        comment: '',
         scheduled_date: '',
         scheduled_time: '',
-        status: 'Ikke planlagt',
-        comment: '',
-        address: '',
-        priority: 'Normal',
-        estimated_duration: '',
-        latitude: undefined,
-        longitude: undefined,
-        bfe_number: undefined
+        scheduled_week: null
       });
     }
-  }, [order, isOpen]);
+  }, [order]);
 
-  const handleAddressSelect = (addressData: { address: string; latitude: number; longitude: number; bfe_number?: string }) => {
-    console.log('Address selected for order');
+  const handleAddressSelect = (addressData: any) => {
     setFormData(prev => ({
       ...prev,
       address: addressData.address,
       latitude: addressData.latitude,
       longitude: addressData.longitude,
-      bfe_number: addressData.bfe_number
+      bfe_number: addressData.bfe_number || ''
     }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const orderData = {
-      order_type: formData.order_type,
-      customer: formData.customer,
-      customer_email: formData.customer_email || undefined,
-      price: parseFloat(formData.price) || 0,
-      scheduled_week: formData.scheduled_week ? parseInt(formData.scheduled_week) : undefined,
-      scheduled_date: formData.scheduled_date || undefined,
-      scheduled_time: formData.scheduled_time || undefined,
-      status: formData.status,
-      comment: formData.comment || undefined,
-      address: formData.address || undefined,
-      latitude: formData.latitude,
-      longitude: formData.longitude,
-      bfe_number: formData.bfe_number,
-      priority: formData.priority,
-      estimated_duration: formData.estimated_duration ? parseFloat(formData.estimated_duration) : undefined
-    };
-
-    onSave(orderData);
+    onSave(formData);
   };
 
-  const priorityOptions = [
-    'Lav',
-    'Normal',
-    'Høj',
-    'Kritisk'
+  const orderTypes = [
+    'Rengøring',
+    'Vinduespudsning',
+    'Byggerengøring',
+    'Kontorrengøring',
+    'Privatrengøring',
+    'Specialrengøring',
+    'Vedligeholdelse'
   ];
+
+  const priorities = ['Lav', 'Normal', 'Høj', 'Kritisk'];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {order ? 'Rediger Ordre' : 'Opret Ny Ordre'}
-          </DialogTitle>
+          <DialogTitle>{order ? 'Rediger Ordre' : 'Ny Ordre'}</DialogTitle>
           <DialogDescription>
-            {order ? 'Rediger ordreoplysningerne nedenfor.' : 'Udfyld oplysningerne for den nye ordre.'}
+            {order ? 'Rediger ordre detaljer' : 'Opret en ny ordre'}
           </DialogDescription>
         </DialogHeader>
-
+        
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="order_type">Ordre Type *</Label>
-              <Select 
-                value={formData.order_type} 
-                onValueChange={(value) => setFormData({...formData, order_type: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Vælg ordre type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {orderTypes.map((type) => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="priority">Prioritet</Label>
-              <Select 
-                value={formData.priority} 
-                onValueChange={(value) => setFormData({...formData, priority: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Vælg prioritet" />
-                </SelectTrigger>
-                <SelectContent>
-                  {priorityOptions.map((priority) => (
-                    <SelectItem key={priority} value={priority}>{priority}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <Label htmlFor="customer">Kunde *</Label>
               <Input
                 id="customer"
                 value={formData.customer}
-                onChange={(e) => setFormData({...formData, customer: e.target.value})}
-                placeholder="Kundens navn eller virksomhed"
+                onChange={(e) => setFormData(prev => ({ ...prev, customer: e.target.value }))}
                 required
               />
             </div>
-
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="customer_email">Kunde Email</Label>
               <Input
                 id="customer_email"
                 type="email"
                 value={formData.customer_email}
-                onChange={(e) => setFormData({...formData, customer_email: e.target.value})}
-                placeholder="kunde@email.dk"
+                onChange={(e) => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <AddressAutocomplete
-              label="Adresse"
-              value={formData.address}
-              onChange={(value) => setFormData({...formData, address: value})}
-              onAddressSelect={handleAddressSelect}
-              placeholder="Vælg adresse hvor arbejdet skal udføres"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="price">Pris (kr) *</Label>
-              <Input
-                id="price"
-                type="number"
-                value={formData.price}
-                onChange={(e) => setFormData({...formData, price: e.target.value})}
-                placeholder="0"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="scheduled_week">Uge</Label>
-              <Input
-                id="scheduled_week"
-                type="number"
-                value={formData.scheduled_week}
-                onChange={(e) => setFormData({...formData, scheduled_week: e.target.value})}
-                placeholder="29"
-                min="1"
-                max="53"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="estimated_duration">Estimeret tid (timer)</Label>
-              <Input
-                id="estimated_duration"
-                type="number"
-                step="0.5"
-                value={formData.estimated_duration}
-                onChange={(e) => setFormData({...formData, estimated_duration: e.target.value})}
-                placeholder="2.5"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="scheduled_date">Specifik Dato</Label>
-              <Input
-                id="scheduled_date"
-                type="date"
-                value={formData.scheduled_date}
-                onChange={(e) => setFormData({...formData, scheduled_date: e.target.value})}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="scheduled_time">Tidspunkt</Label>
-              <Input
-                id="scheduled_time"
-                type="time"
-                value={formData.scheduled_time}
-                onChange={(e) => setFormData({...formData, scheduled_time: e.target.value})}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select 
-              value={formData.status} 
-              onValueChange={(value) => setFormData({...formData, status: value})}
-            >
+          <div>
+            <Label htmlFor="order_type">Ordre Type *</Label>
+            <Select value={formData.order_type} onValueChange={(value) => setFormData(prev => ({ ...prev, order_type: value }))}>
               <SelectTrigger>
-                <SelectValue placeholder="Vælg status" />
+                <SelectValue placeholder="Vælg ordre type" />
               </SelectTrigger>
               <SelectContent>
-                {statusOptions.map((status) => (
-                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                {orderTypes.map(type => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div>
+            <AddressAutocomplete
+              label="Adresse"
+              value={formData.address}
+              onChange={(value) => setFormData(prev => ({ ...prev, address: value }))}
+              onAddressSelect={handleAddressSelect}
+              placeholder="Indtast adresse..."
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="price">Pris (kr) *</Label>
+              <Input
+                id="price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.price}
+                onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="priority">Prioritet</Label>
+              <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {priorities.map(priority => (
+                    <SelectItem key={priority} value={priority}>{priority}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="estimated_duration">Estimeret tid (minutter)</Label>
+              <Input
+                id="estimated_duration"
+                type="number"
+                min="30"
+                step="30"
+                value={formData.estimated_duration}
+                onChange={(e) => setFormData(prev => ({ ...prev, estimated_duration: parseInt(e.target.value) || 120 }))}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="scheduled_date">Planlagt Dato</Label>
+              <Input
+                id="scheduled_date"
+                type="date"
+                value={formData.scheduled_date}
+                onChange={(e) => setFormData(prev => ({ ...prev, scheduled_date: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="scheduled_time">Planlagt Tid</Label>
+              <Input
+                id="scheduled_time"
+                type="time"
+                value={formData.scheduled_time}
+                onChange={(e) => setFormData(prev => ({ ...prev, scheduled_time: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="scheduled_week">Uge</Label>
+              <Input
+                id="scheduled_week"
+                type="number"
+                min="1"
+                max="53"
+                value={formData.scheduled_week || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, scheduled_week: parseInt(e.target.value) || null }))}
+              />
+            </div>
+          </div>
+
+          <div>
             <Label htmlFor="comment">Kommentar</Label>
             <Textarea
               id="comment"
               value={formData.comment}
-              onChange={(e) => setFormData({...formData, comment: e.target.value})}
-              placeholder="Specielle instrukser, noter eller kommentarer til ordren..."
+              onChange={(e) => setFormData(prev => ({ ...prev, comment: e.target.value }))}
               rows={3}
             />
           </div>
