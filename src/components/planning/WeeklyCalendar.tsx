@@ -26,16 +26,14 @@ interface WeeklyCalendarProps {
 export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = new Date() }) => {
   const [selectedWeek, setSelectedWeek] = useState(currentWeek);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
-  const [isReplanning, setIsReplanning] = useState(false);
-  const [isVRPOptimizing, setIsVRPOptimizing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [showOptimizationPanel, setShowOptimizationPanel] = useState(false);
   const [showRouteVisualization, setShowRouteVisualization] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   
-  const { orders, refetch: refetchOrders, updateOrder } = useOrders();
+  const { orders, refetch: refetchOrders } = useOrders();
   const { employees } = useEmployees();
-  const { routes, refetch: refetchRoutes, createRoute } = useRoutes();
+  const { routes, refetch: refetchRoutes } = useRoutes();
   const { workSchedules } = useWorkSchedules();
   const { blockedSlots } = useBlockedTimeSlots();
 
@@ -116,176 +114,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
     weekDates.some(date => formatDate(date) === slot.blocked_date)
   );
 
-  const handleIntelligentReplan = async () => {
-    setIsReplanning(true);
-    
-    try {
-      const weekStart = formatDate(weekDates[0]);
-      const weekEnd = formatDate(weekDates[6]);
-      
-      console.log('Starting intelligent replanning:', weekStart, 'to', weekEnd);
-      
-      const { data, error } = await supabase.functions.invoke('intelligent-route-planner', {
-        body: { 
-          weekStart, 
-          weekEnd,
-          employeeId: selectedEmployee !== 'all' ? selectedEmployee : undefined
-        }
-      });
-
-      if (error) {
-        console.error('Intelligent replan error:', error);
-        throw error;
-      }
-
-      console.log('Intelligent replan result:', data);
-      
-      toast.success(data.message || `Intelligent optimering: ${data.ordersOptimized} ordrer på ${data.routesCreated} ruter med ${Math.round(data.averageOptimizationScore)}% effektivitet`);
-      
-      // Refresh data
-      await Promise.all([refetchOrders(), refetchRoutes()]);
-      
-    } catch (error) {
-      console.error('Error during intelligent replanning:', error);
-      toast.error('Fejl ved intelligent ruteplanlægning');
-    } finally {
-      setIsReplanning(false);
-    }
-  };
-
-  const handleMultiDayVRPOptimization = async () => {
-    if (weekOrders.length === 0) {
-      toast.error('Ingen ordrer fundet for optimering');
-      return;
-    }
-
-    if (workSchedules.length === 0) {
-      toast.error('Ingen arbejdstider defineret. Gå til Indstillinger for at konfigurere medarbejder arbejdstider.');
-      return;
-    }
-
-    setIsVRPOptimizing(true);
-    
-    try {
-      console.log('Starting Multi-Day VRP optimization for', weekOrders.length, 'orders with dynamic work schedules');
-      
-      // Convert orders to VRP format
-      const vrpOrders = weekOrders.map(order => ({
-        id: order.id,
-        customer: order.customer,
-        address: order.address || '',
-        latitude: order.latitude,
-        longitude: order.longitude,
-        estimated_duration: order.estimated_duration || 120, // Use actual duration
-        priority: order.priority,
-        price: order.price,
-        preferred_time: order.scheduled_time,
-        scheduled_date: order.scheduled_date, // Include fixed dates
-        scheduled_time: order.scheduled_time, // Include fixed times
-      }));
-
-      // Filter active employees
-      const activeEmployees = employees.filter(emp => emp.is_active).map(emp => ({
-        id: emp.id,
-        name: emp.name,
-        start_location: emp.start_location,
-        latitude: emp.latitude,
-        longitude: emp.longitude,
-        max_hours_per_day: emp.max_hours_per_day || 8,
-        hourly_rate: emp.hourly_rate,
-        specialties: emp.specialties
-      }));
-
-      if (activeEmployees.length === 0) {
-        toast.error('Ingen aktive medarbejdere fundet');
-        return;
-      }
-
-      // Convert work schedules to VRP format
-      const vrpWorkSchedules = workSchedules.map(ws => ({
-        employee_id: ws.employee_id,
-        day_of_week: ws.day_of_week,
-        start_time: ws.start_time,
-        end_time: ws.end_time,
-        is_working_day: ws.is_working_day
-      }));
-
-      console.log('VRP Input:', {
-        orders: vrpOrders.length,
-        employees: activeEmployees.length,
-        workSchedules: vrpWorkSchedules.length,
-        weekStart: formatDate(weekDates[0])
-      });
-
-      // Run Multi-Day VRP optimization with dynamic work schedules
-      const optimizedRoutes = VRPOptimizer.optimizeWeeklyRoutes(
-        vrpOrders,
-        activeEmployees,
-        vrpWorkSchedules,
-        formatDate(weekDates[0])
-      );
-
-      console.log('Multi-Day VRP optimization completed:', optimizedRoutes.length, 'routes');
-
-      // Apply optimized schedules
-      let updatedOrders = 0;
-      let createdRoutes = 0;
-
-      for (const route of optimizedRoutes) {
-        // Create route in database
-        const routeData = {
-          name: `${route.orders[0]?.customer || 'Multi-dag Rute'} - ${route.date}`,
-          employee_id: route.employee_id,
-          route_date: route.date,
-          estimated_distance_km: route.total_distance,
-          estimated_duration_hours: route.total_duration / 60,
-          total_revenue: route.total_revenue,
-          status: 'Planlagt',
-          ai_optimized: true,
-          optimization_score: route.optimization_score
-        };
-
-        const createdRoute = await createRoute(routeData);
-        if (createdRoute) {
-          createdRoutes++;
-
-          // Update orders with optimized multi-day schedule
-          for (const optimizedOrder of route.orders) {
-            await updateOrder(optimizedOrder.id, {
-              scheduled_date: optimizedOrder.scheduled_date, // Multi-day scheduling
-              scheduled_time: optimizedOrder.scheduled_time,
-              route_id: createdRoute.id,
-              order_sequence: optimizedOrder.order_sequence,
-              travel_time_minutes: optimizedOrder.travel_time_to_here,
-              ai_suggested_time: optimizedOrder.scheduled_time,
-              assigned_employee_id: route.employee_id
-            });
-            updatedOrders++;
-          }
-        }
-      }
-
-      toast.success(
-        `🚀 Multi-Dag VRP Optimering færdig! ${updatedOrders} ordrer optimeret på ${createdRoutes} ruter fordelt over hele ugen. ` +
-        `Gennemsnitlig effektivitet: ${Math.round(optimizedRoutes.reduce((sum, r) => sum + r.optimization_score, 0) / optimizedRoutes.length)}%`
-      );
-
-      // Refresh data
-      await Promise.all([refetchOrders(), refetchRoutes()]);
-
-    } catch (error) {
-      console.error('Multi-Day VRP optimization error:', error);
-      toast.error('Fejl ved Multi-Dag VRP optimering');
-    } finally {
-      setIsVRPOptimizing(false);
-    }
-  };
-
-  const handleOptimizationComplete = () => {
-    refetchOrders();
-    refetchRoutes();
-  };
-
   const navigateWeek = (direction: 'prev' | 'next') => {
     const newWeek = new Date(selectedWeek);
     newWeek.setDate(newWeek.getDate() + (direction === 'next' ? 7 : -7));
@@ -312,6 +140,8 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 </CardTitle>
                 <CardDescription>
                   {weekDates[0].toLocaleDateString('da-DK')} - {weekDates[6].toLocaleDateString('da-DK')}
+                  <br />
+                  <span className="text-green-600 text-sm">🤖 Automatisk intelligent planlægning aktiv</span>
                 </CardDescription>
               </div>
               
@@ -377,7 +207,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 }}
               >
                 <Settings className="h-4 w-4 mr-2" />
-                AI Optimering
+                Indstillinger
               </Button>
 
               {/* Auto-refresh toggle */}
@@ -389,33 +219,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
                 Auto-opdater
-              </Button>
-
-              {/* NEW: Multi-Day VRP Optimization Button */}
-              <Button 
-                onClick={handleMultiDayVRPOptimization}
-                disabled={isVRPOptimizing || weekOrders.length === 0}
-                className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
-              >
-                {isVRPOptimizing ? (
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Brain className="h-4 w-4 mr-2" />
-                )}
-                {isVRPOptimizing ? 'Multi-Dag VRP...' : 'Multi-Dag VRP'}
-              </Button>
-              
-              <Button 
-                onClick={handleIntelligentReplan}
-                disabled={isReplanning}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-              >
-                {isReplanning ? (
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Zap className="h-4 w-4 mr-2" />
-                )}
-                {isReplanning ? 'AI Optimerer...' : 'Legacy Optimering'}
               </Button>
             </div>
           </div>
@@ -435,7 +238,10 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
         <RouteOptimizationPanel
           selectedWeek={selectedWeek}
           selectedEmployee={selectedEmployee}
-          onOptimizationComplete={handleOptimizationComplete}
+          onOptimizationComplete={() => {
+            refetchOrders();
+            refetchRoutes();
+          }}
         />
       )}
 

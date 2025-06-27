@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,10 +16,12 @@ import {
   Palette,
   Users,
   Mail,
-  Database
+  Database,
+  Clock
 } from 'lucide-react';
 import { EmailIntegrationSettings } from '@/components/settings/EmailIntegrationSettings';
 import { EmployeeManagement } from '@/components/settings/EmployeeManagement';
+import { WorkScheduleManagement } from '@/components/settings/WorkScheduleManagement';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('general');
@@ -46,7 +47,7 @@ const Settings = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="general" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 Generelt
@@ -54,6 +55,10 @@ const Settings = () => {
               <TabsTrigger value="employees" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Medarbejdere
+              </TabsTrigger>
+              <TabsTrigger value="schedules" className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Arbejdstider
               </TabsTrigger>
               <TabsTrigger value="notifications" className="flex items-center gap-2">
                 <Bell className="h-4 w-4" />
@@ -128,6 +133,10 @@ const Settings = () => {
 
             <TabsContent value="employees" className="space-y-4">
               <EmployeeManagement />
+            </TabsContent>
+
+            <TabsContent value="schedules" className="space-y-4">
+              <WorkScheduleManagement />
             </TabsContent>
 
             <TabsContent value="notifications" className="space-y-4">
