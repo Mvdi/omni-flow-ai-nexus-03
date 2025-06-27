@@ -151,10 +151,20 @@ serve(async (req) => {
       }
     }
 
-    // Opbyg email med signatur - kun tilføj hvis der er en signatur
-    const emailBody = signature 
-      ? `${message_content}<br><br>${signature}`
-      : message_content;
+    // Forbered email med korrekt formatering
+    let emailBody = message_content.replace(/\n/g, '<br>');
+    
+    // Tilføj signatur som en naturlig del af emailen med korrekt spacing
+    if (signature) {
+      emailBody += '<br><br>' + signature;
+    }
+
+    // Wrap hele emailen i en container der sikrer korrekt formatering
+    const fullEmailBody = `
+      <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333;">
+        ${emailBody}
+      </div>
+    `;
 
     // Forbered email med korrekt reply headers - brug x- prefix for custom headers
     const emailMessage = {
@@ -162,7 +172,7 @@ serve(async (req) => {
         subject: ticket.subject.startsWith('Re:') ? ticket.subject : `Re: ${ticket.subject}`,
         body: {
           contentType: 'HTML',
-          content: emailBody
+          content: fullEmailBody
         },
         toRecipients: [
           {

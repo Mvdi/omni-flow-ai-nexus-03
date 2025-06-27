@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -426,12 +425,20 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
               </Button>
             </div>
             {signatureHtml && (
-              <div className="mt-2 p-2 bg-gray-50 rounded border-l-4 border-orange-500">
-                <p className="text-xs text-gray-600 mb-1">Din signatur vil blive tilføjet:</p>
-                <div 
-                  className="text-sm text-gray-700"
-                  dangerouslySetInnerHTML={{ __html: signatureHtml }}
-                />
+              <div className="mt-3 p-3 bg-gray-50 rounded border">
+                <p className="text-xs text-gray-600 mb-2">Forhåndsvisning af hvordan emailen vil se ud:</p>
+                <div className="border rounded bg-white p-3">
+                  <div 
+                    className="text-sm text-gray-700 mb-2"
+                    style={{ whiteSpace: 'pre-wrap' }}
+                  >
+                    {newMessage || 'Din besked her...'}
+                  </div>
+                  <div 
+                    className="text-sm"
+                    dangerouslySetInnerHTML={{ __html: signatureHtml }}
+                  />
+                </div>
               </div>
             )}
           </div>
