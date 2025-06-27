@@ -61,6 +61,35 @@ export const TestOrderGenerator: React.FC = () => {
     return currentWeek + Math.floor(Math.random() * 5);
   };
 
+  const getWeekDates = (weekNumber: number) => {
+    const now = new Date();
+    const currentWeek = getCurrentWeekNumber();
+    const weekDiff = weekNumber - currentWeek;
+    
+    const targetDate = new Date(now);
+    targetDate.setDate(now.getDate() + (weekDiff * 7));
+    
+    // Get Monday of that week
+    const startOfWeek = new Date(targetDate);
+    const dayOfWeek = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    startOfWeek.setDate(diff);
+    
+    const weekDates = [];
+    for (let i = 0; i < 5; i++) { // Only weekdays
+      const day = new Date(startOfWeek);
+      day.setDate(startOfWeek.getDate() + i);
+      weekDates.push(day);
+    }
+    return weekDates;
+  };
+
+  const getRandomWorkingTime = () => {
+    const workingHours = [8, 9, 10, 11, 13, 14, 15, 16, 17]; // Skip lunch hour 12
+    const hour = getRandomItem(workingHours);
+    return `${hour.toString().padStart(2, '0')}:00`;
+  };
+
   const generateTestOrders = async () => {
     if (employees.length === 0) {
       toast.error('Ingen medarbejdere fundet. Opret medarbejdere først.');
@@ -77,6 +106,11 @@ export const TestOrderGenerator: React.FC = () => {
       const priority = getRandomItem(priorities);
       const employee = getRandomItem(employees);
       const week = getRandomWeek();
+      
+      // Get working days for the selected week
+      const weekDates = getWeekDates(week);
+      const randomDay = getRandomItem(weekDates);
+      const randomTime = getRandomWorkingTime();
 
       const orderData = {
         customer: customer.name,
@@ -87,10 +121,19 @@ export const TestOrderGenerator: React.FC = () => {
         priority: priority,
         estimated_duration: getRandomDuration(),
         scheduled_week: week,
+        scheduled_date: randomDay.toISOString().split('T')[0], // YYYY-MM-DD format
+        scheduled_time: randomTime,
         status: 'Planlagt',
         assigned_employee_id: employee.id,
-        comment: `Test ordre ${i + 1} - genereret automatisk`
+        comment: `Test ordre ${i + 1} - genereret automatisk for uge ${week}`
       };
+
+      console.log('Creating test order:', {
+        customer: orderData.customer,
+        week: orderData.scheduled_week,
+        date: orderData.scheduled_date,
+        time: orderData.scheduled_time
+      });
 
       try {
         const result = await createOrder(orderData);
@@ -134,6 +177,7 @@ export const TestOrderGenerator: React.FC = () => {
           <p>Nuværende uge: {getCurrentWeekNumber()}</p>
           <p>Ordrer vil blive spredt over de næste 5 uger</p>
           <p>Medarbejdere tilgængelige: {employees.length}</p>
+          <p className="font-semibold text-green-600">✓ Alle ordrer får både uge-nummer og specifik dato/tid</p>
         </div>
 
         <Button 

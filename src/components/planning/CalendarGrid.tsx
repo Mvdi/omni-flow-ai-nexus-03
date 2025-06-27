@@ -100,22 +100,66 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
     timeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
   }
 
-  // Filter orders for the current week and selected employee
+  // SYNCHRONIZED FILTERING LOGIC - Same as WeeklyCalendar
   const weekOrders = orders.filter(order => {
-    if (!order.scheduled_date) return false;
-    const orderDate = new Date(order.scheduled_date);
-    const isInWeek = weekDates.some(weekDate => 
-      formatDate(orderDate) === formatDate(weekDate)
-    );
-    
-    if (!isInWeek) return false;
-    
-    if (selectedEmployee === 'all') return true;
-    return order.assigned_employee_id === selectedEmployee;
+    console.log('CalendarGrid - Filtering order:', {
+      id: order.id.slice(0, 8),
+      customer: order.customer,
+      scheduled_week: order.scheduled_week,
+      current_week_number: weekNumber,
+      scheduled_date: order.scheduled_date,
+      assigned_employee: order.assigned_employee_id,
+      selected_employee: selectedEmployee
+    });
+
+    // First check if order has a scheduled week that matches current week
+    if (order.scheduled_week === weekNumber) {
+      if (selectedEmployee === 'all') return true;
+      return order.assigned_employee_id === selectedEmployee;
+    }
+
+    // If no scheduled week, check if order has a scheduled date in this week
+    if (!order.scheduled_week && order.scheduled_date) {
+      const orderDate = new Date(order.scheduled_date);
+      const isInWeek = weekDates.some(weekDate => 
+        formatDate(orderDate) === formatDate(weekDate)
+      );
+      
+      if (!isInWeek) return false;
+      
+      if (selectedEmployee === 'all') return true;
+      return order.assigned_employee_id === selectedEmployee;
+    }
+
+    return false;
   });
 
+  // Auto-assign dates for orders that have scheduled_week but no scheduled_date
+  const processedOrders = weekOrders.map(order => {
+    if (order.scheduled_week === weekNumber && !order.scheduled_date) {
+      // Auto-assign Monday of the week as default date
+      const mondayDate = formatDate(weekDates[0]);
+      console.log('Auto-assigning date for order:', order.id, 'to', mondayDate);
+      
+      // Update the order with default date (Monday) and time (08:00)
+      updateOrder(order.id, {
+        scheduled_date: mondayDate,
+        scheduled_time: order.scheduled_time || '08:00'
+      });
+      
+      return {
+        ...order,
+        scheduled_date: mondayDate,
+        scheduled_time: order.scheduled_time || '08:00'
+      };
+    }
+    return order;
+  });
+
+  console.log('CalendarGrid - Week orders after filtering and processing:', processedOrders.length, 'for week', weekNumber);
+
   // Group orders by date and time
-  const ordersByDateTime = weekOrders.reduce((acc, order) => {
+  const ordersByDateTime = processedOrders.reduce((acc, order) => {
     const dateKey = order.scheduled_date!;
     const timeKey = order.scheduled_time?.slice(0, 5) || '08:00';
     
@@ -230,6 +274,36 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Show orders without specific dates */}
+      {weekOrders.some(order => !order.scheduled_date) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Ordre uden specifik dato (Uge {weekNumber})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {weekOrders.filter(order => !order.scheduled_date).map(order => (
+                <div
+                  key={order.id}
+                  className="p-3 rounded-lg border bg-yellow-50 border-yellow-200 cursor-pointer hover:bg-yellow-100"
+                  onClick={() => handleOrderClick(order)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">{order.customer}</div>
+                      <div className="text-sm text-gray-600">{order.order_type}</div>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Klik for at tildele dato
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Calendar Grid */}
       <Card>
         <CardContent className="p-0">
