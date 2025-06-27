@@ -4,7 +4,7 @@ import { useOrders } from './useOrders';
 import { useEmployees } from './useEmployees';
 import { useWorkSchedules } from './useWorkSchedules';
 import { useRoutes } from './useRoutes';
-import { vrpSolver, VRPStop, VRPVehicle } from '@/services/vrpSolver';
+import { vrpSolver, VRPStop, VRPVehicle, VRPSolverService } from '@/services/vrpSolver';
 import { toast } from 'sonner';
 
 export const useBackendVRPScheduler = () => {
@@ -62,14 +62,14 @@ export const useBackendVRPScheduler = () => {
           const estimatedDuration = order.estimated_duration || 60;
           
           // Calculate time windows (prefer morning hours, expand based on priority)
-          let twStart = vrpSolver.timeToMinutesFromMonday(1, 8); // Monday 08:00
-          let twEnd = vrpSolver.timeToMinutesFromMonday(5, 16); // Friday 16:00
+          let twStart = VRPSolverService.timeToMinutesFromMonday(1, 8); // Monday 08:00
+          let twEnd = VRPSolverService.timeToMinutesFromMonday(5, 16); // Friday 16:00
           
           // Adjust based on priority
           if (order.priority === 'Høj') {
-            twEnd = vrpSolver.timeToMinutesFromMonday(3, 14); // By Wednesday 14:00
+            twEnd = VRPSolverService.timeToMinutesFromMonday(3, 14); // By Wednesday 14:00
           } else if (order.priority === 'Lav') {
-            twStart = vrpSolver.timeToMinutesFromMonday(3, 10); // Thursday 10:00 earliest
+            twStart = VRPSolverService.timeToMinutesFromMonday(3, 10); // Thursday 10:00 earliest
           }
 
           return {
@@ -161,7 +161,7 @@ export const useBackendVRPScheduler = () => {
               if (!order) continue;
 
               // Convert arrival time back to date/time
-              const { day, hour, minute } = vrpSolver.minutesFromMondayToDateTime(stop.arrival_time);
+              const { day, hour, minute } = VRPSolverService.minutesFromMondayToDateTime(stop.arrival_time);
               const scheduledDate = new Date(mondayOfWeek);
               scheduledDate.setDate(mondayOfWeek.getDate() + day - 1);
 
@@ -169,7 +169,7 @@ export const useBackendVRPScheduler = () => {
               
               // Calculate completion time
               const completionMinutes = stop.departure_time;
-              const { hour: endHour, minute: endMinute } = vrpSolver.minutesFromMondayToDateTime(completionMinutes);
+              const { hour: endHour, minute: endMinute } = VRPSolverService.minutesFromMondayToDateTime(completionMinutes);
               const expectedCompletionTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
 
               await updateOrder(order.id, {
