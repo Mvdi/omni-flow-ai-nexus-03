@@ -101,13 +101,16 @@ export const useOrders = () => {
     try {
       console.log('Creating order:', orderData);
       
-      // Ensure estimated_duration is a valid number
+      // Ensure estimated_duration is a valid integer and handle new fields
       const cleanOrderData = {
         ...orderData,
-        estimated_duration: orderData.estimated_duration ?? 0,
+        estimated_duration: Math.round(orderData.estimated_duration || 60), // Convert to integer
         scheduled_date: orderData.scheduled_date || null,
         scheduled_time: orderData.scheduled_time || null,
+        expected_completion_time: orderData.expected_completion_time || null,
         scheduled_week: orderData.scheduled_week || null,
+        latitude: orderData.latitude || null,
+        longitude: orderData.longitude || null,
         user_id: user.id
       };
       
@@ -143,12 +146,13 @@ export const useOrders = () => {
     try {
       console.log('Updating order:', id, orderData);
       
-      // Clean the data before sending to database
+      // Clean the data before sending to database with new field handling
       const cleanOrderData = {
         ...orderData,
-        estimated_duration: orderData.estimated_duration ?? 0,
+        estimated_duration: orderData.estimated_duration ? Math.round(orderData.estimated_duration) : undefined,
         scheduled_date: orderData.scheduled_date || null,
         scheduled_time: orderData.scheduled_time || null,
+        expected_completion_time: orderData.expected_completion_time || null,
         scheduled_week: orderData.scheduled_week || null,
         latitude: orderData.latitude || null,
         longitude: orderData.longitude || null
@@ -176,7 +180,10 @@ export const useOrders = () => {
       }
 
       console.log('Order updated successfully:', data);
-      toast.success('Ordre opdateret');
+      // Don't show toast for automated updates to avoid spam
+      if (!orderData.assigned_employee_id && !orderData.route_id) {
+        toast.success('Ordre opdateret');
+      }
       await fetchOrders();
       return data;
     } catch (error) {

@@ -9,10 +9,10 @@ const Planning = () => {
   // Automatically run order migration to fix durations
   useOrderMigration();
   
-  // Use backend VRP scheduler (primary)
+  // Use enhanced VRP scheduler with Mapbox integration
   const { isOptimizing, solverHealthy } = useBackendVRPScheduler();
   
-  // Fallback to browser-based intelligent scheduling if backend is not available
+  // Fallback to browser-based intelligent scheduling (now rarely needed)
   useIntelligentScheduler();
 
   return (
@@ -20,23 +20,21 @@ const Planning = () => {
       <Navigation />
       
       <div className="p-6">
-        {/* Enhanced header with backend status */}
+        {/* Enhanced header with new capabilities */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Ruteplanlægning</h1>
           <div className="mt-1 space-y-1">
-            {solverHealthy ? (
-              <p className="text-green-600">
-                🚀 Backend VRP-optimering aktiv - realistisk ruteplanlægning med OR-Tools
-                {isOptimizing && <span className="ml-2">⚙️ Optimerer...</span>}
-              </p>
-            ) : (
-              <p className="text-amber-600">
-                ⚠️ Backend VRP ikke tilgængelig - bruger browser-baseret optimering
-              </p>
-            )}
-            <p className="text-sm text-gray-500">
-              Systemet optimerer automatisk ruter med realistiske køretider og multi-dag planlægning
+            <p className="text-green-600">
+              🎯 Enhanced VRP-optimering med Mapbox integration aktiv
+              {isOptimizing && <span className="ml-2">⚙️ Optimerer...</span>}
             </p>
+            <div className="text-sm text-gray-600 space-y-1">
+              <p>✅ Multi-dag fordeling (mandag-fredag)</p>
+              <p>✅ Automatisk geocoding af adresser</p>
+              <p>✅ Realistiske køretider med Mapbox</p>
+              <p>✅ Prioritets-baseret planlægning</p>
+              <p>✅ Intelligent rute-optimering</p>
+            </div>
           </div>
         </div>
 

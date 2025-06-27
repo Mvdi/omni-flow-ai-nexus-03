@@ -444,6 +444,7 @@ export type Database = {
           customer: string
           customer_email: string | null
           estimated_duration: number | null
+          expected_completion_time: string | null
           id: string
           latitude: number | null
           longitude: number | null
@@ -470,6 +471,7 @@ export type Database = {
           customer: string
           customer_email?: string | null
           estimated_duration?: number | null
+          expected_completion_time?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -496,6 +498,7 @@ export type Database = {
           customer?: string
           customer_email?: string | null
           estimated_duration?: number | null
+          expected_completion_time?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
