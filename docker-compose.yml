@@ -1,0 +1,45 @@
+
+version: '3.8'
+
+services:
+  # VRP Solver Service
+  solver:
+    build: ./services/solver
+    ports:
+      - "8000:8000"
+    environment:
+      - OSRM_URL=http://osrm:5000
+    depends_on:
+      - osrm
+    networks:
+      - vrp-network
+
+  # OSRM Routing Service
+  osrm:
+    image: osrm/osrm-backend:latest
+    volumes:
+      - ./osm-data:/data
+    command: >
+      bash -c "
+        if [ ! -f /data/denmark-latest.osrm ]; then
+          echo 'Downloading Denmark OSM data...'
+          wget -O /data/denmark-latest.osm.pbf http://download.geofabrik.de/europe/denmark-latest.osm.pbf
+          echo 'Processing OSM data...'
+          osrm-extract -p /opt/car.lua /data/denmark-latest.osm.pbf
+          osrm-partition /data/denmark-latest.osrm
+          osrm-customize /data/denmark-latest.osrm
+        fi
+        echo 'Starting OSRM server...'
+        osrm-routed --algorithm mld /data/denmark-latest.osrm
+      "
+    ports:
+      - "5000:5000"
+    networks:
+      - vrp-network
+
+networks:
+  vrp-network:
+    driver: bridge
+
+volumes:
+  osm-data:

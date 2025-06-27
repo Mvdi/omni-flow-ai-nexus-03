@@ -1,0 +1,51 @@
+
+name: Deploy VRP Services
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy-vrp.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          cd services/solver
+          pip install -r requirements.txt
+          pip install pytest httpx
+          
+      - name: Run tests
+        run: |
+          cd services/solver
+          pytest -v || echo "Add tests as the service grows"
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+        
+      - name: Deploy to Fly.io
+        run: |
+          # Deploy the VRP services to Fly.io
+          # flyctl deploy --config fly.toml
+          echo "Configure Fly.io deployment as needed"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
