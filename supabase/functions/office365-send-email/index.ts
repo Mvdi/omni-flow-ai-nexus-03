@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -17,30 +18,6 @@ interface GraphTokenResponse {
   token_type: string;
   expires_in: number;
 }
-
-// Helper function to convert HTML signature to plain text with proper formatting
-const convertSignatureToText = (htmlSignature: string): string => {
-  // Remove all HTML tags and base64 image data
-  let plainText = htmlSignature
-    .replace(/<img[^>]*>/gi, '') // Remove all img tags
-    .replace(/data:image\/[^;]+;base64,[^"]+/gi, '') // Remove base64 data
-    .replace(/<br\s*\/?>/gi, '\n') // Convert br tags to newlines
-    .replace(/<div[^>]*>/gi, '\n') // Convert divs to newlines
-    .replace(/<\/div>/gi, '') // Remove closing divs
-    .replace(/<[^>]+>/gi, '') // Remove all other HTML tags
-    .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double newlines
-    .trim();
-
-  // If we still have encoded entities, decode them
-  plainText = plainText
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"');
-
-  return plainText;
-};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -155,9 +132,9 @@ serve(async (req) => {
     const tokenData: GraphTokenResponse = await tokenResponse.json();
     console.log('Successfully obtained access token');
 
-    // Hent bruger signatur og konverter til ren tekst
+    // Hent bruger signatur som HTML
     const authHeader = req.headers.get("authorization");
-    let signature = '';
+    let signatureHtml = '';
     if (authHeader) {
       const jwt = authHeader.replace("Bearer ", "");
       const { data: { user } } = await supabase.auth.getUser(jwt);
@@ -168,33 +145,27 @@ serve(async (req) => {
           .eq('user_id', user.id)
           .single();
         if (userSignature?.html) {
-          // Konverter HTML signatur til ren tekst
-          signature = convertSignatureToText(userSignature.html);
-          console.log('Using converted plain text signature');
+          signatureHtml = userSignature.html;
+          console.log('Using HTML signature with logo');
         }
       }
     }
 
-    // Byg email med ren tekst-baseret tilgang
-    let emailContent = message_content;
+    // Byg email med HTML formatering
+    let emailContent = message_content.replace(/\n/g, '<br>');
     
-    // Tilføj signatur som ren tekst med korrekt formatering
-    if (signature) {
-      emailContent += '\n\n' + signature;
+    // Tilføj HTML signatur direkte
+    if (signatureHtml) {
+      emailContent += '<br><br>' + signatureHtml;
     }
 
-    // Konverter til HTML men behold det simpelt
-    const htmlEmailBody = emailContent
-      .replace(/\n/g, '<br>')
-      .replace(/\r/g, '');
-
-    // Forbered email med simpel HTML formatering
+    // Forbered email med HTML formatering
     const emailMessage = {
       message: {
         subject: ticket.subject.startsWith('Re:') ? ticket.subject : `Re: ${ticket.subject}`,
         body: {
           contentType: 'HTML',
-          content: htmlEmailBody
+          content: emailContent
         },
         toRecipients: [
           {
@@ -218,7 +189,7 @@ serve(async (req) => {
       saveToSentItems: true
     };
 
-    // Send email via Microsoft Graph - brug den samme mailadresse som ticketen blev modtaget på
+    // Send email via Microsoft Graph
     const fromAddress = ticket.mailbox_address || 'info@mmmultipartner.dk';
     const sendUrl = `https://graph.microsoft.com/v1.0/users/${fromAddress}/sendMail`;
 
@@ -244,7 +215,7 @@ serve(async (req) => {
 
     console.log('Email sent successfully via Microsoft Graph');
 
-    // Opret ticket message record - brug 'internal' som message_type da det er en tilladt værdi
+    // Opret ticket message record
     const { error: messageError } = await supabase
       .from('ticket_messages')
       .insert({
