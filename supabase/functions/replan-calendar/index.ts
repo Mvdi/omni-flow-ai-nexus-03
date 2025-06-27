@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -18,6 +17,8 @@ interface Order {
   customer_email?: string;
   order_type: string;
   address?: string;
+  latitude?: number;
+  longitude?: number;
   priority: string;
   estimated_duration: number;
   price: number;
@@ -32,6 +33,8 @@ interface Employee {
   preferred_areas: string[];
   max_hours_per_day: number;
   start_location?: string;
+  latitude?: number;
+  longitude?: number;
   work_radius_km: number;
   is_active: boolean;
 }
@@ -101,7 +104,7 @@ serve(async (req) => {
       )
     }
 
-    // Plan orders intelligently
+    // Plan orders intelligently with improved coordinate-based logic
     const planningResult = await planOrdersIntelligently(
       unplannedOrders,
       employees,
@@ -172,8 +175,8 @@ async function planOrdersIntelligently(
       if (routeId) {
         routesCreated.push(routeId)
         
-        // Optimize order sequence and assign times
-        const optimizedOrders = await optimizeOrderSequence(dayOrders, employee)
+        // Optimize order sequence using coordinates when available
+        const optimizedOrders = await optimizeOrderSequenceWithCoordinates(dayOrders, employee)
         
         // Update orders with schedule
         for (let i = 0; i < optimizedOrders.length; i++) {
@@ -206,7 +209,7 @@ async function planOrdersIntelligently(
   return {
     ordersPlanned: ordersPlanned.length,
     routesCreated: routesCreated.length,
-    message: `Planlagde ${ordersPlanned.length} ordrer på ${routesCreated.length} ruter`
+    message: `Planlagde ${ordersPlanned.length} ordrer på ${routesCreated.length} ruter med forbedret koordinat-baseret optimering`
   }
 }
 
@@ -217,19 +220,45 @@ function assignOrdersToEmployee(orders: Order[], employee: Employee): Order[] {
       order.order_type.toLowerCase().includes(specialty.toLowerCase())
     )
     
-    // If employee has no preferred areas, they can take any order (using home address as base)
-    if (!employee.preferred_areas || employee.preferred_areas.length === 0) {
-      return hasMatchingSpecialty
+    if (!hasMatchingSpecialty) return false
+
+    // Enhanced geographical matching using coordinates when available
+    if (employee.latitude && employee.longitude && order.latitude && order.longitude) {
+      // Calculate distance using coordinates
+      const distance = calculateHaversineDistance(
+        employee.latitude, employee.longitude,
+        order.latitude, order.longitude
+      )
+      
+      const workRadius = employee.work_radius_km || 50
+      return distance <= workRadius
     }
     
-    // Check if order is in employee's preferred area
+    // Fallback to original area-based logic
+    if (!employee.preferred_areas || employee.preferred_areas.length === 0) {
+      return true // Employee can take any order if no preferred areas
+    }
+    
     const isInPreferredArea = !order.address || 
       employee.preferred_areas.some(area => 
         order.address?.toLowerCase().includes(area.toLowerCase())
       )
     
-    return hasMatchingSpecialty && isInPreferredArea
+    return isInPreferredArea
   })
+}
+
+// Haversine formula to calculate distance between two coordinate points
+function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371 // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  return R * c
 }
 
 function distributeOrdersToDay(orders: Order[], maxHours: number): Order[] {
@@ -286,8 +315,8 @@ async function createRoute(employee: Employee, date: string, orders: Order[], su
   }
 }
 
-async function optimizeOrderSequence(orders: Order[], employee: Employee): Promise<Order[]> {
-  // Enhanced optimization considering employee's base location
+async function optimizeOrderSequenceWithCoordinates(orders: Order[], employee: Employee): Promise<Order[]> {
+  // Enhanced optimization using coordinates when available
   const priorityOrder = { 'Kritisk': 4, 'Høj': 3, 'Normal': 2, 'Lav': 1 }
   
   return orders.sort((a, b) => {
@@ -299,27 +328,22 @@ async function optimizeOrderSequence(orders: Order[], employee: Employee): Promi
       return priorityB - priorityA
     }
     
-    // Secondary sort: Duration (shorter tasks first for momentum)
+    // Secondary sort: Distance from employee home when coordinates are available
+    if (employee.latitude && employee.longitude && a.latitude && a.longitude && b.latitude && b.longitude) {
+      const distanceA = calculateHaversineDistance(employee.latitude, employee.longitude, a.latitude, a.longitude)
+      const distanceB = calculateHaversineDistance(employee.latitude, employee.longitude, b.latitude, b.longitude)
+      
+      if (Math.abs(distanceA - distanceB) > 1) { // Only if significant difference (> 1km)
+        return distanceA - distanceB // Closer orders first
+      }
+    }
+    
+    // Tertiary sort: Duration (shorter tasks first for momentum)
     const durationA = a.estimated_duration || 120
     const durationB = b.estimated_duration || 120
     
     if (Math.abs(durationA - durationB) > 30) {
       return durationA - durationB
-    }
-    
-    // Tertiary sort: Geographical proximity
-    if (a.address && b.address && employee.preferred_areas?.length > 0) {
-      const areaA = extractArea(a.address)
-      const areaB = extractArea(b.address)
-      
-      // Prioritize orders in employee's preferred areas
-      const aInPreferred = employee.preferred_areas.includes(areaA)
-      const bInPreferred = employee.preferred_areas.includes(areaB)
-      
-      if (aInPreferred && !bInPreferred) return -1
-      if (!aInPreferred && bInPreferred) return 1
-      
-      return areaA.localeCompare(areaB)
     }
     
     return 0

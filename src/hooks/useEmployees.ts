@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -13,6 +12,9 @@ export interface Employee {
   preferred_areas: string[];
   max_hours_per_day: number;
   start_location?: string;
+  latitude?: number;
+  longitude?: number;
+  bfe_number?: string;
   work_radius_km?: number;
   is_active: boolean;
   created_at: string;
@@ -28,6 +30,9 @@ export interface CreateEmployeeData {
   preferred_areas: string[];
   max_hours_per_day: number;
   start_location?: string;
+  latitude?: number;
+  longitude?: number;
+  bfe_number?: string;
   work_radius_km?: number;
   is_active?: boolean;
 }

@@ -166,11 +166,14 @@ export type Database = {
       }
       employees: {
         Row: {
+          bfe_number: string | null
           created_at: string
           email: string
           hourly_rate: number | null
           id: string
           is_active: boolean | null
+          latitude: number | null
+          longitude: number | null
           max_hours_per_day: number | null
           name: string
           phone: string | null
@@ -182,11 +185,14 @@ export type Database = {
           work_radius_km: number | null
         }
         Insert: {
+          bfe_number?: string | null
           created_at?: string
           email: string
           hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           max_hours_per_day?: number | null
           name: string
           phone?: string | null
@@ -198,11 +204,14 @@ export type Database = {
           work_radius_km?: number | null
         }
         Update: {
+          bfe_number?: string | null
           created_at?: string
           email?: string
           hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           max_hours_per_day?: number | null
           name?: string
           phone?: string | null
@@ -385,12 +394,15 @@ export type Database = {
           address: string | null
           ai_suggested_time: string | null
           assigned_employee_id: string | null
+          bfe_number: string | null
           comment: string | null
           created_at: string
           customer: string
           customer_email: string | null
           estimated_duration: number | null
           id: string
+          latitude: number | null
+          longitude: number | null
           order_sequence: number | null
           order_type: string
           price: number
@@ -408,12 +420,15 @@ export type Database = {
           address?: string | null
           ai_suggested_time?: string | null
           assigned_employee_id?: string | null
+          bfe_number?: string | null
           comment?: string | null
           created_at?: string
           customer: string
           customer_email?: string | null
           estimated_duration?: number | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           order_sequence?: number | null
           order_type: string
           price?: number
@@ -431,12 +446,15 @@ export type Database = {
           address?: string | null
           ai_suggested_time?: string | null
           assigned_employee_id?: string | null
+          bfe_number?: string | null
           comment?: string | null
           created_at?: string
           customer?: string
           customer_email?: string | null
           estimated_duration?: number | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           order_sequence?: number | null
           order_type?: string
           price?: number

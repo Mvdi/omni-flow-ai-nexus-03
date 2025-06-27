@@ -15,6 +15,9 @@ export interface Order {
   status: string;
   comment?: string;
   address?: string;
+  latitude?: number;
+  longitude?: number;
+  bfe_number?: string;
   priority: string;
   estimated_duration?: number;
   assigned_employee_id?: string;
@@ -38,6 +41,9 @@ export interface CreateOrderData {
   status: string;
   comment?: string;
   address?: string;
+  latitude?: number;
+  longitude?: number;
+  bfe_number?: string;
   priority: string;
   estimated_duration?: number;
   assigned_employee_id?: string;

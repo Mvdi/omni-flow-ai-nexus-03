@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -15,10 +14,18 @@ interface OptimizationRequest {
 interface Order {
   id: string;
   address: string;
+  latitude?: number;
+  longitude?: number;
   customer: string;
   estimated_duration: number;
   priority: string;
   order_sequence?: number;
+}
+
+interface Employee {
+  latitude?: number;
+  longitude?: number;
+  start_location?: string;
 }
 
 serve(async (req) => {
@@ -35,10 +42,17 @@ serve(async (req) => {
     const { routeId, userId }: OptimizationRequest = await req.json()
     console.log('Optimizing route:', routeId, 'for user:', userId)
 
-    // Fetch route and associated orders
+    // Fetch route and associated orders with coordinates
     const { data: route, error: routeError } = await supabaseClient
       .from('routes')
-      .select('*')
+      .select(`
+        *,
+        employees (
+          latitude,
+          longitude,
+          start_location
+        )
+      `)
       .eq('id', routeId)
       .eq('user_id', userId)
       .single()
@@ -77,16 +91,16 @@ serve(async (req) => {
       )
     }
 
-    // Optimize order sequence using real algorithms
-    const optimizedOrders = await optimizeOrderSequence(orders)
+    // Optimize order sequence using coordinates when available
+    const optimizedOrders = await optimizeOrderSequenceWithCoordinates(orders, route.employees)
     
-    // Calculate real metrics
-    const totalDistance = await calculateTotalDistance(optimizedOrders)
+    // Calculate metrics with improved coordinate-based calculations
+    const totalDistance = await calculateTotalDistanceWithCoordinates(optimizedOrders, route.employees)
     const totalDuration = calculateTotalDuration(optimizedOrders)
     const optimizationScore = calculateOptimizationScore(orders, optimizedOrders)
     
-    // Calculate travel times between orders
-    const travelTimes = await calculateTravelTimes(optimizedOrders)
+    // Calculate travel times between orders using coordinates
+    const travelTimes = await calculateTravelTimesWithCoordinates(optimizedOrders, route.employees)
 
     // Update route with optimization results
     const { error: updateError } = await supabaseClient
@@ -101,7 +115,8 @@ serve(async (req) => {
           optimized_at: new Date().toISOString(),
           total_distance_km: totalDistance,
           total_duration_hours: totalDuration,
-          travel_segments: travelTimes.segments
+          travel_segments: travelTimes.segments,
+          coordinate_based_optimization: true
         },
         updated_at: new Date().toISOString()
       })
@@ -128,7 +143,7 @@ serve(async (req) => {
         .eq('user_id', userId)
     }
 
-    console.log('Route optimization completed successfully')
+    console.log('Route optimization completed successfully with coordinate-based improvements')
 
     return new Response(
       JSON.stringify({
@@ -138,7 +153,8 @@ serve(async (req) => {
         totalDuration,
         ordersOptimized: optimizedOrders.length,
         totalTravelTime: travelTimes.totalTravelTime,
-        fuelCostEstimate: calculateFuelCost(totalDistance)
+        fuelCostEstimate: calculateFuelCost(totalDistance),
+        coordinateBasedOptimization: true
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -158,8 +174,8 @@ serve(async (req) => {
   }
 })
 
-async function optimizeOrderSequence(orders: Order[]): Promise<Order[]> {
-  // Real optimization algorithm considering multiple factors
+async function optimizeOrderSequenceWithCoordinates(orders: Order[], employee: Employee): Promise<Order[]> {
+  // Enhanced optimization algorithm using coordinates when available
   const priorityOrder = { 'Kritisk': 4, 'Høj': 3, 'Normal': 2, 'Lav': 1 }
   
   return orders.sort((a, b) => {
@@ -171,7 +187,17 @@ async function optimizeOrderSequence(orders: Order[]): Promise<Order[]> {
       return priorityB - priorityA
     }
     
-    // Secondary sort: Duration (shorter tasks first for momentum)
+    // Secondary sort: Distance from employee home when coordinates are available
+    if (employee?.latitude && employee?.longitude && a.latitude && a.longitude && b.latitude && b.longitude) {
+      const distanceA = calculateHaversineDistance(employee.latitude, employee.longitude, a.latitude, a.longitude)
+      const distanceB = calculateHaversineDistance(employee.latitude, employee.longitude, b.latitude, b.longitude)
+      
+      if (Math.abs(distanceA - distanceB) > 0.5) { // Only if significant difference (> 500m)
+        return distanceA - distanceB // Closer orders first
+      }
+    }
+    
+    // Tertiary sort: Duration (shorter tasks first for momentum)
     const durationA = a.estimated_duration || 120
     const durationB = b.estimated_duration || 120
     
@@ -179,7 +205,7 @@ async function optimizeOrderSequence(orders: Order[]): Promise<Order[]> {
       return durationA - durationB
     }
     
-    // Tertiary sort: Geographical proximity (simplified)
+    // Fallback to geographical proximity (simplified)
     if (a.address && b.address) {
       const areaA = extractArea(a.address)
       const areaB = extractArea(b.address)
@@ -190,66 +216,136 @@ async function optimizeOrderSequence(orders: Order[]): Promise<Order[]> {
   })
 }
 
-async function calculateTotalDistance(orders: Order[]): Promise<number> {
-  // Simplified distance calculation
-  // In production, this would use Mapbox Directions API
+async function calculateTotalDistanceWithCoordinates(orders: Order[], employee: Employee): Promise<number> {
   if (orders.length <= 1) return 0
   
   let totalDistance = 0
   
-  // Base distance from office to first location
-  totalDistance += 5 // km
+  // Check if we have coordinate data for precise calculations
+  const hasCoordinates = orders.every(order => order.latitude && order.longitude)
+  const hasEmployeeCoords = employee?.latitude && employee?.longitude
   
-  // Distance between orders (simplified)
-  for (let i = 0; i < orders.length - 1; i++) {
-    const currentOrder = orders[i]
-    const nextOrder = orders[i + 1]
+  if (hasCoordinates && hasEmployeeCoords) {
+    // Precise coordinate-based calculation
+    console.log('Using coordinate-based distance calculation')
     
-    // Simple distance estimation based on address similarity
-    const distance = estimateDistance(currentOrder.address, nextOrder.address)
-    totalDistance += distance
+    // Distance from employee home to first order
+    totalDistance += calculateHaversineDistance(
+      employee.latitude, employee.longitude,
+      orders[0].latitude!, orders[0].longitude!
+    )
+    
+    // Distance between consecutive orders
+    for (let i = 0; i < orders.length - 1; i++) {
+      const currentOrder = orders[i]
+      const nextOrder = orders[i + 1]
+      
+      const distance = calculateHaversineDistance(
+        currentOrder.latitude!, currentOrder.longitude!,
+        nextOrder.latitude!, nextOrder.longitude!
+      )
+      totalDistance += distance
+    }
+    
+    // Return distance (assuming employee goes back home)
+    totalDistance += calculateHaversineDistance(
+      orders[orders.length - 1].latitude!, orders[orders.length - 1].longitude!,
+      employee.latitude, employee.longitude
+    )
+  } else {
+    // Fallback to address-based estimation
+    console.log('Using address-based distance estimation')
+    
+    // Base distance from office to first location
+    totalDistance += 5 // km
+    
+    // Distance between orders (simplified)
+    for (let i = 0; i < orders.length - 1; i++) {
+      const currentOrder = orders[i]
+      const nextOrder = orders[i + 1]
+      
+      const distance = estimateDistance(currentOrder.address, nextOrder.address)
+      totalDistance += distance
+    }
+    
+    // Return distance
+    totalDistance += 5 // km back to office
   }
-  
-  // Return distance
-  totalDistance += 5 // km back to office
   
   return Math.round(totalDistance * 10) / 10 // Round to 1 decimal
 }
 
-function calculateTotalDuration(orders: Order[]): number {
-  const workTime = orders.reduce((sum, order) => sum + (order.estimated_duration || 120), 0) / 60
-  const travelTime = orders.length * 0.4 // 24 minutes average travel between orders
-  return Math.round((workTime + travelTime) * 10) / 10
+// Haversine formula to calculate distance between two coordinate points
+function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371 // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  return R * c
 }
 
-async function calculateTravelTimes(orders: Order[]): Promise<{totalTravelTime: number, segments: any[]}> {
+async function calculateTravelTimesWithCoordinates(orders: Order[], employee: Employee): Promise<{totalTravelTime: number, segments: any[]}> {
   const segments = []
   let totalTravelTime = 0
   
+  const hasCoordinates = orders.every(order => order.latitude && order.longitude)
+  const hasEmployeeCoords = employee?.latitude && employee?.longitude
+  
   for (let i = 0; i < orders.length; i++) {
     let travelTime = 0
+    let distance = 0
     
     if (i === 0) {
-      // Travel from office to first order
-      travelTime = 15 // minutes
+      // Travel from employee home to first order
+      if (hasEmployeeCoords && orders[0].latitude && orders[0].longitude) {
+        distance = calculateHaversineDistance(
+          employee.latitude, employee.longitude,
+          orders[0].latitude, orders[0].longitude
+        )
+        travelTime = Math.round(distance * 2.5) // 2.5 minutes per km in city traffic
+      } else {
+        travelTime = 15 // Default minutes
+        distance = 6 // Default km
+      }
     } else {
       // Travel between orders
       const prevOrder = orders[i - 1]
       const currentOrder = orders[i]
-      travelTime = estimateTravelTime(prevOrder.address, currentOrder.address)
+      
+      if (hasCoordinates && prevOrder.latitude && prevOrder.longitude && currentOrder.latitude && currentOrder.longitude) {
+        distance = calculateHaversineDistance(
+          prevOrder.latitude, prevOrder.longitude,
+          currentOrder.latitude, currentOrder.longitude
+        )
+        travelTime = Math.round(distance * 2.5) // 2.5 minutes per km in city traffic
+      } else {
+        travelTime = estimateTravelTime(prevOrder.address, currentOrder.address)
+        distance = travelTime * 0.4 // Rough km estimate
+      }
     }
     
     segments.push({
-      from: i === 0 ? 'office' : orders[i - 1].id,
+      from: i === 0 ? 'employee_home' : orders[i - 1].id,
       to: orders[i].id,
       duration: travelTime,
-      distance: travelTime * 0.5 // Rough km estimate
+      distance: distance,
+      coordinate_based: hasCoordinates && (i === 0 ? hasEmployeeCoords : true)
     })
     
     totalTravelTime += travelTime
   }
   
   return { totalTravelTime, segments }
+}
+
+function calculateTotalDuration(orders: Order[]): number {
+  const workTime = orders.reduce((sum, order) => sum + (order.estimated_duration || 120), 0) / 60
+  const travelTime = orders.length * 0.4 // 24 minutes average travel between orders
+  return Math.round((workTime + travelTime) * 10) / 10
 }
 
 function calculateOptimizationScore(originalOrders: Order[], optimizedOrders: Order[]): number {

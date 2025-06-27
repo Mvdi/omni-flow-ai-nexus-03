@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { 
   Dialog,
   DialogContent,
@@ -38,6 +39,9 @@ export const EmployeeManagement = () => {
     preferred_areas: [],
     max_hours_per_day: 8,
     start_location: '',
+    latitude: undefined,
+    longitude: undefined,
+    bfe_number: undefined,
     is_active: true
   });
 
@@ -120,6 +124,9 @@ export const EmployeeManagement = () => {
       preferred_areas: employee.preferred_areas || [],
       max_hours_per_day: employee.max_hours_per_day,
       start_location: employee.start_location || '',
+      latitude: employee.latitude,
+      longitude: employee.longitude,
+      bfe_number: employee.bfe_number,
       is_active: employee.is_active
     });
     setIsDialogOpen(true);
@@ -142,6 +149,9 @@ export const EmployeeManagement = () => {
       preferred_areas: [],
       max_hours_per_day: 8,
       start_location: '',
+      latitude: undefined,
+      longitude: undefined,
+      bfe_number: undefined,
       is_active: true
     });
   };
@@ -169,6 +179,17 @@ export const EmployeeManagement = () => {
     setFormData(prev => ({
       ...prev,
       preferred_areas: prev.preferred_areas.filter(a => a !== area)
+    }));
+  };
+
+  const handleAddressSelect = (addressData: { address: string; latitude: number; longitude: number; bfe_number?: string }) => {
+    console.log('Address selected:', addressData);
+    setFormData(prev => ({
+      ...prev,
+      start_location: addressData.address,
+      latitude: addressData.latitude,
+      longitude: addressData.longitude,
+      bfe_number: addressData.bfe_number
     }));
   };
 
@@ -241,15 +262,16 @@ export const EmployeeManagement = () => {
               </div>
 
               <div>
-                <Label htmlFor="start_location">Hjemadresse</Label>
-                <Input
-                  id="start_location"
-                  value={formData.start_location}
-                  onChange={(e) => setFormData(prev => ({ ...prev, start_location: e.target.value }))}
-                  placeholder="Indsamd hjemadresse (bruges som udgangspunkt for ruter)"
+                <AddressAutocomplete
+                  label="Hjemadresse"
+                  value={formData.start_location || ''}
+                  onChange={(value) => setFormData(prev => ({ ...prev, start_location: value }))}
+                  onAddressSelect={handleAddressSelect}
+                  placeholder="Indtast hjemadresse (bruges som udgangspunkt for ruter)"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Denne adresse bruges som udgangspunkt hvis ingen foretrukne områder er valgt
+                  Denne adresse bruges som udgangspunkt hvis ingen foretrukne områder er valgt. 
+                  Koordinater gemmes automatisk for præcis ruteoptimering.
                 </p>
               </div>
 
@@ -353,6 +375,9 @@ export const EmployeeManagement = () => {
                   <TableCell>{employee.phone || '-'}</TableCell>
                   <TableCell className="max-w-[150px] truncate">
                     {employee.start_location || '-'}
+                    {employee.latitude && employee.longitude && (
+                      <span className="text-xs text-green-600 block">📍 Koordinater gemt</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
