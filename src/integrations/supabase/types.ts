@@ -120,6 +120,95 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_customer_assignments: {
+        Row: {
+          assignment_date: string | null
+          created_at: string
+          customer_email: string
+          customer_name: string | null
+          employee_id: string
+          id: string
+          is_primary: boolean | null
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          assignment_date?: string | null
+          created_at?: string
+          customer_email: string
+          customer_name?: string | null
+          employee_id: string
+          id?: string
+          is_primary?: boolean | null
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          assignment_date?: string | null
+          created_at?: string
+          customer_email?: string
+          customer_name?: string | null
+          employee_id?: string
+          id?: string
+          is_primary?: boolean | null
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_customer_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          created_at: string
+          email: string
+          hourly_rate: number | null
+          id: string
+          is_active: boolean | null
+          max_hours_per_day: number | null
+          name: string
+          phone: string | null
+          preferred_areas: string[] | null
+          specialties: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean | null
+          max_hours_per_day?: number | null
+          name: string
+          phone?: string | null
+          preferred_areas?: string[] | null
+          specialties?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean | null
+          max_hours_per_day?: number | null
+          name?: string
+          phone?: string | null
+          preferred_areas?: string[] | null
+          specialties?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       integration_secrets: {
         Row: {
           created_at: string | null
@@ -288,59 +377,89 @@ export type Database = {
       orders: {
         Row: {
           address: string | null
+          ai_suggested_time: string | null
+          assigned_employee_id: string | null
           comment: string | null
           created_at: string
           customer: string
           customer_email: string | null
           estimated_duration: number | null
           id: string
+          order_sequence: number | null
           order_type: string
           price: number
           priority: string
+          route_id: string | null
           scheduled_date: string | null
           scheduled_time: string | null
           scheduled_week: number | null
           status: string
+          travel_time_minutes: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
           address?: string | null
+          ai_suggested_time?: string | null
+          assigned_employee_id?: string | null
           comment?: string | null
           created_at?: string
           customer: string
           customer_email?: string | null
           estimated_duration?: number | null
           id?: string
+          order_sequence?: number | null
           order_type: string
           price?: number
           priority?: string
+          route_id?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           scheduled_week?: number | null
           status?: string
+          travel_time_minutes?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
           address?: string | null
+          ai_suggested_time?: string | null
+          assigned_employee_id?: string | null
           comment?: string | null
           created_at?: string
           customer?: string
           customer_email?: string | null
           estimated_duration?: number | null
           id?: string
+          order_sequence?: number | null
           order_type?: string
           price?: number
           priority?: string
+          route_id?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           scheduled_week?: number | null
           status?: string
+          travel_time_minutes?: number | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_assigned_employee_id_fkey"
+            columns: ["assigned_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -371,6 +490,71 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      routes: {
+        Row: {
+          actual_distance_km: number | null
+          actual_duration_hours: number | null
+          ai_optimized: boolean | null
+          created_at: string
+          employee_id: string
+          estimated_distance_km: number | null
+          estimated_duration_hours: number | null
+          id: string
+          name: string
+          optimization_score: number | null
+          route_date: string
+          start_location: string | null
+          status: string | null
+          total_revenue: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual_distance_km?: number | null
+          actual_duration_hours?: number | null
+          ai_optimized?: boolean | null
+          created_at?: string
+          employee_id: string
+          estimated_distance_km?: number | null
+          estimated_duration_hours?: number | null
+          id?: string
+          name: string
+          optimization_score?: number | null
+          route_date: string
+          start_location?: string | null
+          status?: string | null
+          total_revenue?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual_distance_km?: number | null
+          actual_duration_hours?: number | null
+          ai_optimized?: boolean | null
+          created_at?: string
+          employee_id?: string
+          estimated_distance_km?: number | null
+          estimated_duration_hours?: number | null
+          id?: string
+          name?: string
+          optimization_score?: number | null
+          route_date?: string
+          start_location?: string | null
+          status?: string | null
+          total_revenue?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       support_tickets: {
         Row: {
