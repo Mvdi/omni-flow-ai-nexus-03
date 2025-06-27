@@ -62,13 +62,26 @@ export const WorkScheduleManagement = () => {
     try {
       const existingSchedule = getEmployeeSchedule(employeeId, dayOfWeek);
       
+      // Ensure times are in correct format
+      const startTime = data.start_time || '08:00';
+      const endTime = data.end_time || '17:00';
+      
+      // Validate time format (HH:MM)
+      const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
+        toast.error('Ugyldig tidsformat. Brug HH:MM format (f.eks. 08:00)');
+        return;
+      }
+      
       const schedulePayload = {
         employee_id: employeeId,
         day_of_week: dayOfWeek,
-        start_time: data.start_time || '08:00',
-        end_time: data.end_time || '17:00',
+        start_time: startTime,
+        end_time: endTime,
         is_working_day: data.is_working_day !== undefined ? data.is_working_day : true
       };
+
+      console.log('Saving schedule:', schedulePayload);
 
       if (existingSchedule) {
         await updateWorkSchedule(existingSchedule.id, schedulePayload);
@@ -115,6 +128,24 @@ export const WorkScheduleManagement = () => {
     return !!scheduleData[key];
   };
 
+  const calculateHours = (startTime: string, endTime: string, isWorkingDay: boolean) => {
+    if (!isWorkingDay || !startTime || !endTime) return 0;
+    
+    try {
+      // Parse times
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
+      
+      const diffMinutes = endMinutes - startMinutes;
+      return Math.max(0, diffMinutes / 60);
+    } catch (error) {
+      return 0;
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -152,13 +183,7 @@ export const WorkScheduleManagement = () => {
                       const startTime = getScheduleValue(employee.id, day.value, 'start_time');
                       const endTime = getScheduleValue(employee.id, day.value, 'end_time');
                       
-                      const calculateHours = () => {
-                        if (!isWorkingDay || !startTime || !endTime) return 0;
-                        const start = new Date(`2000-01-01T${startTime}:00`);
-                        const end = new Date(`2000-01-01T${endTime}:00`);
-                        const diff = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-                        return Math.max(0, diff);
-                      };
+                      const hours = calculateHours(startTime, endTime, isWorkingDay);
 
                       return (
                         <TableRow key={day.value}>
@@ -179,7 +204,10 @@ export const WorkScheduleManagement = () => {
                               onChange={(e) => 
                                 handleScheduleChange(employee.id, day.value, 'start_time', e.target.value)
                               }
-                              className="w-24"
+                              className="w-32"
+                              min="00:00"
+                              max="23:59"
+                              step="900"
                             />
                           </TableCell>
                           <TableCell>
@@ -190,13 +218,16 @@ export const WorkScheduleManagement = () => {
                               onChange={(e) => 
                                 handleScheduleChange(employee.id, day.value, 'end_time', e.target.value)
                               }
-                              className="w-24"
+                              className="w-32"
+                              min="00:00"
+                              max="23:59"
+                              step="900"
                             />
                           </TableCell>
                           <TableCell>
                             {isWorkingDay ? (
-                              <Badge variant={calculateHours() > 0 ? "default" : "destructive"}>
-                                {calculateHours().toFixed(1)}t
+                              <Badge variant={hours > 0 ? "default" : "destructive"}>
+                                {hours.toFixed(1)}t
                               </Badge>
                             ) : (
                               <Badge variant="secondary">Fri</Badge>
