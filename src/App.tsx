@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Leads from "./pages/Leads";
 import Support from "./pages/Support";
 import Planning from "./pages/Planning";
+import Orders from "./pages/Orders";
 import Customers from "./pages/Customers";
 import AIAssistant from "./pages/AIAssistant";
 import Settings from "./pages/Settings";
@@ -43,6 +44,11 @@ const App = () => (
           <Route path="/planning" element={
             <ProtectedRoute>
               <Planning />
+            </ProtectedRoute>
+          } />
+          <Route path="/orders" element={
+            <ProtectedRoute>
+              <Orders />
             </ProtectedRoute>
           } />
           <Route path="/customers" element={

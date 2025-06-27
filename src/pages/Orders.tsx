@@ -1,0 +1,364 @@
+
+import { useState } from 'react';
+import { Navigation } from '@/components/Navigation';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { 
+  ShoppingCart, 
+  Plus, 
+  Search, 
+  Filter, 
+  Calendar,
+  MapPin,
+  User,
+  DollarSign,
+  Clock,
+  Settings,
+  Edit,
+  Trash2
+} from 'lucide-react';
+import { OrderDialog } from '@/components/orders/OrderDialog';
+import { OrderSettingsDialog } from '@/components/orders/OrderSettingsDialog';
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const Orders = () => {
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [weekFilter, setWeekFilter] = useState('all');
+
+  // Mock data - will be replaced with Supabase data
+  const orders = [
+    {
+      id: 'ORD-001',
+      orderType: 'Vinduespolering',
+      customer: 'ABC Erhverv A/S',
+      customerEmail: 'kontakt@abc-erhverv.dk',
+      price: 2500,
+      scheduledWeek: 29,
+      scheduledDate: '2024-07-15',
+      scheduledTime: '09:00',
+      status: 'Planlagt',
+      comment: 'Husk stige til 2. sal',
+      address: 'Hovedgade 123, 2100 København Ø',
+      priority: 'Normal',
+      estimatedDuration: 3,
+      createdAt: '2024-06-27T10:00:00Z'
+    },
+    {
+      id: 'ORD-002',
+      orderType: 'Rengøring',
+      customer: 'XYZ Kontor',
+      customerEmail: 'info@xyz-kontor.dk',
+      price: 1800,
+      scheduledWeek: 29,
+      scheduledDate: '2024-07-16',
+      scheduledTime: '14:00',
+      status: 'Skal impregneres',
+      comment: 'Kunde ønsker miljøvenlige produkter',
+      address: 'Nørregade 45, 8000 Aarhus C',
+      priority: 'Høj',
+      estimatedDuration: 2.5,
+      createdAt: '2024-06-26T14:30:00Z'
+    },
+    {
+      id: 'ORD-003',
+      orderType: 'Algebehandling',
+      customer: 'DEF Restaurant',
+      customerEmail: 'booking@def-restaurant.dk',
+      price: 3200,
+      scheduledWeek: 30,
+      scheduledDate: '2024-07-22',
+      scheduledTime: '08:00',
+      status: 'Færdig',
+      comment: 'Månedlig behandling',
+      address: 'Vestergade 78, 5000 Odense C',
+      priority: 'Normal',
+      estimatedDuration: 4,
+      createdAt: '2024-06-25T09:15:00Z'
+    }
+  ];
+
+  // Status color mapping
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Planlagt': return 'bg-blue-100 text-blue-800';
+      case 'I gang': return 'bg-yellow-100 text-yellow-800';
+      case 'Færdig': return 'bg-green-100 text-green-800';
+      case 'Skal impregneres': return 'bg-purple-100 text-purple-800';
+      case 'Skal algebehandles': return 'bg-orange-100 text-orange-800';
+      case 'Skal planlægges om': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Filter orders based on search and filters
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order.orderType.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    const matchesWeek = weekFilter === 'all' || order.scheduledWeek.toString() === weekFilter;
+    
+    return matchesSearch && matchesStatus && matchesWeek;
+  });
+
+  // Statistics
+  const totalOrders = orders.length;
+  const completedOrders = orders.filter(o => o.status === 'Færdig').length;
+  const plannedOrders = orders.filter(o => o.status === 'Planlagt').length;
+  const totalRevenue = orders.reduce((sum, order) => sum + order.price, 0);
+
+  const handleEditOrder = (order: any) => {
+    setSelectedOrder(order);
+    setIsOrderDialogOpen(true);
+  };
+
+  const handleNewOrder = () => {
+    setSelectedOrder(null);
+    setIsOrderDialogOpen(true);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      
+      <div className="p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+              <ShoppingCart className="h-8 w-8 text-blue-600" />
+              Ordre
+            </h1>
+            <p className="text-gray-600">Administrer alle ordre og planlæg levering</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={() => setIsSettingsDialogOpen(true)}>
+              <Settings className="h-4 w-4 mr-2" />
+              Indstillinger
+            </Button>
+            <Button onClick={handleNewOrder} className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Ny Ordre
+            </Button>
+          </div>
+        </div>
+
+        {/* Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Samlede Ordre</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalOrders}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <ShoppingCart className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Planlagte</p>
+                  <p className="text-2xl font-bold text-gray-900">{plannedOrders}</p>
+                </div>
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-yellow-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Færdige</p>
+                  <p className="text-2xl font-bold text-gray-900">{completedOrders}</p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Omsætning</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalRevenue.toLocaleString()} kr</p>
+                </div>
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <DollarSign className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters */}
+        <Card className="shadow-sm border-0 mb-6">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Søg efter ordre, kunde eller type..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Vælg status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle statusser</SelectItem>
+                  <SelectItem value="Planlagt">Planlagt</SelectItem>
+                  <SelectItem value="I gang">I gang</SelectItem>
+                  <SelectItem value="Færdig">Færdig</SelectItem>
+                  <SelectItem value="Skal impregneres">Skal impregneres</SelectItem>
+                  <SelectItem value="Skal algebehandles">Skal algebehandles</SelectItem>
+                  <SelectItem value="Skal planlægges om">Skal planlægges om</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={weekFilter} onValueChange={setWeekFilter}>
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder="Vælg uge" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle uger</SelectItem>
+                  <SelectItem value="28">Uge 28</SelectItem>
+                  <SelectItem value="29">Uge 29</SelectItem>
+                  <SelectItem value="30">Uge 30</SelectItem>
+                  <SelectItem value="31">Uge 31</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Orders Table */}
+        <Card className="shadow-sm border-0">
+          <CardHeader>
+            <CardTitle>Ordreoversigt</CardTitle>
+            <CardDescription>
+              {filteredOrders.length} ordre fundet
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Ordre ID</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Kunde</TableHead>
+                  <TableHead>Pris</TableHead>
+                  <TableHead>Uge</TableHead>
+                  <TableHead>Dato & Tid</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Handlinger</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredOrders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-mono text-sm">{order.id}</TableCell>
+                    <TableCell>{order.orderType}</TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{order.customer}</div>
+                        <div className="text-sm text-gray-500">{order.customerEmail}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{order.price.toLocaleString()} kr</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">Uge {order.scheduledWeek}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div>{order.scheduledDate}</div>
+                        <div className="text-gray-500">{order.scheduledTime}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(order.status)}>
+                        {order.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEditOrder(order)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Dialogs */}
+      <OrderDialog 
+        isOpen={isOrderDialogOpen}
+        onClose={() => setIsOrderDialogOpen(false)}
+        order={selectedOrder}
+        onSave={(orderData) => {
+          console.log('Saving order:', orderData);
+          setIsOrderDialogOpen(false);
+        }}
+      />
+
+      <OrderSettingsDialog 
+        isOpen={isSettingsDialogOpen}
+        onClose={() => setIsSettingsDialogOpen(false)}
+        onSave={(settings) => {
+          console.log('Saving settings:', settings);
+          setIsSettingsDialogOpen(false);
+        }}
+      />
+    </div>
+  );
+};
+
+export default Orders;

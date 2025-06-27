@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -13,7 +12,8 @@ import {
   Settings, 
   Menu, 
   X,
-  ChevronDown 
+  ChevronDown,
+  ShoppingCart
 } from 'lucide-react';
 
 export const Navigation = () => {
@@ -23,6 +23,7 @@ export const Navigation = () => {
   const navigationItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/leads', label: 'Leads', icon: Users },
+    { href: '/orders', label: 'Ordre', icon: ShoppingCart },
     { href: '/support', label: 'Support', icon: Ticket },
     { href: '/planning', label: 'Planlægning', icon: Calendar },
     { href: '/customers', label: 'Kundekartotek', icon: Database },
