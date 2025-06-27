@@ -285,6 +285,63 @@ export type Database = {
         }
         Relationships: []
       }
+      orders: {
+        Row: {
+          address: string | null
+          comment: string | null
+          created_at: string
+          customer: string
+          customer_email: string | null
+          estimated_duration: number | null
+          id: string
+          order_type: string
+          price: number
+          priority: string
+          scheduled_date: string | null
+          scheduled_time: string | null
+          scheduled_week: number | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          comment?: string | null
+          created_at?: string
+          customer: string
+          customer_email?: string | null
+          estimated_duration?: number | null
+          id?: string
+          order_type: string
+          price?: number
+          priority?: string
+          scheduled_date?: string | null
+          scheduled_time?: string | null
+          scheduled_week?: number | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          comment?: string | null
+          created_at?: string
+          customer?: string
+          customer_email?: string | null
+          estimated_duration?: number | null
+          id?: string
+          order_type?: string
+          price?: number
+          priority?: string
+          scheduled_date?: string | null
+          scheduled_time?: string | null
+          scheduled_week?: number | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

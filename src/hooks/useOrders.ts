@@ -44,10 +44,15 @@ export const useOrders = () => {
   const { user } = useAuth();
 
   const fetchOrders = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     
     try {
       setLoading(true);
+      console.log('Fetching orders for user:', user.id);
+      
       const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -60,6 +65,7 @@ export const useOrders = () => {
         return;
       }
 
+      console.log('Orders fetched successfully:', data);
       setOrders(data || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -70,9 +76,14 @@ export const useOrders = () => {
   };
 
   const createOrder = async (orderData: CreateOrderData) => {
-    if (!user) return null;
+    if (!user) {
+      toast.error('Du skal være logget ind for at oprette en ordre');
+      return null;
+    }
 
     try {
+      console.log('Creating order:', orderData);
+      
       const { data, error } = await supabase
         .from('orders')
         .insert([{ ...orderData, user_id: user.id }])
@@ -85,6 +96,7 @@ export const useOrders = () => {
         return null;
       }
 
+      console.log('Order created successfully:', data);
       toast.success('Ordre oprettet');
       await fetchOrders();
       return data;
@@ -96,9 +108,14 @@ export const useOrders = () => {
   };
 
   const updateOrder = async (id: string, orderData: Partial<CreateOrderData>) => {
-    if (!user) return null;
+    if (!user) {
+      toast.error('Du skal være logget ind for at opdatere en ordre');
+      return null;
+    }
 
     try {
+      console.log('Updating order:', id, orderData);
+      
       const { data, error } = await supabase
         .from('orders')
         .update(orderData)
@@ -113,6 +130,7 @@ export const useOrders = () => {
         return null;
       }
 
+      console.log('Order updated successfully:', data);
       toast.success('Ordre opdateret');
       await fetchOrders();
       return data;
@@ -124,9 +142,14 @@ export const useOrders = () => {
   };
 
   const deleteOrder = async (id: string) => {
-    if (!user) return false;
+    if (!user) {
+      toast.error('Du skal være logget ind for at slette en ordre');
+      return false;
+    }
 
     try {
+      console.log('Deleting order:', id);
+      
       const { error } = await supabase
         .from('orders')
         .delete()
@@ -139,6 +162,7 @@ export const useOrders = () => {
         return false;
       }
 
+      console.log('Order deleted successfully');
       toast.success('Ordre slettet');
       await fetchOrders();
       return true;
