@@ -21,30 +21,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { useEmployees, CreateEmployeeData } from '@/hooks/useEmployees';
-import { Plus, Edit, Trash2, User, MapPin, Clock, X } from 'lucide-react';
+import { Plus, Edit, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
-
-const DEFAULT_AREA_OPTIONS = [
-  'København',
-  'Frederiksberg',
-  'Gentofte',
-  'Gladsaxe',
-  'Herlev',
-  'Rødovre',
-  'Albertslund',
-  'Ballerup',
-  'Brøndby',
-  'Høje-Taastrup'
-];
 
 export const EmployeeManagement = () => {
   const { employees, loading, createEmployee, updateEmployee, deleteEmployee } = useEmployees();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [availableOrderTypes, setAvailableOrderTypes] = useState<string[]>([]);
-  const [customCity, setCustomCity] = useState('');
+  const [customArea, setCustomArea] = useState('');
   const [formData, setFormData] = useState<CreateEmployeeData>({
     name: '',
     email: '',
@@ -52,6 +38,7 @@ export const EmployeeManagement = () => {
     specialties: [],
     preferred_areas: [],
     max_hours_per_day: 8,
+    start_location: '',
     is_active: true
   });
 
@@ -67,7 +54,7 @@ export const EmployeeManagement = () => {
           // Fallback to default order types
           setAvailableOrderTypes([
             'Vinduespolering',
-            'Facaderengøring',
+            'Facaderengøring', 
             'Gulvrengøring',
             'Kontorrengøring',
             'Byggegrundsrengøring',
@@ -81,7 +68,7 @@ export const EmployeeManagement = () => {
         setAvailableOrderTypes([
           'Vinduespolering',
           'Facaderengøring',
-          'Gulvrengøring',
+          'Gulvrengøring', 
           'Kontorrengøring',
           'Byggegrundsrengøring',
           'Trappeopgang',
@@ -94,7 +81,7 @@ export const EmployeeManagement = () => {
         'Vinduespolering',
         'Facaderengøring',
         'Gulvrengøring',
-        'Kontorrengøring',
+        'Kontorrengøring', 
         'Byggegrundsrengøring',
         'Trappeopgang',
         'Specialrengøring'
@@ -133,6 +120,7 @@ export const EmployeeManagement = () => {
       specialties: employee.specialties || [],
       preferred_areas: employee.preferred_areas || [],
       max_hours_per_day: employee.max_hours_per_day,
+      start_location: employee.start_location || '',
       is_active: employee.is_active
     });
     setIsDialogOpen(true);
@@ -146,7 +134,7 @@ export const EmployeeManagement = () => {
 
   const resetForm = () => {
     setSelectedEmployee(null);
-    setCustomCity('');
+    setCustomArea('');
     setFormData({
       name: '',
       email: '',
@@ -154,6 +142,7 @@ export const EmployeeManagement = () => {
       specialties: [],
       preferred_areas: [],
       max_hours_per_day: 8,
+      start_location: '',
       is_active: true
     });
   };
@@ -167,22 +156,13 @@ export const EmployeeManagement = () => {
     }));
   };
 
-  const toggleArea = (area: string) => {
-    setFormData(prev => ({
-      ...prev,
-      preferred_areas: prev.preferred_areas.includes(area)
-        ? prev.preferred_areas.filter(a => a !== area)
-        : [...prev.preferred_areas, area]
-    }));
-  };
-
-  const addCustomCity = () => {
-    if (customCity.trim() && !formData.preferred_areas.includes(customCity.trim())) {
+  const addCustomArea = () => {
+    if (customArea.trim() && !formData.preferred_areas.includes(customArea.trim())) {
       setFormData(prev => ({
         ...prev,
-        preferred_areas: [...prev.preferred_areas, customCity.trim()]
+        preferred_areas: [...prev.preferred_areas, customArea.trim()]
       }));
-      setCustomCity('');
+      setCustomArea('');
     }
   };
 
@@ -262,6 +242,19 @@ export const EmployeeManagement = () => {
               </div>
 
               <div>
+                <Label htmlFor="start_location">Hjemadresse</Label>
+                <Input
+                  id="start_location"
+                  value={formData.start_location}
+                  onChange={(e) => setFormData(prev => ({ ...prev, start_location: e.target.value }))}
+                  placeholder="Indsamd hjemadresse (bruges som udgangspunkt for ruter)"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Denne adresse bruges som udgangspunkt hvis ingen foretrukne områder er valgt
+                </p>
+              </div>
+
+              <div>
                 <Label>Specialer</Label>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   {availableOrderTypes.map(specialty => (
@@ -299,30 +292,15 @@ export const EmployeeManagement = () => {
                   </div>
                 )}
 
-                {/* Default area options */}
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  {DEFAULT_AREA_OPTIONS.map(area => (
-                    <div key={area} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.preferred_areas.includes(area)}
-                        onChange={() => toggleArea(area)}
-                        className="rounded border-gray-300"
-                      />
-                      <span className="text-sm">{area}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Custom city input */}
+                {/* Custom area input */}
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Tilføj egen by"
-                    value={customCity}
-                    onChange={(e) => setCustomCity(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomCity())}
+                    placeholder="Tilføj område/by"
+                    value={customArea}
+                    onChange={(e) => setCustomArea(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomArea())}
                   />
-                  <Button type="button" onClick={addCustomCity} size="sm">
+                  <Button type="button" onClick={addCustomArea} size="sm">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -360,6 +338,7 @@ export const EmployeeManagement = () => {
                 <TableHead>Navn</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Telefon</TableHead>
+                <TableHead>Hjemadresse</TableHead>
                 <TableHead>Specialer</TableHead>
                 <TableHead>Områder</TableHead>
                 <TableHead>Timer/dag</TableHead>
@@ -373,6 +352,9 @@ export const EmployeeManagement = () => {
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>{employee.email}</TableCell>
                   <TableCell>{employee.phone || '-'}</TableCell>
+                  <TableCell className="max-w-[150px] truncate">
+                    {employee.start_location || '-'}
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {employee.specialties?.slice(0, 2).map(specialty => (
@@ -423,7 +405,7 @@ export const EmployeeManagement = () => {
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
+            </tbody>
           </Table>
         </CardContent>
       </Card>
