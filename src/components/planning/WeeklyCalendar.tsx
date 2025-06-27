@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, MapPin, Clock, Users, Zap, RefreshCw, Settings, Plus, Ban, ChevronLeft, ChevronRight, Euro } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Zap, RefreshCw, Settings, Plus, Ban, ChevronLeft, ChevronRight, Euro, Bug } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useRoutes } from '@/hooks/useRoutes';
@@ -15,6 +15,8 @@ import { toast } from 'sonner';
 import { CalendarGrid } from './CalendarGrid';
 import { RouteOptimizationPanel } from './RouteOptimizationPanel';
 import { RouteVisualization } from './RouteVisualization';
+import { TestOrderGenerator } from './TestOrderGenerator';
+import { OrderDebugInfo } from './OrderDebugInfo';
 
 interface WeeklyCalendarProps {
   currentWeek?: Date;
@@ -27,6 +29,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [showOptimizationPanel, setShowOptimizationPanel] = useState(false);
   const [showRouteVisualization, setShowRouteVisualization] = useState(false);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
   
   const { orders, refetch: refetchOrders } = useOrders();
   const { employees } = useEmployees();
@@ -74,17 +77,39 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
 
   // Filter orders for the SELECTED week and employee
   const weekOrders = orders.filter(order => {
-    if (!order.scheduled_date) return false;
-    const orderDate = new Date(order.scheduled_date);
-    const isInWeek = weekDates.some(weekDate => 
-      formatDate(orderDate) === formatDate(weekDate)
-    );
-    
-    if (!isInWeek) return false;
-    
-    if (selectedEmployee === 'all') return true;
-    return order.assigned_employee_id === selectedEmployee;
+    console.log('Filtering order:', {
+      id: order.id.slice(0, 8),
+      customer: order.customer,
+      scheduled_week: order.scheduled_week,
+      current_week_number: weekNumber,
+      scheduled_date: order.scheduled_date,
+      assigned_employee: order.assigned_employee_id,
+      selected_employee: selectedEmployee
+    });
+
+    // First check if order has a scheduled week that matches current week
+    if (order.scheduled_week === weekNumber) {
+      if (selectedEmployee === 'all') return true;
+      return order.assigned_employee_id === selectedEmployee;
+    }
+
+    // If no scheduled week, check if order has a scheduled date in this week
+    if (!order.scheduled_week && order.scheduled_date) {
+      const orderDate = new Date(order.scheduled_date);
+      const isInWeek = weekDates.some(weekDate => 
+        formatDate(orderDate) === formatDate(weekDate)
+      );
+      
+      if (!isInWeek) return false;
+      
+      if (selectedEmployee === 'all') return true;
+      return order.assigned_employee_id === selectedEmployee;
+    }
+
+    return false;
   });
+
+  console.log('Week orders after filtering:', weekOrders.length, 'for week', weekNumber);
 
   // Filter blocked slots for the SELECTED week
   const weekBlockedSlots = blockedSlots.filter(slot => 
@@ -192,6 +217,16 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 </SelectContent>
               </Select>
 
+              {/* Debug Toggle */}
+              <Button 
+                variant={showDebugInfo ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowDebugInfo(!showDebugInfo)}
+              >
+                <Bug className="h-4 w-4 mr-2" />
+                Debug
+              </Button>
+
               {/* View Toggle Buttons */}
               <Button 
                 variant={showRouteVisualization ? "default" : "outline"}
@@ -244,6 +279,14 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
           </div>
         </CardHeader>
       </Card>
+
+      {/* Debug Info Panel */}
+      {showDebugInfo && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TestOrderGenerator />
+          <OrderDebugInfo />
+        </div>
+      )}
 
       {/* Conditional Panels */}
       {showOptimizationPanel && (
