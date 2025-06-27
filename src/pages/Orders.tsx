@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +8,7 @@ import { Plus, Search, Settings, Filter, Edit, Trash2 } from 'lucide-react';
 import { OrderDialog } from '@/components/orders/OrderDialog';
 import { OrderSettingsDialog } from '@/components/orders/OrderSettingsDialog';
 import { useOrders } from '@/hooks/useOrders';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 const Orders = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -109,6 +109,16 @@ const Orders = () => {
 
   // Get unique statuses for filter dropdown
   const uniqueStatuses = [...new Set(orders.map(order => order.status))];
+
+  // Use the new auto-refresh hook
+  const autoRefreshHook = useAutoRefresh({
+    enabled: true,
+    interval: 30000,
+    onRefresh: () => {
+      // Refresh orders data
+      window.location.reload();
+    }
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">

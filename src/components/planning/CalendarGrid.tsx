@@ -177,6 +177,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
       await deleteBlockedSlot(blockToDelete.id);
       setDeleteDialogOpen(false);
       setBlockToDelete(null);
+      toast.success('Blokering fjernet');
     }
   };
 
@@ -280,7 +281,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
                         {isBlocked && (
                           <div className="mb-1 p-2 rounded-lg bg-red-100 border border-red-300 relative group">
                             <div 
-                              className="flex items-center gap-1 text-xs text-red-700 cursor-pointer"
+                              className="flex items-center gap-1 text-xs text-red-700 cursor-pointer hover:bg-red-200 rounded p-1"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const blockedSlot = Object.entries(blockedSlotsByDateTime[dateKey] || {})
@@ -291,15 +292,15 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
                               }}
                             >
                               <Ban className="h-3 w-3" />
-                              Blokeret
-                              <Trash2 className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 text-red-600" />
+                              <span className="flex-1">Blokeret</span>
+                              <Trash2 className="h-3 w-3 opacity-0 group-hover:opacity-100 text-red-600" />
                             </div>
                             {/* Show reason from blocked slot */}
                             {Object.entries(blockedSlotsByDateTime[dateKey] || {}).map(([time, slots]) => 
                               slots.filter(slot => timeSlot >= slot.start_time.slice(0, 5) && timeSlot < slot.end_time.slice(0, 5))
                                 .map(slot => slot.reason).filter(Boolean).slice(0, 1)
                                 .map((reason, idx) => (
-                                  <div key={idx} className="text-xs text-red-600 mt-1">
+                                  <div key={idx} className="text-xs text-red-600 mt-1 px-1">
                                     {reason}
                                   </div>
                                 ))

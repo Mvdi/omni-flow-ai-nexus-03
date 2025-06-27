@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, MapPin, Clock, Users, Zap, RefreshCw, Settings, Plus, Ban, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Zap, RefreshCw, Settings, Plus, Ban, ChevronLeft, ChevronRight, Euro } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useRoutes } from '@/hooks/useRoutes';
@@ -23,6 +22,8 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
   const [isReplanning, setIsReplanning] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [showOptimizationPanel, setShowOptimizationPanel] = useState(false);
+  const [showRouteVisualization, setShowRouteVisualization] = useState(false);
   
   const { orders, refetch: refetchOrders } = useOrders();
   const { employees } = useEmployees();
@@ -30,17 +31,15 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   const { workSchedules } = useWorkSchedules();
   const { blockedSlots } = useBlockedTimeSlots();
 
-  // Auto-refresh functionality
-  useEffect(() => {
-    if (!autoRefresh) return;
-    
-    const interval = setInterval(() => {
+  // Use the new auto-refresh hook
+  useAutoRefresh({
+    enabled: autoRefresh,
+    interval: 30000,
+    onRefresh: () => {
       refetchOrders();
       refetchRoutes();
-    }, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [autoRefresh, refetchOrders, refetchRoutes]);
+    }
+  });
 
   const getWeekDates = (date: Date) => {
     const startOfWeek = new Date(date);
@@ -89,16 +88,16 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
     weekDates.some(date => formatDate(date) === slot.blocked_date)
   );
 
-  const handleReplanWeek = async () => {
+  const handleIntelligentReplan = async () => {
     setIsReplanning(true);
     
     try {
       const weekStart = formatDate(weekDates[0]);
       const weekEnd = formatDate(weekDates[6]);
       
-      console.log('Replanning week:', weekStart, 'to', weekEnd);
+      console.log('Starting intelligent replanning:', weekStart, 'to', weekEnd);
       
-      const { data, error } = await supabase.functions.invoke('replan-calendar', {
+      const { data, error } = await supabase.functions.invoke('intelligent-route-planner', {
         body: { 
           weekStart, 
           weekEnd,
@@ -107,23 +106,28 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
       });
 
       if (error) {
-        console.error('Replan error:', error);
+        console.error('Intelligent replan error:', error);
         throw error;
       }
 
-      console.log('Replan result:', data);
+      console.log('Intelligent replan result:', data);
       
-      toast.success(data.message || `Planlagt ${data.ordersPlanned} ordrer på ${data.routesCreated} ruter`);
+      toast.success(data.message || `Intelligent optimering: ${data.ordersOptimized} ordrer på ${data.routesCreated} ruter med ${Math.round(data.averageOptimizationScore)}% effektivitet`);
       
       // Refresh data
       await Promise.all([refetchOrders(), refetchRoutes()]);
       
     } catch (error) {
-      console.error('Error replanning calendar:', error);
-      toast.error('Fejl ved genplanlægning af kalender');
+      console.error('Error during intelligent replanning:', error);
+      toast.error('Fejl ved intelligent ruteplanlægning');
     } finally {
       setIsReplanning(false);
     }
+  };
+
+  const handleOptimizationComplete = () => {
+    refetchOrders();
+    refetchRoutes();
   };
 
   const navigateWeek = (direction: 'prev' | 'next') => {
@@ -185,6 +189,31 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 </SelectContent>
               </Select>
 
+              {/* View Toggle Buttons */}
+              <Button 
+                variant={showRouteVisualization ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setShowRouteVisualization(!showRouteVisualization);
+                  setShowOptimizationPanel(false);
+                }}
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                Rute Visualisering
+              </Button>
+
+              <Button 
+                variant={showOptimizationPanel ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setShowOptimizationPanel(!showOptimizationPanel);
+                  setShowRouteVisualization(false);
+                }}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                AI Optimering
+              </Button>
+
               {/* Auto-refresh toggle */}
               <Button 
                 variant="outline" 
@@ -197,21 +226,37 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
               </Button>
               
               <Button 
-                onClick={handleReplanWeek}
+                onClick={handleIntelligentReplan}
                 disabled={isReplanning}
-                className="bg-purple-600 hover:bg-purple-700"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
               >
                 {isReplanning ? (
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <Zap className="h-4 w-4 mr-2" />
                 )}
-                {isReplanning ? 'Genplanlægger...' : 'Genplanlæg Kalender'}
+                {isReplanning ? 'AI Optimerer...' : 'Intelligent Optimering'}
               </Button>
             </div>
           </div>
         </CardHeader>
       </Card>
+
+      {/* Conditional Panels */}
+      {showOptimizationPanel && (
+        <RouteOptimizationPanel
+          selectedWeek={selectedWeek}
+          selectedEmployee={selectedEmployee}
+          onOptimizationComplete={handleOptimizationComplete}
+        />
+      )}
+
+      {showRouteVisualization && (
+        <RouteVisualization
+          selectedWeek={selectedWeek}
+          selectedEmployee={selectedEmployee}
+        />
+      )}
 
       {/* Enhanced Week Statistics */}
       <div className="grid grid-cols-4 gap-4">
@@ -233,10 +278,15 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Aktive medarbejdere</p>
-                <p className="text-2xl font-bold text-gray-900">{activeEmployees.length}</p>
+                <p className="text-sm font-medium text-gray-600">Aktive ruter</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {routes.filter(route => 
+                    weekDates.some(date => formatDate(date) === route.route_date) &&
+                    (selectedEmployee === 'all' || route.employee_id === selectedEmployee)
+                  ).length}
+                </p>
               </div>
-              <Users className="h-8 w-8 text-green-600" />
+              <MapPin className="h-8 w-8 text-green-600" />
             </div>
           </CardContent>
         </Card>
@@ -262,7 +312,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                   {weekOrders.reduce((sum, order) => sum + order.price, 0).toLocaleString()} kr
                 </p>
               </div>
-              <MapPin className="h-8 w-8 text-purple-600" />
+              <Euro className="h-8 w-8 text-purple-600" />
             </div>
           </CardContent>
         </Card>
