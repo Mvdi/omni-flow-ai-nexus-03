@@ -19,61 +19,62 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Order } from '@/hooks/useOrders';
 
 interface OrderDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  order?: any;
+  order?: Order | null;
   onSave: (orderData: any) => void;
 }
 
 export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps) => {
   const [formData, setFormData] = useState({
-    orderType: '',
+    order_type: '',
     customer: '',
-    customerEmail: '',
+    customer_email: '',
     price: '',
-    scheduledWeek: '',
-    scheduledDate: '',
-    scheduledTime: '',
+    scheduled_week: '',
+    scheduled_date: '',
+    scheduled_time: '',
     status: 'Planlagt',
     comment: '',
     address: '',
     priority: 'Normal',
-    estimatedDuration: ''
+    estimated_duration: ''
   });
 
   useEffect(() => {
     if (order) {
       setFormData({
-        orderType: order.orderType || '',
+        order_type: order.order_type || '',
         customer: order.customer || '',
-        customerEmail: order.customerEmail || '',
+        customer_email: order.customer_email || '',
         price: order.price?.toString() || '',
-        scheduledWeek: order.scheduledWeek?.toString() || '',
-        scheduledDate: order.scheduledDate || '',
-        scheduledTime: order.scheduledTime || '',
+        scheduled_week: order.scheduled_week?.toString() || '',
+        scheduled_date: order.scheduled_date || '',
+        scheduled_time: order.scheduled_time || '',
         status: order.status || 'Planlagt',
         comment: order.comment || '',
         address: order.address || '',
         priority: order.priority || 'Normal',
-        estimatedDuration: order.estimatedDuration?.toString() || ''
+        estimated_duration: order.estimated_duration?.toString() || ''
       });
     } else {
       // Reset form for new order
       setFormData({
-        orderType: '',
+        order_type: '',
         customer: '',
-        customerEmail: '',
+        customer_email: '',
         price: '',
-        scheduledWeek: '',
-        scheduledDate: '',
-        scheduledTime: '',
+        scheduled_week: '',
+        scheduled_date: '',
+        scheduled_time: '',
         status: 'Planlagt',
         comment: '',
         address: '',
         priority: 'Normal',
-        estimatedDuration: ''
+        estimated_duration: ''
       });
     }
   }, [order, isOpen]);
@@ -82,11 +83,18 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
     e.preventDefault();
     
     const orderData = {
-      ...formData,
+      order_type: formData.order_type,
+      customer: formData.customer,
+      customer_email: formData.customer_email || undefined,
       price: parseFloat(formData.price) || 0,
-      scheduledWeek: parseInt(formData.scheduledWeek) || 0,
-      estimatedDuration: parseFloat(formData.estimatedDuration) || 0,
-      id: order?.id || `ORD-${Date.now()}`
+      scheduled_week: formData.scheduled_week ? parseInt(formData.scheduled_week) : undefined,
+      scheduled_date: formData.scheduled_date || undefined,
+      scheduled_time: formData.scheduled_time || undefined,
+      status: formData.status,
+      comment: formData.comment || undefined,
+      address: formData.address || undefined,
+      priority: formData.priority,
+      estimated_duration: formData.estimated_duration ? parseFloat(formData.estimated_duration) : undefined
     };
 
     onSave(orderData);
@@ -134,10 +142,10 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="orderType">Ordre Type *</Label>
+              <Label htmlFor="order_type">Ordre Type *</Label>
               <Select 
-                value={formData.orderType} 
-                onValueChange={(value) => setFormData({...formData, orderType: value})}
+                value={formData.order_type} 
+                onValueChange={(value) => setFormData({...formData, order_type: value})}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Vælg ordre type" />
@@ -181,12 +189,12 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="customerEmail">Kunde Email</Label>
+              <Label htmlFor="customer_email">Kunde Email</Label>
               <Input
-                id="customerEmail"
+                id="customer_email"
                 type="email"
-                value={formData.customerEmail}
-                onChange={(e) => setFormData({...formData, customerEmail: e.target.value})}
+                value={formData.customer_email}
+                onChange={(e) => setFormData({...formData, customer_email: e.target.value})}
                 placeholder="kunde@email.dk"
               />
             </div>
@@ -216,12 +224,12 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="scheduledWeek">Uge</Label>
+              <Label htmlFor="scheduled_week">Uge</Label>
               <Input
-                id="scheduledWeek"
+                id="scheduled_week"
                 type="number"
-                value={formData.scheduledWeek}
-                onChange={(e) => setFormData({...formData, scheduledWeek: e.target.value})}
+                value={formData.scheduled_week}
+                onChange={(e) => setFormData({...formData, scheduled_week: e.target.value})}
                 placeholder="29"
                 min="1"
                 max="53"
@@ -229,13 +237,13 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="estimatedDuration">Estimeret tid (timer)</Label>
+              <Label htmlFor="estimated_duration">Estimeret tid (timer)</Label>
               <Input
-                id="estimatedDuration"
+                id="estimated_duration"
                 type="number"
                 step="0.5"
-                value={formData.estimatedDuration}
-                onChange={(e) => setFormData({...formData, estimatedDuration: e.target.value})}
+                value={formData.estimated_duration}
+                onChange={(e) => setFormData({...formData, estimated_duration: e.target.value})}
                 placeholder="2.5"
               />
             </div>
@@ -243,22 +251,22 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="scheduledDate">Specifik Dato</Label>
+              <Label htmlFor="scheduled_date">Specifik Dato</Label>
               <Input
-                id="scheduledDate"
+                id="scheduled_date"
                 type="date"
-                value={formData.scheduledDate}
-                onChange={(e) => setFormData({...formData, scheduledDate: e.target.value})}
+                value={formData.scheduled_date}
+                onChange={(e) => setFormData({...formData, scheduled_date: e.target.value})}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="scheduledTime">Tidspunkt</Label>
+              <Label htmlFor="scheduled_time">Tidspunkt</Label>
               <Input
-                id="scheduledTime"
+                id="scheduled_time"
                 type="time"
-                value={formData.scheduledTime}
-                onChange={(e) => setFormData({...formData, scheduledTime: e.target.value})}
+                value={formData.scheduled_time}
+                onChange={(e) => setFormData({...formData, scheduled_time: e.target.value})}
               />
             </div>
           </div>

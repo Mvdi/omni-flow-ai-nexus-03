@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { OrderDialog } from '@/components/orders/OrderDialog';
 import { OrderSettingsDialog } from '@/components/orders/OrderSettingsDialog';
+import { useOrders } from '@/hooks/useOrders';
 import { 
   Table,
   TableBody,
@@ -45,57 +46,7 @@ const Orders = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [weekFilter, setWeekFilter] = useState('all');
 
-  // Mock data - will be replaced with Supabase data
-  const orders = [
-    {
-      id: 'ORD-001',
-      orderType: 'Vinduespolering',
-      customer: 'ABC Erhverv A/S',
-      customerEmail: 'kontakt@abc-erhverv.dk',
-      price: 2500,
-      scheduledWeek: 29,
-      scheduledDate: '2024-07-15',
-      scheduledTime: '09:00',
-      status: 'Planlagt',
-      comment: 'Husk stige til 2. sal',
-      address: 'Hovedgade 123, 2100 København Ø',
-      priority: 'Normal',
-      estimatedDuration: 3,
-      createdAt: '2024-06-27T10:00:00Z'
-    },
-    {
-      id: 'ORD-002',
-      orderType: 'Rengøring',
-      customer: 'XYZ Kontor',
-      customerEmail: 'info@xyz-kontor.dk',
-      price: 1800,
-      scheduledWeek: 29,
-      scheduledDate: '2024-07-16',
-      scheduledTime: '14:00',
-      status: 'Skal impregneres',
-      comment: 'Kunde ønsker miljøvenlige produkter',
-      address: 'Nørregade 45, 8000 Aarhus C',
-      priority: 'Høj',
-      estimatedDuration: 2.5,
-      createdAt: '2024-06-26T14:30:00Z'
-    },
-    {
-      id: 'ORD-003',
-      orderType: 'Algebehandling',
-      customer: 'DEF Restaurant',
-      customerEmail: 'booking@def-restaurant.dk',
-      price: 3200,
-      scheduledWeek: 30,
-      scheduledDate: '2024-07-22',
-      scheduledTime: '08:00',
-      status: 'Færdig',
-      comment: 'Månedlig behandling',
-      address: 'Vestergade 78, 5000 Odense C',
-      priority: 'Normal',
-      estimatedDuration: 4,
-      createdAt: '2024-06-25T09:15:00Z'
-    }
-  ];
+  const { orders, loading, createOrder, updateOrder, deleteOrder } = useOrders();
 
   // Status color mapping
   const getStatusColor = (status: string) => {
@@ -114,10 +65,10 @@ const Orders = () => {
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.orderType.toLowerCase().includes(searchTerm.toLowerCase());
+                         order.order_type.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    const matchesWeek = weekFilter === 'all' || order.scheduledWeek.toString() === weekFilter;
+    const matchesWeek = weekFilter === 'all' || order.scheduled_week?.toString() === weekFilter;
     
     return matchesSearch && matchesStatus && matchesWeek;
   });
@@ -137,6 +88,26 @@ const Orders = () => {
     setSelectedOrder(null);
     setIsOrderDialogOpen(true);
   };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (confirm('Er du sikker på, at du vil slette denne ordre?')) {
+      await deleteOrder(orderId);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="p-6 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Indlæser ordre...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -293,22 +264,24 @@ const Orders = () => {
               <TableBody>
                 {filteredOrders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell className="font-mono text-sm">{order.id}</TableCell>
-                    <TableCell>{order.orderType}</TableCell>
+                    <TableCell className="font-mono text-sm">{order.id.slice(0, 8)}</TableCell>
+                    <TableCell>{order.order_type}</TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{order.customer}</div>
-                        <div className="text-sm text-gray-500">{order.customerEmail}</div>
+                        <div className="text-sm text-gray-500">{order.customer_email}</div>
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{order.price.toLocaleString()} kr</TableCell>
                     <TableCell>
-                      <Badge variant="outline">Uge {order.scheduledWeek}</Badge>
+                      {order.scheduled_week && (
+                        <Badge variant="outline">Uge {order.scheduled_week}</Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{order.scheduledDate}</div>
-                        <div className="text-gray-500">{order.scheduledTime}</div>
+                        {order.scheduled_date && <div>{order.scheduled_date}</div>}
+                        {order.scheduled_time && <div className="text-gray-500">{order.scheduled_time}</div>}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -325,7 +298,11 @@ const Orders = () => {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteOrder(order.id)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -343,8 +320,12 @@ const Orders = () => {
         isOpen={isOrderDialogOpen}
         onClose={() => setIsOrderDialogOpen(false)}
         order={selectedOrder}
-        onSave={(orderData) => {
-          console.log('Saving order:', orderData);
+        onSave={async (orderData) => {
+          if (selectedOrder) {
+            await updateOrder(selectedOrder.id, orderData);
+          } else {
+            await createOrder(orderData);
+          }
           setIsOrderDialogOpen(false);
         }}
       />
