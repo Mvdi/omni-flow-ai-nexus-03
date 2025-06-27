@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, MapPin, Clock, Users, Zap, RefreshCw, Settings, Plus, Ban, ChevronLeft, ChevronRight, Euro, Bug, Brain } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Zap, RefreshCw, Settings, Plus, Ban, ChevronLeft, ChevronRight, Euro, Bug, Brain, Grid, Layout } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useRoutes } from '@/hooks/useRoutes';
@@ -13,6 +14,7 @@ import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CalendarGrid } from './CalendarGrid';
+import { DynamicCalendarGrid } from './DynamicCalendarGrid';
 import { RouteOptimizationPanel } from './RouteOptimizationPanel';
 import { RouteVisualization } from './RouteVisualization';
 import { TestOrderGenerator } from './TestOrderGenerator';
@@ -30,6 +32,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   const [showOptimizationPanel, setShowOptimizationPanel] = useState(false);
   const [showRouteVisualization, setShowRouteVisualization] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [viewMode, setViewMode] = useState<'dynamic' | 'grid'>('dynamic');
   
   const { orders, refetch: refetchOrders } = useOrders();
   const { employees } = useEmployees();
@@ -77,16 +80,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
 
   // Filter orders for the SELECTED week and employee
   const weekOrders = orders.filter(order => {
-    console.log('Filtering order:', {
-      id: order.id.slice(0, 8),
-      customer: order.customer,
-      scheduled_week: order.scheduled_week,
-      current_week_number: weekNumber,
-      scheduled_date: order.scheduled_date,
-      assigned_employee: order.assigned_employee_id,
-      selected_employee: selectedEmployee
-    });
-
     if (order.scheduled_week === weekNumber) {
       if (selectedEmployee === 'all') return true;
       return order.assigned_employee_id === selectedEmployee;
@@ -106,13 +99,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
 
     return false;
   });
-
-  console.log('Week orders after filtering:', weekOrders.length, 'for week', weekNumber);
-
-  // Filter blocked slots for the SELECTED week
-  const weekBlockedSlots = blockedSlots.filter(slot => 
-    weekDates.some(date => formatDate(date) === slot.blocked_date)
-  );
 
   const navigateWeek = (direction: 'prev' | 'next') => {
     const newWeek = new Date(selectedWeek);
@@ -141,7 +127,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 <CardDescription>
                   {weekDates[0].toLocaleDateString('da-DK')} - {weekDates[6].toLocaleDateString('da-DK')}
                   <br />
-                  <span className="text-green-600 text-sm">🤖 Automatisk intelligent planlægning aktiv</span>
+                  <span className="text-green-600 text-sm">🤖 Automatisk dynamisk planlægning aktiv</span>
                 </CardDescription>
               </div>
               
@@ -174,6 +160,28 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* View Mode Toggle */}
+              <div className="flex items-center border rounded-md">
+                <Button 
+                  variant={viewMode === 'dynamic' ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode('dynamic')}
+                  className="rounded-r-none"
+                >
+                  <Layout className="h-4 w-4 mr-2" />
+                  Dynamisk
+                </Button>
+                <Button 
+                  variant={viewMode === 'grid' ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                  className="rounded-l-none"
+                >
+                  <Grid className="h-4 w-4 mr-2" />
+                  Gitter
+                </Button>
+              </div>
 
               {/* Debug Toggle */}
               <Button 
@@ -289,10 +297,12 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Blokerede tidspunkter</p>
-                <p className="text-2xl font-bold text-gray-900">{weekBlockedSlots.length}</p>
+                <p className="text-sm font-medium text-gray-600">Total arbejdstid</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {Math.round(weekOrders.reduce((sum, order) => sum + (order.estimated_duration || 0), 0) / 60)} timer
+                </p>
               </div>
-              <Ban className="h-8 w-8 text-red-600" />
+              <Clock className="h-8 w-8 text-purple-600" />
             </div>
           </CardContent>
         </Card>
@@ -306,17 +316,24 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                   {weekOrders.reduce((sum, order) => sum + order.price, 0).toLocaleString()} kr
                 </p>
               </div>
-              <Euro className="h-8 w-8 text-purple-600" />
+              <Euro className="h-8 w-8 text-green-600" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Calendar Grid - pass both selectedWeek and selectedEmployee */}
-      <CalendarGrid 
-        currentWeek={selectedWeek} 
-        selectedEmployee={selectedEmployee}
-      />
+      {/* Dynamic Calendar Views */}
+      {viewMode === 'dynamic' ? (
+        <DynamicCalendarGrid 
+          currentWeek={selectedWeek} 
+          selectedEmployee={selectedEmployee}
+        />
+      ) : (
+        <CalendarGrid 
+          currentWeek={selectedWeek} 
+          selectedEmployee={selectedEmployee}
+        />
+      )}
     </div>
   );
 };

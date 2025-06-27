@@ -13,10 +13,9 @@ export const useIntelligentScheduler = () => {
   const { workSchedules } = useWorkSchedules();
   const { createRoute } = useRoutes();
 
-  // Aggressive intelligent scheduling that redistributes ALL orders
+  // Dynamic intelligent scheduling that calculates realistic times
   useEffect(() => {
     const scheduleIntelligently = async () => {
-      // Only run if we have the necessary data
       if (!orders.length || !employees.length || !workSchedules.length) {
         console.log('🤖 Intelligent scheduler: Waiting for data...', {
           orders: orders.length,
@@ -26,50 +25,63 @@ export const useIntelligentScheduler = () => {
         return;
       }
 
-      // Get current week
       const today = new Date();
       const currentWeekStart = new Date(today);
       currentWeekStart.setDate(today.getDate() - today.getDay() + 1); // Monday
       
-      // Find orders that need intelligent redistribution
+      // Find orders that need dynamic scheduling
       const ordersToOptimize = orders.filter(order => {
-        // Include orders without proper scheduling OR orders clustered at same time
         const needsScheduling = !order.scheduled_date || !order.scheduled_time || !order.assigned_employee_id;
         const hasZeroDuration = !order.estimated_duration || order.estimated_duration === 0;
         const isClusteredTime = order.scheduled_time === '08:00:00' || order.scheduled_time === '09:00:00';
+        const needsDynamicPlacement = order.scheduled_time && !order.travel_time_minutes;
         
-        return needsScheduling || hasZeroDuration || isClusteredTime;
+        return needsScheduling || hasZeroDuration || isClusteredTime || needsDynamicPlacement;
       });
 
       if (ordersToOptimize.length === 0) {
-        console.log('🤖 Intelligent scheduler: All orders properly distributed');
+        console.log('🤖 Dynamic scheduler: All orders properly scheduled');
         return;
       }
 
-      console.log(`🤖 Intelligent scheduler: Optimizing ${ordersToOptimize.length} orders`);
+      console.log(`🤖 Dynamic scheduler: Optimizing ${ordersToOptimize.length} orders with realistic timing`);
 
       try {
-        // Convert orders to VRP format with realistic durations
-        const vrpOrders = ordersToOptimize.map(order => ({
-          id: order.id,
-          customer: order.customer,
-          address: order.address || '',
-          latitude: order.latitude,
-          longitude: order.longitude,
-          estimated_duration: Math.max(order.estimated_duration || 60, 30), // Minimum 30 min
-          priority: order.priority,
-          price: order.price,
-          preferred_time: order.scheduled_time,
-          scheduled_date: order.scheduled_date,
-          scheduled_time: order.scheduled_time,
-        }));
+        // Convert orders to VRP format with enhanced duration logic
+        const vrpOrders = ordersToOptimize.map(order => {
+          let estimatedDuration = order.estimated_duration || 60;
+          
+          // Smart duration estimation based on service type
+          const serviceType = order.order_type?.toLowerCase() || order.customer?.toLowerCase() || '';
+          if (serviceType.includes('kontor') || serviceType.includes('byggeren')) {
+            estimatedDuration = Math.max(estimatedDuration, 90);
+          } else if (serviceType.includes('privat') || serviceType.includes('villa')) {
+            estimatedDuration = Math.max(estimatedDuration, 120);
+          } else if (serviceType.includes('gulv') || serviceType.includes('dybren')) {
+            estimatedDuration = Math.max(estimatedDuration, 180);
+          }
 
-        // Filter active employees with meaningful data
+          return {
+            id: order.id,
+            customer: order.customer,
+            address: order.address || '',
+            latitude: order.latitude,
+            longitude: order.longitude,
+            estimated_duration: estimatedDuration,
+            priority: order.priority,
+            price: order.price,
+            preferred_time: order.scheduled_time,
+            scheduled_date: order.scheduled_date,
+            scheduled_time: order.scheduled_time,
+          };
+        });
+
+        // Enhanced employee data with realistic travel considerations
         const activeEmployees = employees.filter(emp => emp.is_active).map(emp => ({
           id: emp.id,
           name: emp.name,
           start_location: emp.start_location || 'Kontor',
-          latitude: emp.latitude || 56.1629, // Default Aarhus coordinates
+          latitude: emp.latitude || 56.1629,
           longitude: emp.longitude || 10.2039,
           max_hours_per_day: emp.max_hours_per_day || 8,
           hourly_rate: emp.hourly_rate || 300,
@@ -81,7 +93,7 @@ export const useIntelligentScheduler = () => {
           return;
         }
 
-        // Convert work schedules - ensure we have schedules for Mon-Fri
+        // Enhanced work schedules with buffer times
         const vrpWorkSchedules = workSchedules.map(ws => ({
           employee_id: ws.employee_id,
           day_of_week: ws.day_of_week,
@@ -90,7 +102,7 @@ export const useIntelligentScheduler = () => {
           is_working_day: ws.is_working_day
         }));
 
-        // Add default schedules for missing days (Mon-Fri = 1-5)
+        // Add default schedules for missing days
         for (const employee of activeEmployees) {
           for (let day = 1; day <= 5; day++) {
             const hasSchedule = vrpWorkSchedules.some(ws => 
@@ -109,9 +121,9 @@ export const useIntelligentScheduler = () => {
           }
         }
 
-        console.log(`🤖 Running VRP optimization with ${vrpOrders.length} orders, ${activeEmployees.length} employees, ${vrpWorkSchedules.length} work schedules`);
+        console.log(`🤖 Running dynamic VRP optimization with realistic timing`);
 
-        // Run intelligent multi-day optimization
+        // Run dynamic multi-day optimization
         const optimizedRoutes = VRPOptimizer.optimizeWeeklyRoutes(
           vrpOrders,
           activeEmployees,
@@ -119,18 +131,18 @@ export const useIntelligentScheduler = () => {
           currentWeekStart.toISOString().split('T')[0]
         );
 
-        console.log(`🤖 VRP generated ${optimizedRoutes.length} optimized routes`);
+        console.log(`🤖 Dynamic VRP generated ${optimizedRoutes.length} realistic routes`);
 
-        // Apply the intelligent scheduling
+        // Apply dynamic scheduling with realistic times
         let scheduledOrders = 0;
         let createdRoutes = 0;
 
         for (const route of optimizedRoutes) {
           if (route.orders.length === 0) continue;
 
-          // Create route in database
+          // Create enhanced route with travel calculations
           const routeData = {
-            name: `Auto: ${route.orders[0]?.customer || 'Route'} - ${route.date}`,
+            name: `Dynamisk: ${route.orders[0]?.customer || 'Route'} - ${route.date}`,
             employee_id: route.employee_id,
             route_date: route.date,
             estimated_distance_km: route.total_distance,
@@ -138,18 +150,27 @@ export const useIntelligentScheduler = () => {
             total_revenue: route.total_revenue,
             status: 'Planlagt' as const,
             ai_optimized: true,
-            optimization_score: route.optimization_score
+            optimization_score: route.optimization_score,
+            total_travel_time_minutes: route.orders.reduce((sum, order) => sum + (order.travel_time_to_here || 0), 0)
           };
 
           const createdRoute = await createRoute(routeData);
           if (createdRoute) {
             createdRoutes++;
 
-            // Update orders with intelligent scheduling
+            // Update orders with dynamic realistic scheduling
             for (const optimizedOrder of route.orders) {
+              // Calculate end time based on start time + duration
+              const startTime = optimizedOrder.scheduled_time;
+              const duration = optimizedOrder.estimated_duration;
+              const startMinutes = timeStringToMinutes(startTime);
+              const endMinutes = startMinutes + duration;
+              const endTime = minutesToTimeString(endMinutes);
+
               await updateOrder(optimizedOrder.id, {
                 scheduled_date: optimizedOrder.scheduled_date,
                 scheduled_time: optimizedOrder.scheduled_time,
+                expected_completion_time: endTime,
                 route_id: createdRoute.id,
                 order_sequence: optimizedOrder.order_sequence,
                 travel_time_minutes: optimizedOrder.travel_time_to_here,
@@ -165,18 +186,18 @@ export const useIntelligentScheduler = () => {
         if (scheduledOrders > 0) {
           const avgScore = Math.round(optimizedRoutes.reduce((sum, r) => sum + r.optimization_score, 0) / optimizedRoutes.length);
           toast.success(
-            `🤖 Intelligent optimering: ${scheduledOrders} ordrer automatisk planlagt på ${createdRoutes} ruter med ${avgScore}% effektivitet`
+            `🤖 Dynamisk optimering: ${scheduledOrders} ordrer med realistisk timing på ${createdRoutes} ruter (${avgScore}% effektivitet)`
           );
-          console.log(`✅ Intelligent scheduling completed: ${scheduledOrders} orders on ${createdRoutes} routes`);
+          console.log(`✅ Dynamic scheduling completed: ${scheduledOrders} orders with realistic timing`);
         }
 
       } catch (error) {
-        console.error('Intelligent scheduler error:', error);
-        console.log('🤖 Intelligent scheduler will retry...');
+        console.error('Dynamic scheduler error:', error);
+        console.log('🤖 Dynamic scheduler will retry...');
       }
     };
 
-    // More aggressive scheduling - run sooner and more often for orders that need it
+    // Run dynamic scheduling
     const timeoutId = setTimeout(scheduleIntelligently, 1500);
     
     return () => clearTimeout(timeoutId);
@@ -184,3 +205,15 @@ export const useIntelligentScheduler = () => {
 
   return null;
 };
+
+// Helper functions for time calculations
+function timeStringToMinutes(timeString: string): number {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return hours * 60 + (minutes || 0);
+}
+
+function minutesToTimeString(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+}
