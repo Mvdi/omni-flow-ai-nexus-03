@@ -91,7 +91,7 @@ export class VRPSolverService {
       const result: VRPOptimizeResponse = {
         routes,
         total_distance_km: totalDistance,
-        optimization_score,
+        optimization_score: optimizationScore,
         computation_time_ms: Date.now() - startTime
       };
 
