@@ -425,4 +425,4 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
       )}
     </Dialog>
   );
-}; 
+};
