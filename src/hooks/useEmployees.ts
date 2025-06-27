@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -12,9 +13,11 @@ export interface Employee {
   preferred_areas: string[];
   max_hours_per_day: number;
   start_location?: string;
-  // Note: coordinates are excluded from frontend interface for security
+  latitude?: number;
+  longitude?: number;
   bfe_number?: string;
   work_radius_km?: number;
+  hourly_rate?: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -33,6 +36,7 @@ export interface CreateEmployeeData {
   longitude?: number;
   bfe_number?: string;
   work_radius_km?: number;
+  hourly_rate?: number;
   is_active?: boolean;
 }
 
@@ -51,7 +55,7 @@ export const useEmployees = () => {
       setLoading(true);
       console.log('Fetching employees for user:', user.id);
       
-      // Exclude sensitive coordinate data from frontend queries
+      // Include coordinate data and hourly_rate for VRP optimization
       const { data, error } = await supabase
         .from('employees')
         .select(`
@@ -63,8 +67,11 @@ export const useEmployees = () => {
           preferred_areas,
           max_hours_per_day,
           start_location,
+          latitude,
+          longitude,
           bfe_number,
           work_radius_km,
+          hourly_rate,
           is_active,
           created_at,
           updated_at,
@@ -96,7 +103,7 @@ export const useEmployees = () => {
     }
 
     try {
-      console.log('Creating employee with secure coordinate storage');
+      console.log('Creating employee with coordinate storage');
       
       const { data, error } = await supabase
         .from('employees')
@@ -110,8 +117,11 @@ export const useEmployees = () => {
           preferred_areas,
           max_hours_per_day,
           start_location,
+          latitude,
+          longitude,
           bfe_number,
           work_radius_km,
+          hourly_rate,
           is_active,
           created_at,
           updated_at,
@@ -125,7 +135,7 @@ export const useEmployees = () => {
         return null;
       }
 
-      console.log('Employee created successfully with coordinates stored securely');
+      console.log('Employee created successfully');
       toast.success('Medarbejder oprettet');
       await fetchEmployees();
       return data;
@@ -159,8 +169,11 @@ export const useEmployees = () => {
           preferred_areas,
           max_hours_per_day,
           start_location,
+          latitude,
+          longitude,
           bfe_number,
           work_radius_km,
+          hourly_rate,
           is_active,
           created_at,
           updated_at,
