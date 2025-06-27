@@ -28,6 +28,30 @@ const formatTextForDisplay = (text: string) => {
     .replace(/\n/g, '<br>'); // Preserve newlines
 };
 
+// Helper function to check if message contains signature
+const hasSignature = (content: string) => {
+  return content.includes('---') || content.includes('MM Multi Partner');
+};
+
+// Helper function to format message content with signature
+const formatMessageWithSignature = (content: string) => {
+  if (hasSignature(content)) {
+    const parts = content.split('---');
+    if (parts.length > 1) {
+      const messageText = parts[0].trim();
+      const signaturePart = parts.slice(1).join('---').trim();
+      
+      return `
+        <div>${formatTextForDisplay(messageText)}</div>
+        <div style="border-top: 1px solid #e5e7eb; margin-top: 16px; padding-top: 16px; color: #6b7280;">
+          ${formatTextForDisplay(signaturePart)}
+        </div>
+      `;
+    }
+  }
+  return formatTextForDisplay(content);
+};
+
 export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [aiSuggestion, setAiSuggestion] = useState('');
@@ -53,20 +77,11 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
           
           if (userSignature?.html) {
             setSignatureHtml(userSignature.html);
-            console.log('Loaded HTML signature with logo');
+            console.log('Loaded HTML signature with logo for preview');
           }
         }
       } catch (error) {
         console.error('Error loading signature:', error);
-      }
-      
-      // Fallback to localStorage
-      if (!signatureHtml) {
-        const savedSignatureHtml = localStorage.getItem('signature-html');
-        if (savedSignatureHtml) {
-          setSignatureHtml(savedSignatureHtml);
-          console.log('Loaded signature HTML from localStorage');
-        }
       }
     };
     
@@ -354,7 +369,11 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                     </div>
                     <div 
                       className="text-sm text-gray-700 whitespace-pre-wrap"
-                      dangerouslySetInnerHTML={{ __html: formatTextForDisplay(message.message_content) }}
+                      dangerouslySetInnerHTML={{ 
+                        __html: message.sender_email.includes('@mmmultipartner.dk') 
+                          ? formatMessageWithSignature(message.message_content)
+                          : formatTextForDisplay(message.message_content)
+                      }}
                     />
                   </div>
                 </div>
@@ -421,11 +440,11 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                 {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
-            {signatureHtml && (
+            {signatureHtml && newMessage.trim() && (
               <div className="mt-3 p-3 bg-gray-50 rounded border">
                 <p className="text-xs text-gray-600 mb-2">Forhåndsvisning af emailen som den vil blive sendt:</p>
                 <div className="border rounded bg-white p-3">
-                  <div className="mb-3" dangerouslySetInnerHTML={{ __html: formatTextForDisplay(newMessage || 'Din besked her...') }} />
+                  <div className="mb-3" dangerouslySetInnerHTML={{ __html: formatTextForDisplay(newMessage) }} />
                   <div className="pt-2 border-t border-gray-200">
                     <div dangerouslySetInnerHTML={{ __html: signatureHtml }} />
                   </div>

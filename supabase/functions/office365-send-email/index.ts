@@ -135,10 +135,13 @@ serve(async (req) => {
     // Hent bruger signatur som HTML
     const authHeader = req.headers.get("authorization");
     let signatureHtml = '';
+    let currentUser = null;
+    
     if (authHeader) {
       const jwt = authHeader.replace("Bearer ", "");
       const { data: { user } } = await supabase.auth.getUser(jwt);
       if (user) {
+        currentUser = user;
         const { data: userSignature } = await supabase
           .from('user_signatures')
           .select('html')
@@ -146,7 +149,7 @@ serve(async (req) => {
           .single();
         if (userSignature?.html) {
           signatureHtml = userSignature.html;
-          console.log('Using HTML signature with logo');
+          console.log('Using HTML signature with logo for email');
         }
       }
     }
@@ -215,14 +218,18 @@ serve(async (req) => {
 
     console.log('Email sent successfully via Microsoft Graph');
 
-    // Opret ticket message record
+    // Opret ticket message record med den komplette besked (inkl. signatur)
+    const completeMessageContent = signatureHtml ? 
+      `${message_content}\n\n---\n${signatureHtml.replace(/<[^>]*>/g, '').trim()}` : 
+      message_content;
+
     const { error: messageError } = await supabase
       .from('ticket_messages')
       .insert({
         ticket_id: ticket_id,
         sender_email: fromAddress,
         sender_name: sender_name || 'Support Agent',
-        message_content: message_content,
+        message_content: completeMessageContent,
         message_type: 'internal',
         is_internal: false
       });
@@ -230,7 +237,7 @@ serve(async (req) => {
     if (messageError) {
       console.error('Failed to save outgoing message:', messageError);
     } else {
-      console.log('Saved outgoing message to database');
+      console.log('Saved complete outgoing message to database');
     }
 
     // Opdater ticket status og response time
