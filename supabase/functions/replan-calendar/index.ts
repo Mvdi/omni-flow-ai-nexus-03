@@ -90,7 +90,7 @@ serve(async (req) => {
     // Log specific order details for debugging
     if (allOrders) {
       allOrders.forEach(order => {
-        console.log(`Order ${order.id.slice(0, 8)}: ${order.customer}, Status: ${order.status}, Week: ${order.scheduled_week || 'none'}, Duration: ${order.estimated_duration}min, Coords: ${order.latitude ? 'Yes' : 'No'}`)
+        console.log(`Order ${order.id.slice(0, 8)}: ${order.customer}, Status: ${order.status}, Week: ${order.scheduled_week || 'none'}, Duration: ${order.estimated_duration || 0}min, Coords: ${order.latitude ? 'Yes' : 'No'}`)
       })
     }
 
@@ -310,46 +310,31 @@ function calculateAvailableHours(workSchedule: any, blockedSlots: any[]): number
 
 function assignOrdersToEmployee(orders: Order[], employee: Employee): Order[] {
   return orders.filter(order => {
-    // Improved matching logic with relaxed constraints
+    // More flexible matching - accept all orders and let the system distribute them
     
-    // Check if employee has matching specialty (more flexible)
+    // Basic specialty matching (optional)
     const hasMatchingSpecialty = !employee.specialties?.length || 
       employee.specialties.some(specialty => 
         order.order_type.toLowerCase().includes(specialty.toLowerCase()) ||
         specialty.toLowerCase().includes(order.order_type.toLowerCase())
       )
     
-    // Enhanced geographical matching
+    // Enhanced geographical matching with larger radius
     if (employee.latitude && employee.longitude && order.latitude && order.longitude) {
       const distance = calculateHaversineDistance(
         employee.latitude, employee.longitude,
         order.latitude, order.longitude
       )
       
-      const workRadius = employee.work_radius_km || 100 // Increased default radius
+      const workRadius = employee.work_radius_km || 200 // Much larger default radius
       if (distance > workRadius) {
         console.log(`Order ${order.id.slice(0, 8)} too far (${distance.toFixed(1)}km > ${workRadius}km) from ${employee.name}`)
         return false
       }
     }
     
-    // Fallback to original area-based logic (more flexible)
-    if (!employee.preferred_areas || employee.preferred_areas.length === 0) {
-      return hasMatchingSpecialty
-    }
-    
-    const isInPreferredArea = !order.address || 
-      employee.preferred_areas.some(area => 
-        order.address?.toLowerCase().includes(area.toLowerCase()) ||
-        area.toLowerCase().includes(order.address?.toLowerCase() || '')
-      )
-    
-    const result = hasMatchingSpecialty && isInPreferredArea
-    if (!result) {
-      console.log(`Order ${order.id.slice(0, 8)} (${order.order_type}) not suitable for ${employee.name}: specialty=${hasMatchingSpecialty}, area=${isInPreferredArea}`)
-    }
-    
-    return result
+    // Accept orders even without perfect specialty match
+    return true
   })
 }
 
@@ -371,7 +356,8 @@ function distributeOrdersToDay(orders: Order[], maxHours: number): Order[] {
   const dayOrders: Order[] = []
   
   for (const order of orders) {
-    const orderDuration = Math.max(order.estimated_duration || 120, 60) // Minimum 1 hour
+    // Accept even very short orders (minimum 15 minutes)
+    const orderDuration = Math.max(order.estimated_duration || 60, 15)
     if (totalMinutes + orderDuration <= maxMinutes) {
       dayOrders.push(order)
       totalMinutes += orderDuration
@@ -384,7 +370,7 @@ function distributeOrdersToDay(orders: Order[], maxHours: number): Order[] {
 async function createRoute(employee: Employee, date: string, orders: Order[], supabase: any): Promise<string | null> {
   try {
     const routeName = `${employee.name} - ${date}`
-    const totalDuration = orders.reduce((sum, order) => sum + (order.estimated_duration || 120), 0) / 60
+    const totalDuration = orders.reduce((sum, order) => sum + (order.estimated_duration || 60), 0) / 60
     const totalRevenue = orders.reduce((sum, order) => sum + order.price, 0)
     
     const startLocation = employee.preferred_areas?.length > 0 
@@ -443,8 +429,8 @@ async function optimizeOrderSequenceWithCoordinates(orders: Order[], employee: E
     }
     
     // Tertiary sort: Duration
-    const durationA = a.estimated_duration || 120
-    const durationB = b.estimated_duration || 120
+    const durationA = a.estimated_duration || 60
+    const durationB = b.estimated_duration || 60
     
     return durationA - durationB
   })
@@ -454,7 +440,7 @@ function calculateScheduledTime(orderIndex: number, duration: number, workSchedu
   const baseStartHour = workSchedule?.start_time ? 
     parseInt(workSchedule.start_time.split(':')[0]) : 8
   
-  const totalMinutes = baseStartHour * 60 + (orderIndex * 150) // 2.5 hours between orders
+  const totalMinutes = baseStartHour * 60 + (orderIndex * 90) // 1.5 hours between orders
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
   

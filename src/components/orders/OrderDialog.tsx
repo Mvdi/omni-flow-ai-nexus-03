@@ -220,8 +220,8 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
               <Input
                 id="estimated_duration"
                 type="number"
-                min="30"
-                step="30"
+                min="1"
+                step="1"
                 value={formData.estimated_duration}
                 onChange={(e) => setFormData(prev => ({ ...prev, estimated_duration: parseInt(e.target.value) || 120 }))}
               />

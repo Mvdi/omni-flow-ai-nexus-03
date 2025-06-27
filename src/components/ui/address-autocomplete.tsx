@@ -79,10 +79,9 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     
     try {
       const encodedQuery = encodeURIComponent(query);
-      const caretPos = query.length;
       
       const response = await fetch(
-        `https://api.dataforsyningen.dk/autocomplete?q=${encodedQuery}&caretpos=${caretPos}&type=adresse&per_side=10&fuzzy=`
+        `https://api.dataforsyningen.dk/autocomplete?q=${encodedQuery}&type=adresse&per_side=10&fuzzy=`
       );
       
       if (!response.ok) {
@@ -93,8 +92,14 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
       console.log('DAWA API Response:', data);
       
       if (Array.isArray(data)) {
-        setSuggestions(data);
-        setShowSuggestions(data.length > 0);
+        // Filter for address types and ensure we have coordinate data
+        const validSuggestions = data.filter(item => 
+          item.type === 'adresse' && 
+          item.data.adgangspunkt?.koordinater
+        );
+        
+        setSuggestions(validSuggestions);
+        setShowSuggestions(validSuggestions.length > 0);
         setHighlightedIndex(-1);
       }
     } catch (error) {
@@ -124,7 +129,7 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     setHasValidAddress(false);
   };
 
-  const handleSuggestionClick = (suggestion: DAWASuggestion) => {
+  const handleSuggestionClick = async (suggestion: DAWASuggestion) => {
     console.log('Selected suggestion:', suggestion);
     
     onChange(suggestion.tekst);
@@ -132,15 +137,51 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     setHasValidAddress(true);
     
     if (onAddressSelect && suggestion.data.adgangspunkt) {
-      const addressData: AddressData = {
-        address: suggestion.tekst,
-        latitude: suggestion.data.adgangspunkt.koordinater[1], // latitude is second
-        longitude: suggestion.data.adgangspunkt.koordinater[0], // longitude is first
-        bfe_number: suggestion.data.bfe?.toString()
-      };
-      
-      console.log('Calling onAddressSelect with:', addressData);
-      onAddressSelect(addressData);
+      // Get detailed address information
+      try {
+        const detailResponse = await fetch(
+          `https://api.dataforsyningen.dk/adresser?q=${encodeURIComponent(suggestion.tekst)}&struktur=flad`
+        );
+        
+        if (detailResponse.ok) {
+          const detailData = await detailResponse.json();
+          if (detailData.length > 0) {
+            const addressDetail = detailData[0];
+            
+            const addressData: AddressData = {
+              address: suggestion.tekst,
+              latitude: suggestion.data.adgangspunkt.koordinater[1], // latitude is second
+              longitude: suggestion.data.adgangspunkt.koordinater[0], // longitude is first
+              bfe_number: addressDetail.bfe_nr?.toString() || suggestion.data.bfe?.toString()
+            };
+            
+            console.log('Calling onAddressSelect with:', addressData);
+            onAddressSelect(addressData);
+          }
+        } else {
+          // Fallback to basic coordinate data
+          const addressData: AddressData = {
+            address: suggestion.tekst,
+            latitude: suggestion.data.adgangspunkt.koordinater[1],
+            longitude: suggestion.data.adgangspunkt.koordinater[0],
+            bfe_number: suggestion.data.bfe?.toString()
+          };
+          
+          console.log('Calling onAddressSelect with fallback:', addressData);
+          onAddressSelect(addressData);
+        }
+      } catch (error) {
+        console.error('Error getting address details:', error);
+        // Fallback to basic data
+        const addressData: AddressData = {
+          address: suggestion.tekst,
+          latitude: suggestion.data.adgangspunkt.koordinater[1],
+          longitude: suggestion.data.adgangspunkt.koordinater[0],
+          bfe_number: suggestion.data.bfe?.toString()
+        };
+        
+        onAddressSelect(addressData);
+      }
     }
   };
 
@@ -198,8 +239,8 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
         />
         
         {hasValidAddress && (
-          <Badge variant="outline" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs">
-            Gyldig adresse
+          <Badge variant="outline" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs bg-green-50 text-green-700 border-green-200">
+            ✓ Gyldig
           </Badge>
         )}
         
@@ -225,9 +266,7 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                 {suggestion.tekst}
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                {suggestion.type === 'adresse' ? 'Adresse' : 
-                 suggestion.type === 'adgangsadresse' ? 'Adgangsadresse' : 
-                 suggestion.type === 'vejnavn' ? 'Vejnavn' : suggestion.type}
+                Adresse med koordinater
               </div>
             </div>
           ))}

@@ -11,6 +11,7 @@ import { useWorkSchedules } from '@/hooks/useWorkSchedules';
 import { useBlockedTimeSlots } from '@/hooks/useBlockedTimeSlots';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { CalendarGrid } from './CalendarGrid';
 
 interface WeeklyCalendarProps {
   currentWeek?: Date;
@@ -19,41 +20,12 @@ interface WeeklyCalendarProps {
 export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = new Date() }) => {
   const [selectedWeek, setSelectedWeek] = useState(currentWeek);
   const [isReplanning, setIsReplanning] = useState(false);
-  const [statusOptions, setStatusOptions] = useState<any[]>([]);
   
   const { orders, refetch: refetchOrders } = useOrders();
   const { employees } = useEmployees();
   const { routes, refetch: refetchRoutes } = useRoutes();
   const { workSchedules } = useWorkSchedules();
   const { blockedSlots } = useBlockedTimeSlots();
-
-  // Load status options from localStorage
-  useEffect(() => {
-    const savedSettings = localStorage.getItem('orderSettings');
-    if (savedSettings) {
-      try {
-        const settings = JSON.parse(savedSettings);
-        if (settings.statusOptions) {
-          setStatusOptions(settings.statusOptions);
-        }
-      } catch (error) {
-        console.error('Error loading settings:', error);
-        setStatusOptions([
-          { name: 'Ikke planlagt', color: '#6B7280' },
-          { name: 'Planlagt', color: '#3B82F6' },
-          { name: 'I gang', color: '#F59E0B' },
-          { name: 'Færdig', color: '#10B981' }
-        ]);
-      }
-    } else {
-      setStatusOptions([
-        { name: 'Ikke planlagt', color: '#6B7280' },
-        { name: 'Planlagt', color: '#3B82F6' },
-        { name: 'I gang', color: '#F59E0B' },
-        { name: 'Færdig', color: '#10B981' }
-      ]);
-    }
-  }, []);
 
   const getWeekDates = (date: Date) => {
     const startOfWeek = new Date(date);
@@ -80,11 +52,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
     return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
   };
 
-  const getStatusColor = (status: string) => {
-    const statusOption = statusOptions.find(option => option.name === status);
-    return statusOption ? statusOption.color : '#6B7280';
-  };
-
   const weekDates = getWeekDates(selectedWeek);
   const weekNumber = getWeekNumber(selectedWeek);
 
@@ -96,18 +63,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
       formatDate(orderDate) === formatDate(weekDate)
     );
   });
-
-  // Group orders by date and employee
-  const ordersByDateAndEmployee = weekOrders.reduce((acc, order) => {
-    const dateKey = order.scheduled_date!;
-    const employeeKey = order.assigned_employee_id || 'unassigned';
-    
-    if (!acc[dateKey]) acc[dateKey] = {};
-    if (!acc[dateKey][employeeKey]) acc[dateKey][employeeKey] = [];
-    
-    acc[dateKey][employeeKey].push(order);
-    return acc;
-  }, {} as Record<string, Record<string, any[]>>);
 
   const handleReplanWeek = async () => {
     setIsReplanning(true);
@@ -165,14 +120,6 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
             </div>
             
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
-                <ChevronLeft className="h-4 w-4" />
-                Forrige
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
-                Næste
-                <ChevronRight className="h-4 w-4" />
-              </Button>
               <Button 
                 onClick={handleReplanWeek}
                 disabled={isReplanning}
@@ -247,134 +194,8 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
         </Card>
       </div>
 
-      {/* Improved Calendar Grid */}
-      <Card className="shadow-sm border-0">
-        <CardHeader>
-          <CardTitle>Kalender oversigt</CardTitle>
-          <CardDescription>
-            Vis ordrer organiseret efter dag og medarbejder
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {weekDates.filter(date => date.getDay() >= 1 && date.getDay() <= 5).map((date) => {
-              const dateKey = formatDate(date);
-              const dayOrders = ordersByDateAndEmployee[dateKey] || {};
-              const isToday = formatDate(date) === formatDate(new Date());
-
-              return (
-                <div
-                  key={dateKey}
-                  className={`border rounded-lg p-4 ${
-                    isToday ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'
-                  }`}
-                >
-                  {/* Day Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`text-2xl font-bold ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
-                        {date.toLocaleDateString('da-DK', { weekday: 'long' })}
-                      </div>
-                      <div className="text-lg text-gray-600">
-                        {date.toLocaleDateString('da-DK', { day: 'numeric', month: 'long' })}
-                      </div>
-                    </div>
-                    <Badge variant="outline">
-                      {Object.values(dayOrders).flat().length} ordrer
-                    </Badge>
-                  </div>
-
-                  {/* Employee Columns */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {employees.filter(e => e.is_active).map(employee => {
-                      const employeeOrders = dayOrders[employee.id] || [];
-                      const hasBlockedTime = blockedSlots.some(slot => 
-                        slot.employee_id === employee.id && slot.blocked_date === dateKey
-                      );
-
-                      return (
-                        <div key={employee.id} className="border rounded-lg p-3 bg-gray-50">
-                          {/* Employee Header */}
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-medium text-gray-900">{employee.name}</h4>
-                            <Badge variant="outline" className="text-xs">
-                              {employeeOrders.length} ordrer
-                            </Badge>
-                          </div>
-
-                          {/* Employee Orders */}
-                          <div className="space-y-2">
-                            {employeeOrders.map(order => (
-                              <div
-                                key={order.id}
-                                className="p-2 rounded bg-white border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-sm truncate">{order.customer}</div>
-                                    <div className="text-xs text-gray-600 truncate">{order.order_type}</div>
-                                    {order.scheduled_time && (
-                                      <div className="text-xs text-gray-500 mt-1">
-                                        <Clock className="h-3 w-3 inline mr-1" />
-                                        {order.scheduled_time.slice(0, 5)}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <Badge 
-                                    className="ml-2 text-xs" 
-                                    style={{ 
-                                      backgroundColor: getStatusColor(order.status),
-                                      color: 'white'
-                                    }}
-                                  >
-                                    {order.status}
-                                  </Badge>
-                                </div>
-                              </div>
-                            ))}
-
-                            {hasBlockedTime && (
-                              <div className="p-2 rounded bg-red-50 border border-red-200">
-                                <div className="text-red-600 font-medium text-xs">
-                                  <Ban className="h-3 w-3 inline mr-1" />
-                                  Blokeret tid
-                                </div>
-                              </div>
-                            )}
-
-                            {employeeOrders.length === 0 && !hasBlockedTime && (
-                              <div className="text-center py-2 text-gray-400 text-xs">
-                                Ingen ordrer planlagt
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Unassigned Orders */}
-                  {dayOrders.unassigned && dayOrders.unassigned.length > 0 && (
-                    <div className="mt-4 p-3 border-2 border-dashed border-orange-200 rounded-lg bg-orange-50">
-                      <h4 className="font-medium text-orange-800 mb-2">
-                        Ikke tildelte ordrer ({dayOrders.unassigned.length})
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {dayOrders.unassigned.map(order => (
-                          <div key={order.id} className="p-2 rounded bg-white border">
-                            <div className="font-medium text-sm">{order.customer}</div>
-                            <div className="text-xs text-gray-600">{order.order_type}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Calendar Grid */}
+      <CalendarGrid currentWeek={selectedWeek} />
 
       {/* AI Optimization Status */}
       <Card className="shadow-sm border-0 bg-gradient-to-r from-purple-50 to-blue-50">
