@@ -21,6 +21,8 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
   order,
   onSave
 }) => {
+  const [orderTypes, setOrderTypes] = useState<string[]>([]);
+  const [statusOptions, setStatusOptions] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     customer: '',
     customer_email: '',
@@ -35,8 +37,44 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
     comment: '',
     scheduled_date: '',
     scheduled_time: '',
-    scheduled_week: null as number | null
+    scheduled_week: null as number | null,
+    status: 'Ikke planlagt'
   });
+
+  // Load settings from localStorage
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('orderSettings');
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings.orderTypes) {
+          setOrderTypes(settings.orderTypes.map((t: any) => t.name));
+        }
+        if (settings.statusOptions) {
+          setStatusOptions(settings.statusOptions);
+        }
+      } catch (error) {
+        console.error('Error loading order settings:', error);
+        // Fallback to default values
+        setOrderTypes(['Rengøring', 'Vinduespudsning', 'Byggerengøring', 'Kontorrengøring', 'Privatrengøring', 'Specialrengøring', 'Vedligeholdelse']);
+        setStatusOptions([
+          { name: 'Ikke planlagt', color: '#6B7280' },
+          { name: 'Planlagt', color: '#3B82F6' },
+          { name: 'I gang', color: '#F59E0B' },
+          { name: 'Færdig', color: '#10B981' }
+        ]);
+      }
+    } else {
+      // Default values if no settings found
+      setOrderTypes(['Rengøring', 'Vinduespudsning', 'Byggerengøring', 'Kontorrengøring', 'Privatrengøring', 'Specialrengøring', 'Vedligeholdelse']);
+      setStatusOptions([
+        { name: 'Ikke planlagt', color: '#6B7280' },
+        { name: 'Planlagt', color: '#3B82F6' },
+        { name: 'I gang', color: '#F59E0B' },
+        { name: 'Færdig', color: '#10B981' }
+      ]);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (order) {
@@ -54,7 +92,8 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         comment: order.comment || '',
         scheduled_date: order.scheduled_date || '',
         scheduled_time: order.scheduled_time || '',
-        scheduled_week: order.scheduled_week
+        scheduled_week: order.scheduled_week,
+        status: order.status || 'Ikke planlagt'
       });
     } else {
       setFormData({
@@ -71,7 +110,8 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         comment: '',
         scheduled_date: '',
         scheduled_time: '',
-        scheduled_week: null
+        scheduled_week: null,
+        status: 'Ikke planlagt'
       });
     }
   }, [order]);
@@ -90,16 +130,6 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
     e.preventDefault();
     onSave(formData);
   };
-
-  const orderTypes = [
-    'Rengøring',
-    'Vinduespudsning',
-    'Byggerengøring',
-    'Kontorrengøring',
-    'Privatrengøring',
-    'Specialrengøring',
-    'Vedligeholdelse'
-  ];
 
   const priorities = ['Lav', 'Normal', 'Høj', 'Kritisk'];
 
@@ -228,6 +258,20 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
                 onChange={(e) => setFormData(prev => ({ ...prev, scheduled_week: parseInt(e.target.value) || null }))}
               />
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map(status => (
+                  <SelectItem key={status.name} value={status.name}>{status.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>

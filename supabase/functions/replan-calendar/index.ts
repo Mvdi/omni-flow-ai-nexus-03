@@ -87,6 +87,13 @@ serve(async (req) => {
 
     console.log(`Found ${allOrders?.length || 0} orders (unplanned + week ${startWeek}-${endWeek})`)
 
+    // Log specific order details for debugging
+    if (allOrders) {
+      allOrders.forEach(order => {
+        console.log(`Order ${order.id.slice(0, 8)}: ${order.customer}, Status: ${order.status}, Week: ${order.scheduled_week || 'none'}, Duration: ${order.estimated_duration}min, Coords: ${order.latitude ? 'Yes' : 'No'}`)
+      })
+    }
+
     // Fetch active employees with their work schedules
     const { data: employees, error: employeesError } = await supabaseClient
       .from('employees')
@@ -208,7 +215,7 @@ async function planOrdersIntelligently(
       .select('*')
       .eq('employee_id', employee.id)
 
-    // Filter orders suitable for this employee
+    // Filter orders suitable for this employee (improved matching)
     const employeeOrders = assignOrdersToEmployee(sortedOrders, employee)
     console.log(`Employee ${employee.name} can handle ${employeeOrders.length} orders`)
     
@@ -303,35 +310,46 @@ function calculateAvailableHours(workSchedule: any, blockedSlots: any[]): number
 
 function assignOrdersToEmployee(orders: Order[], employee: Employee): Order[] {
   return orders.filter(order => {
-    // Check if employee has matching specialty
-    const hasMatchingSpecialty = employee.specialties.some(specialty => 
-      order.order_type.toLowerCase().includes(specialty.toLowerCase())
-    )
+    // Improved matching logic with relaxed constraints
     
-    if (!hasMatchingSpecialty) return false
-
-    // Enhanced geographical matching using coordinates when available
+    // Check if employee has matching specialty (more flexible)
+    const hasMatchingSpecialty = !employee.specialties?.length || 
+      employee.specialties.some(specialty => 
+        order.order_type.toLowerCase().includes(specialty.toLowerCase()) ||
+        specialty.toLowerCase().includes(order.order_type.toLowerCase())
+      )
+    
+    // Enhanced geographical matching
     if (employee.latitude && employee.longitude && order.latitude && order.longitude) {
       const distance = calculateHaversineDistance(
         employee.latitude, employee.longitude,
         order.latitude, order.longitude
       )
       
-      const workRadius = employee.work_radius_km || 50
-      return distance <= workRadius
+      const workRadius = employee.work_radius_km || 100 // Increased default radius
+      if (distance > workRadius) {
+        console.log(`Order ${order.id.slice(0, 8)} too far (${distance.toFixed(1)}km > ${workRadius}km) from ${employee.name}`)
+        return false
+      }
     }
     
-    // Fallback to original area-based logic
+    // Fallback to original area-based logic (more flexible)
     if (!employee.preferred_areas || employee.preferred_areas.length === 0) {
-      return true
+      return hasMatchingSpecialty
     }
     
     const isInPreferredArea = !order.address || 
       employee.preferred_areas.some(area => 
-        order.address?.toLowerCase().includes(area.toLowerCase())
+        order.address?.toLowerCase().includes(area.toLowerCase()) ||
+        area.toLowerCase().includes(order.address?.toLowerCase() || '')
       )
     
-    return isInPreferredArea
+    const result = hasMatchingSpecialty && isInPreferredArea
+    if (!result) {
+      console.log(`Order ${order.id.slice(0, 8)} (${order.order_type}) not suitable for ${employee.name}: specialty=${hasMatchingSpecialty}, area=${isInPreferredArea}`)
+    }
+    
+    return result
   })
 }
 
@@ -353,7 +371,7 @@ function distributeOrdersToDay(orders: Order[], maxHours: number): Order[] {
   const dayOrders: Order[] = []
   
   for (const order of orders) {
-    const orderDuration = order.estimated_duration || 120
+    const orderDuration = Math.max(order.estimated_duration || 120, 60) // Minimum 1 hour
     if (totalMinutes + orderDuration <= maxMinutes) {
       dayOrders.push(order)
       totalMinutes += orderDuration
