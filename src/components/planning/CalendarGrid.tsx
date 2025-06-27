@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -153,18 +152,37 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
     setSelectedOrder(null);
   };
 
-  const handleBlockSlot = async (reason: string) => {
+  const handleBlockSlot = async (reason: string, startTime: string, endTime: string) => {
     if (!selectedTimeSlot) return;
     
     await createBlockedSlot({
       blocked_date: selectedTimeSlot.date,
-      start_time: selectedTimeSlot.time,
-      end_time: `${(parseInt(selectedTimeSlot.time.split(':')[0]) + 1).toString().padStart(2, '0')}:00`,
+      start_time: startTime,
+      end_time: endTime,
       reason: reason
     });
     
     setIsBlockDialogOpen(false);
     setSelectedTimeSlot(null);
+  };
+
+  // Check if a time slot is blocked (more precise checking)
+  const isTimeSlotBlocked = (date: string, time: string) => {
+    const dayBlockedSlots = blockedSlotsByDateTime[date] || {};
+    
+    // Check if this exact time is blocked OR if this time falls within any blocked period
+    for (const [blockedStartTime, slots] of Object.entries(dayBlockedSlots)) {
+      for (const slot of slots) {
+        const slotStart = slot.start_time.slice(0, 5);
+        const slotEnd = slot.end_time.slice(0, 5);
+        
+        // Check if current time falls within this blocked period
+        if (time >= slotStart && time < slotEnd) {
+          return true;
+        }
+      }
+    }
+    return false;
   };
 
   return (
@@ -201,9 +219,8 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
                   {weekDates.map((date, dayIndex) => {
                     const dateKey = formatDate(date);
                     const dayOrders = ordersByDateTime[dateKey]?.[timeSlot] || [];
-                    const dayBlockedSlots = blockedSlotsByDateTime[dateKey]?.[timeSlot] || [];
                     const isToday = formatDate(date) === formatDate(new Date());
-                    const isBlocked = dayBlockedSlots.length > 0;
+                    const isBlocked = isTimeSlotBlocked(dateKey, timeSlot);
                     
                     return (
                       <div 
@@ -225,10 +242,15 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
                               <Ban className="h-3 w-3" />
                               Blokeret
                             </div>
-                            {dayBlockedSlots[0]?.reason && (
-                              <div className="text-xs text-red-600 mt-1">
-                                {dayBlockedSlots[0].reason}
-                              </div>
+                            {/* Show reason from any blocked slot for this time period */}
+                            {Object.entries(blockedSlotsByDateTime[dateKey] || {}).map(([time, slots]) => 
+                              slots.filter(slot => timeSlot >= slot.start_time.slice(0, 5) && timeSlot < slot.end_time.slice(0, 5))
+                                .map(slot => slot.reason).filter(Boolean).slice(0, 1)
+                                .map((reason, idx) => (
+                                  <div key={idx} className="text-xs text-red-600 mt-1">
+                                    {reason}
+                                  </div>
+                                ))
                             )}
                           </div>
                         )}

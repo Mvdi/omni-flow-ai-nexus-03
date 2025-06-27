@@ -67,6 +67,12 @@ export const useBlockedTimeSlots = () => {
       return null;
     }
 
+    // Validate that end time is after start time
+    if (slotData.start_time >= slotData.end_time) {
+      toast.error('Sluttidspunkt skal være efter starttidspunkt');
+      return null;
+    }
+
     try {
       console.log('Creating blocked time slot:', slotData);
       
@@ -86,7 +92,8 @@ export const useBlockedTimeSlots = () => {
       }
 
       console.log('Blocked time slot created successfully:', data);
-      toast.success('Tidspunkt blokeret');
+      const duration = calculateDuration(slotData.start_time, slotData.end_time);
+      toast.success(`Tidspunkt blokeret (${duration})`);
       await fetchBlockedSlots();
       return data;
     } catch (error) {
@@ -125,6 +132,21 @@ export const useBlockedTimeSlots = () => {
       console.error('Error deleting blocked time slot:', error);
       toast.error('Kunne ikke fjerne blokering');
       return false;
+    }
+  };
+
+  // Helper function to calculate duration between two times
+  const calculateDuration = (startTime: string, endTime: string): string => {
+    const start = new Date(`1970-01-01T${startTime}`);
+    const end = new Date(`1970-01-01T${endTime}`);
+    const diffMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+    
+    if (diffMinutes < 60) {
+      return `${diffMinutes} min`;
+    } else {
+      const hours = Math.floor(diffMinutes / 60);
+      const minutes = diffMinutes % 60;
+      return minutes > 0 ? `${hours}t ${minutes}min` : `${hours}t`;
     }
   };
 

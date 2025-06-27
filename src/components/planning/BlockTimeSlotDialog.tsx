@@ -10,7 +10,7 @@ interface BlockTimeSlotDialogProps {
   isOpen: boolean;
   onClose: () => void;
   timeSlot: { date: string; time: string } | null;
-  onBlock: (reason: string) => void;
+  onBlock: (reason: string, startTime: string, endTime: string) => void;
 }
 
 export const BlockTimeSlotDialog: React.FC<BlockTimeSlotDialogProps> = ({
@@ -20,11 +20,28 @@ export const BlockTimeSlotDialog: React.FC<BlockTimeSlotDialogProps> = ({
   onBlock
 }) => {
   const [reason, setReason] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+
+  // Set default times when dialog opens
+  React.useEffect(() => {
+    if (isOpen && timeSlot) {
+      setStartTime(timeSlot.time);
+      // Default to 15 minutes after start time
+      const start = new Date(`1970-01-01T${timeSlot.time}`);
+      start.setMinutes(start.getMinutes() + 15);
+      setEndTime(start.toTimeString().slice(0, 5));
+    }
+  }, [isOpen, timeSlot]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onBlock(reason || 'Blokeret tidspunkt');
+    if (!startTime || !endTime) return;
+    
+    onBlock(reason || 'Blokeret tidspunkt', startTime, endTime);
     setReason('');
+    setStartTime('');
+    setEndTime('');
   };
 
   const formatDate = (dateString: string) => {
@@ -48,7 +65,7 @@ export const BlockTimeSlotDialog: React.FC<BlockTimeSlotDialogProps> = ({
           <DialogDescription>
             {timeSlot && (
               <>
-                Bloker tidspunkt <strong>{timeSlot.time}</strong> den{' '}
+                Bloker tidspunkt den{' '}
                 <strong>{formatDate(timeSlot.date)}</strong>
               </>
             )}
@@ -56,6 +73,29 @@ export const BlockTimeSlotDialog: React.FC<BlockTimeSlotDialogProps> = ({
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="start_time">Fra tid *</Label>
+              <Input
+                id="start_time"
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="end_time">Til tid *</Label>
+              <Input
+                id="end_time"
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
           <div>
             <Label htmlFor="reason">Årsag (valgfri)</Label>
             <Input

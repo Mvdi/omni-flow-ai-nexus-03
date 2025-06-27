@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface OrderDialogProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
 }) => {
   const [orderTypes, setOrderTypes] = useState<string[]>([]);
   const [statusOptions, setStatusOptions] = useState<any[]>([]);
+  const [schedulingType, setSchedulingType] = useState<'unplanned' | 'week' | 'date' | 'datetime'>('unplanned');
   const [formData, setFormData] = useState({
     customer: '',
     customer_email: '',
@@ -32,7 +34,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
     bfe_number: '',
     price: 0,
     priority: 'Normal',
-    estimated_duration: 0, // Changed default to 0
+    estimated_duration: 0,
     comment: '',
     scheduled_date: '',
     scheduled_time: '',
@@ -47,7 +49,6 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
       try {
         const settings = JSON.parse(savedSettings);
         if (settings.orderTypes && Array.isArray(settings.orderTypes)) {
-          // Keep existing order types and only add new ones from settings
           const settingsTypes = settings.orderTypes.map((t: any) => t.name || t);
           setOrderTypes(settingsTypes);
         }
@@ -56,7 +57,6 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         }
       } catch (error) {
         console.error('Error loading order settings:', error);
-        // Fallback to default values
         setOrderTypes(['Rengøring', 'Vinduespudsning', 'Byggerengøring', 'Kontorrengøring', 'Privatrengøring', 'Specialrengøring', 'Vedligeholdelse']);
         setStatusOptions([
           { name: 'Ikke planlagt', color: '#6B7280' },
@@ -66,7 +66,6 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         ]);
       }
     } else {
-      // Default values if no settings found
       setOrderTypes(['Rengøring', 'Vinduespudsning', 'Byggerengøring', 'Kontorrengøring', 'Privatrengøring', 'Specialrengøring', 'Vedligeholdelse']);
       setStatusOptions([
         { name: 'Ikke planlagt', color: '#6B7280' },
@@ -89,13 +88,24 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         bfe_number: order.bfe_number || '',
         price: order.price || 0,
         priority: order.priority || 'Normal',
-        estimated_duration: order.estimated_duration || 0, // Allow any value including 0
+        estimated_duration: order.estimated_duration || 0,
         comment: order.comment || '',
         scheduled_date: order.scheduled_date || '',
         scheduled_time: order.scheduled_time || '',
         scheduled_week: order.scheduled_week,
         status: order.status || 'Ikke planlagt'
       });
+
+      // Determine scheduling type based on existing data
+      if (order.scheduled_date && order.scheduled_time) {
+        setSchedulingType('datetime');
+      } else if (order.scheduled_date) {
+        setSchedulingType('date');
+      } else if (order.scheduled_week) {
+        setSchedulingType('week');
+      } else {
+        setSchedulingType('unplanned');
+      }
     } else {
       setFormData({
         customer: '',
@@ -107,13 +117,14 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         bfe_number: '',
         price: 0,
         priority: 'Normal',
-        estimated_duration: 0, // Default to 0 for new orders
+        estimated_duration: 0,
         comment: '',
         scheduled_date: '',
         scheduled_time: '',
         scheduled_week: null,
         status: 'Ikke planlagt'
       });
+      setSchedulingType('unplanned');
     }
   }, [order]);
 
@@ -127,15 +138,74 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
     }));
   };
 
+  const handleSchedulingTypeChange = (type: string) => {
+    setSchedulingType(type as 'unplanned' | 'week' | 'date' | 'datetime');
+    
+    // Clear scheduling fields when changing type
+    setFormData(prev => ({
+      ...prev,
+      scheduled_date: type === 'unplanned' ? '' : prev.scheduled_date,
+      scheduled_time: (type === 'unplanned' || type === 'week' || type === 'date') ? '' : prev.scheduled_time,
+      scheduled_week: (type === 'unplanned' || type === 'date' || type === 'datetime') ? null : prev.scheduled_week,
+      status: type === 'unplanned' ? 'Ikke planlagt' : prev.status
+    }));
+  };
+
+  const getCurrentWeekNumber = () => {
+    const now = new Date();
+    const firstDayOfYear = new Date(now.getFullYear(), 0, 1);
+    const pastDaysOfYear = (now.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Submitting form data:', formData);
-    onSave(formData);
+    
+    // Prepare data based on scheduling type
+    let finalData = { ...formData };
+    
+    switch (schedulingType) {
+      case 'unplanned':
+        finalData.scheduled_date = '';
+        finalData.scheduled_time = '';
+        finalData.scheduled_week = null;
+        finalData.status = 'Ikke planlagt';
+        break;
+      case 'week':
+        finalData.scheduled_date = '';
+        finalData.scheduled_time = '';
+        // Keep scheduled_week as is
+        finalData.status = 'Planlagt';
+        break;
+      case 'date':
+        finalData.scheduled_time = '';
+        // Calculate week from date
+        if (finalData.scheduled_date) {
+          const date = new Date(finalData.scheduled_date);
+          const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+          const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+          finalData.scheduled_week = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+        }
+        finalData.status = 'Planlagt';
+        break;
+      case 'datetime':
+        // Calculate week from date
+        if (finalData.scheduled_date) {
+          const date = new Date(finalData.scheduled_date);
+          const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+          const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+          finalData.scheduled_week = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+        }
+        finalData.status = 'Planlagt';
+        break;
+    }
+
+    console.log('Submitting form data:', finalData);
+    onSave(finalData);
   };
 
   const handleEstimatedDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Allow empty string or valid numbers including 0
     if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
       setFormData(prev => ({ 
         ...prev, 
@@ -242,36 +312,68 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="scheduled_date">Planlagt Dato</Label>
-              <Input
-                id="scheduled_date"
-                type="date"
-                value={formData.scheduled_date}
-                onChange={(e) => setFormData(prev => ({ ...prev, scheduled_date: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="scheduled_time">Planlagt Tid</Label>
-              <Input
-                id="scheduled_time"
-                type="time"
-                value={formData.scheduled_time}
-                onChange={(e) => setFormData(prev => ({ ...prev, scheduled_time: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="scheduled_week">Uge</Label>
-              <Input
-                id="scheduled_week"
-                type="number"
-                min="1"
-                max="53"
-                value={formData.scheduled_week || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, scheduled_week: parseInt(e.target.value) || null }))}
-              />
-            </div>
+          {/* Scheduling Section */}
+          <div className="space-y-4">
+            <Label>Planlægning</Label>
+            <RadioGroup value={schedulingType} onValueChange={handleSchedulingTypeChange}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="unplanned" id="unplanned" />
+                <Label htmlFor="unplanned">Ikke planlagt (lad systemet planlægge)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="week" id="week" />
+                <Label htmlFor="week">Planlæg til bestemt uge</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="date" id="date" />
+                <Label htmlFor="date">Planlæg til bestemt dag</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="datetime" id="datetime" />
+                <Label htmlFor="datetime">Planlæg til bestemt dag og tid</Label>
+              </div>
+            </RadioGroup>
+
+            {/* Conditional scheduling inputs */}
+            {schedulingType === 'week' && (
+              <div>
+                <Label htmlFor="scheduled_week">Uge nummer</Label>
+                <Input
+                  id="scheduled_week"
+                  type="number"
+                  min="1"
+                  max="53"
+                  value={formData.scheduled_week || getCurrentWeekNumber()}
+                  onChange={(e) => setFormData(prev => ({ ...prev, scheduled_week: parseInt(e.target.value) || null }))}
+                />
+              </div>
+            )}
+
+            {(schedulingType === 'date' || schedulingType === 'datetime') && (
+              <div>
+                <Label htmlFor="scheduled_date">Dato</Label>
+                <Input
+                  id="scheduled_date"
+                  type="date"
+                  value={formData.scheduled_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, scheduled_date: e.target.value }))}
+                  required
+                />
+              </div>
+            )}
+
+            {schedulingType === 'datetime' && (
+              <div>
+                <Label htmlFor="scheduled_time">Tid</Label>
+                <Input
+                  id="scheduled_time"
+                  type="time"
+                  value={formData.scheduled_time}
+                  onChange={(e) => setFormData(prev => ({ ...prev, scheduled_time: e.target.value }))}
+                  required
+                />
+              </div>
+            )}
           </div>
 
           <div>
