@@ -26,10 +26,8 @@ interface DAWASuggestion {
   type: string;
   data: {
     id?: string;
-    adgangspunkt?: {
-      koordinater: [number, number]; // [longitude, latitude]
-    };
-    bfe?: number;
+    x?: number; // longitude
+    y?: number; // latitude
     vejkode?: number;
     husnr?: string;
     suppl?: string;
@@ -79,25 +77,29 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     
     try {
       const encodedQuery = encodeURIComponent(query);
+      console.log('Searching for:', query);
       
+      // Use only autocomplete API with correct type filtering
       const response = await fetch(
-        `https://api.dataforsyningen.dk/autocomplete?q=${encodedQuery}&type=adresse&per_side=10&fuzzy=`
+        `https://api.dataforsyningen.dk/autocomplete?q=${encodedQuery}&type=adgangsadresse&per_side=10`
       );
       
       if (!response.ok) {
-        throw new Error('Failed to fetch suggestions');
+        throw new Error(`DAWA API error: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('DAWA API Response:', data);
+      console.log('DAWA Response:', data);
       
       if (Array.isArray(data)) {
-        // Filter for address types and ensure we have coordinate data
+        // Filter for valid suggestions with coordinates
         const validSuggestions = data.filter(item => 
-          item.type === 'adresse' && 
-          item.data.adgangspunkt?.koordinater
+          item.type === 'adgangsadresse' && 
+          item.data.x !== undefined && 
+          item.data.y !== undefined
         );
         
+        console.log('Valid suggestions:', validSuggestions);
         setSuggestions(validSuggestions);
         setShowSuggestions(validSuggestions.length > 0);
         setHighlightedIndex(-1);
@@ -136,52 +138,16 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     setShowSuggestions(false);
     setHasValidAddress(true);
     
-    if (onAddressSelect && suggestion.data.adgangspunkt) {
-      // Get detailed address information
-      try {
-        const detailResponse = await fetch(
-          `https://api.dataforsyningen.dk/adresser?q=${encodeURIComponent(suggestion.tekst)}&struktur=flad`
-        );
-        
-        if (detailResponse.ok) {
-          const detailData = await detailResponse.json();
-          if (detailData.length > 0) {
-            const addressDetail = detailData[0];
-            
-            const addressData: AddressData = {
-              address: suggestion.tekst,
-              latitude: suggestion.data.adgangspunkt.koordinater[1], // latitude is second
-              longitude: suggestion.data.adgangspunkt.koordinater[0], // longitude is first
-              bfe_number: addressDetail.bfe_nr?.toString() || suggestion.data.bfe?.toString()
-            };
-            
-            console.log('Calling onAddressSelect with:', addressData);
-            onAddressSelect(addressData);
-          }
-        } else {
-          // Fallback to basic coordinate data
-          const addressData: AddressData = {
-            address: suggestion.tekst,
-            latitude: suggestion.data.adgangspunkt.koordinater[1],
-            longitude: suggestion.data.adgangspunkt.koordinater[0],
-            bfe_number: suggestion.data.bfe?.toString()
-          };
-          
-          console.log('Calling onAddressSelect with fallback:', addressData);
-          onAddressSelect(addressData);
-        }
-      } catch (error) {
-        console.error('Error getting address details:', error);
-        // Fallback to basic data
-        const addressData: AddressData = {
-          address: suggestion.tekst,
-          latitude: suggestion.data.adgangspunkt.koordinater[1],
-          longitude: suggestion.data.adgangspunkt.koordinater[0],
-          bfe_number: suggestion.data.bfe?.toString()
-        };
-        
-        onAddressSelect(addressData);
-      }
+    if (onAddressSelect && suggestion.data.x && suggestion.data.y) {
+      const addressData: AddressData = {
+        address: suggestion.tekst,
+        latitude: suggestion.data.y, // y is latitude
+        longitude: suggestion.data.x, // x is longitude
+        bfe_number: suggestion.data.id?.toString()
+      };
+      
+      console.log('Calling onAddressSelect with:', addressData);
+      onAddressSelect(addressData);
     }
   };
 
@@ -266,7 +232,7 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                 {suggestion.tekst}
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                Adresse med koordinater
+                Adgangsadresse med koordinater
               </div>
             </div>
           ))}

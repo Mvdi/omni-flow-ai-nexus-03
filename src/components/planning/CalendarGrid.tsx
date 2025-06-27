@@ -3,20 +3,28 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Clock, User, MapPin, Euro } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, User, MapPin, Euro, Ban, Settings } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useEmployees } from '@/hooks/useEmployees';
+import { useBlockedTimeSlots } from '@/hooks/useBlockedTimeSlots';
+import { OrderDialog } from '@/components/orders/OrderDialog';
+import { BlockTimeSlotDialog } from './BlockTimeSlotDialog';
 
 interface CalendarGridProps {
   currentWeek?: Date;
 }
 
 export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Date() }) => {
-  const [selectedWeek, setSelectedWeek] = useState(currentWeek);
+  // Use the currentWeek prop as the source of truth
   const [statusOptions, setStatusOptions] = useState<any[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<{date: string, time: string} | null>(null);
   
-  const { orders } = useOrders();
+  const { orders, updateOrder } = useOrders();
   const { employees } = useEmployees();
+  const { blockedSlots, createBlockedSlot } = useBlockedTimeSlots();
 
   // Load status options from localStorage
   useEffect(() => {
@@ -76,8 +84,8 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
     return date.toISOString().split('T')[0];
   };
 
-  const weekDates = getWeekDates(selectedWeek);
-  const weekNumber = getWeekNumber(selectedWeek);
+  const weekDates = getWeekDates(currentWeek);
+  const weekNumber = getWeekNumber(currentWeek);
 
   // Generate time slots from 7:00 to 18:00
   const timeSlots = [];
@@ -85,7 +93,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
     timeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
   }
 
-  // Filter orders for the current week
+  // Filter orders for the current week (using the prop)
   const weekOrders = orders.filter(order => {
     if (!order.scheduled_date) return false;
     const orderDate = new Date(order.scheduled_date);
@@ -106,45 +114,61 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
     return acc;
   }, {} as Record<string, Record<string, any[]>>);
 
-  const navigateWeek = (direction: 'prev' | 'next') => {
-    const newWeek = new Date(selectedWeek);
-    newWeek.setDate(newWeek.getDate() + (direction === 'next' ? 7 : -7));
-    setSelectedWeek(newWeek);
-  };
+  // Group blocked slots by date and time
+  const blockedSlotsByDateTime = blockedSlots.reduce((acc, slot) => {
+    const dateKey = slot.blocked_date;
+    const timeKey = slot.start_time.slice(0, 5);
+    
+    if (!acc[dateKey]) acc[dateKey] = {};
+    if (!acc[dateKey][timeKey]) acc[dateKey][timeKey] = [];
+    
+    acc[dateKey][timeKey].push(slot);
+    return acc;
+  }, {} as Record<string, Record<string, any[]>>);
 
   const getEmployeeName = (employeeId: string) => {
     const employee = employees.find(e => e.id === employeeId);
     return employee ? employee.name : 'Ikke tildelt';
   };
 
+  const handleOrderClick = (order: any) => {
+    setSelectedOrder(order);
+    setIsOrderDialogOpen(true);
+  };
+
+  const handleEmptySlotClick = (date: string, time: string) => {
+    // Check if this slot is already blocked
+    const isBlocked = blockedSlotsByDateTime[date]?.[time]?.length > 0;
+    if (isBlocked) return;
+
+    setSelectedTimeSlot({ date, time });
+    setIsBlockDialogOpen(true);
+  };
+
+  const handleOrderSave = async (orderData: any) => {
+    if (selectedOrder) {
+      await updateOrder(selectedOrder.id, orderData);
+    }
+    setIsOrderDialogOpen(false);
+    setSelectedOrder(null);
+  };
+
+  const handleBlockSlot = async (reason: string) => {
+    if (!selectedTimeSlot) return;
+    
+    await createBlockedSlot({
+      blocked_date: selectedTimeSlot.date,
+      start_time: selectedTimeSlot.time,
+      end_time: `${(parseInt(selectedTimeSlot.time.split(':')[0]) + 1).toString().padStart(2, '0')}:00`,
+      reason: reason
+    });
+    
+    setIsBlockDialogOpen(false);
+    setSelectedTimeSlot(null);
+  };
+
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                Kalender - Uge {weekNumber}, {selectedWeek.getFullYear()}
-              </CardTitle>
-              <p className="text-sm text-gray-600 mt-1">
-                {weekDates[0].toLocaleDateString('da-DK')} - {weekDates[4].toLocaleDateString('da-DK')}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
-                <ChevronLeft className="h-4 w-4" />
-                Forrige
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
-                Næste
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
       {/* Calendar Grid */}
       <Card>
         <CardContent className="p-0">
@@ -177,13 +201,38 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
                   {weekDates.map((date, dayIndex) => {
                     const dateKey = formatDate(date);
                     const dayOrders = ordersByDateTime[dateKey]?.[timeSlot] || [];
+                    const dayBlockedSlots = blockedSlotsByDateTime[dateKey]?.[timeSlot] || [];
                     const isToday = formatDate(date) === formatDate(new Date());
+                    const isBlocked = dayBlockedSlots.length > 0;
                     
                     return (
                       <div 
                         key={dayIndex} 
-                        className={`p-2 border-r last:border-r-0 min-h-[60px] ${isToday ? 'bg-blue-25' : ''}`}
+                        className={`p-2 border-r last:border-r-0 min-h-[60px] cursor-pointer hover:bg-gray-50 ${
+                          isToday ? 'bg-blue-25' : ''
+                        } ${
+                          isBlocked ? 'bg-red-50' : ''
+                        }`}
+                        onClick={() => {
+                          if (dayOrders.length === 0 && !isBlocked) {
+                            handleEmptySlotClick(dateKey, timeSlot);
+                          }
+                        }}
                       >
+                        {isBlocked && (
+                          <div className="mb-1 p-2 rounded-lg bg-red-100 border border-red-300">
+                            <div className="flex items-center gap-1 text-xs text-red-700">
+                              <Ban className="h-3 w-3" />
+                              Blokeret
+                            </div>
+                            {dayBlockedSlots[0]?.reason && (
+                              <div className="text-xs text-red-600 mt-1">
+                                {dayBlockedSlots[0].reason}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
                         {dayOrders.map((order, orderIndex) => (
                           <div
                             key={order.id}
@@ -192,10 +241,16 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
                               backgroundColor: getStatusColor(order.status) + '20',
                               borderColor: getStatusColor(order.status)
                             }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOrderClick(order);
+                            }}
                           >
                             <div className="space-y-1">
                               <div className="font-medium text-sm truncate">{order.customer}</div>
-                              <div className="text-xs text-gray-600 truncate">{order.order_type}</div>
+                              <div className="text-xs text-gray-600 truncate">
+                                {order.order_type || 'Ingen type'}
+                              </div>
                               <div className="flex items-center justify-between text-xs">
                                 <span className="flex items-center gap-1">
                                   <User className="h-3 w-3" />
@@ -215,6 +270,12 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
                             </div>
                           </div>
                         ))}
+                        
+                        {dayOrders.length === 0 && !isBlocked && (
+                          <div className="text-xs text-gray-400 text-center py-4">
+                            Klik for at blokere
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -239,9 +300,35 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
                 <span className="text-sm">{status.name}</span>
               </div>
             ))}
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-red-300" />
+              <span className="text-sm">Blokeret</span>
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Order Edit Dialog */}
+      <OrderDialog
+        isOpen={isOrderDialogOpen}
+        onClose={() => {
+          setIsOrderDialogOpen(false);
+          setSelectedOrder(null);
+        }}
+        order={selectedOrder}
+        onSave={handleOrderSave}
+      />
+
+      {/* Block Time Slot Dialog */}
+      <BlockTimeSlotDialog
+        isOpen={isBlockDialogOpen}
+        onClose={() => {
+          setIsBlockDialogOpen(false);
+          setSelectedTimeSlot(null);
+        }}
+        timeSlot={selectedTimeSlot}
+        onBlock={handleBlockSlot}
+      />
     </div>
   );
 };

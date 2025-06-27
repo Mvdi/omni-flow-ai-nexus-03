@@ -55,7 +55,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   const weekDates = getWeekDates(selectedWeek);
   const weekNumber = getWeekNumber(selectedWeek);
 
-  // Filter orders for the current week
+  // Filter orders for the SELECTED week (not current week)
   const weekOrders = orders.filter(order => {
     if (!order.scheduled_date) return false;
     const orderDate = new Date(order.scheduled_date);
@@ -63,6 +63,11 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
       formatDate(orderDate) === formatDate(weekDate)
     );
   });
+
+  // Filter blocked slots for the SELECTED week
+  const weekBlockedSlots = blockedSlots.filter(slot => 
+    weekDates.some(date => formatDate(date) === slot.blocked_date)
+  );
 
   const handleReplanWeek = async () => {
     setIsReplanning(true);
@@ -105,18 +110,30 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Simplified Header */}
       <Card className="shadow-sm border-0">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Uge {weekNumber} - {selectedWeek.getFullYear()}
-              </CardTitle>
-              <CardDescription>
-                {weekDates[0].toLocaleDateString('da-DK')} - {weekDates[6].toLocaleDateString('da-DK')}
-              </CardDescription>
+            <div className="flex items-center gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Uge {weekNumber} - {selectedWeek.getFullYear()}
+                </CardTitle>
+                <CardDescription>
+                  {weekDates[0].toLocaleDateString('da-DK')} - {weekDates[6].toLocaleDateString('da-DK')}
+                </CardDescription>
+              </div>
+              
+              {/* Week Navigation */}
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             
             <div className="flex items-center gap-2">
@@ -137,8 +154,8 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
         </CardHeader>
       </Card>
 
-      {/* Week Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Compact Week Statistics for SELECTED week */}
+      <div className="grid grid-cols-4 gap-4">
         <Card className="shadow-sm border-0">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -168,11 +185,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Blokerede tidspunkter</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {blockedSlots.filter(slot => 
-                    weekDates.some(date => formatDate(date) === slot.blocked_date)
-                  ).length}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{weekBlockedSlots.length}</p>
               </div>
               <Ban className="h-8 w-8 text-red-600" />
             </div>
@@ -194,30 +207,8 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
         </Card>
       </div>
 
-      {/* Calendar Grid */}
+      {/* Calendar Grid - pass selectedWeek as prop */}
       <CalendarGrid currentWeek={selectedWeek} />
-
-      {/* AI Optimization Status */}
-      <Card className="shadow-sm border-0 bg-gradient-to-r from-purple-50 to-blue-50">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                <Zap className="h-4 w-4 text-white" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">AI Optimering Aktiv</h3>
-                <p className="text-sm text-gray-600">
-                  Kalenders ruter er optimeret baseret på lokation, prioritet og arbejdstider
-                </p>
-              </div>
-            </div>
-            <Badge variant="outline" className="bg-white">
-              Uge {weekNumber}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
