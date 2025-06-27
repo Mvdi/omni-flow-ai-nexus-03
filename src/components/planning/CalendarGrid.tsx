@@ -10,6 +10,7 @@ import { OrderDialog } from '@/components/orders/OrderDialog';
 import { BlockTimeSlotDialog } from './BlockTimeSlotDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from 'sonner';
 
 interface CalendarGridProps {
   currentWeek?: Date;

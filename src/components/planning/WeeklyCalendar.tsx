@@ -9,9 +9,12 @@ import { useEmployees } from '@/hooks/useEmployees';
 import { useRoutes } from '@/hooks/useRoutes';
 import { useWorkSchedules } from '@/hooks/useWorkSchedules';
 import { useBlockedTimeSlots } from '@/hooks/useBlockedTimeSlots';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CalendarGrid } from './CalendarGrid';
+import { RouteOptimizationPanel } from './RouteOptimizationPanel';
+import { RouteVisualization } from './RouteVisualization';
 
 interface WeeklyCalendarProps {
   currentWeek?: Date;
