@@ -20,35 +20,24 @@ interface TicketConversationProps {
   ticket: SupportTicket;
 }
 
-// Opdateret funktion til at formatere beskeder med signatur
+// Funktion til at formatere beskeder MED signatur korrekt
 const formatMessageWithSignature = (content: string, isFromSupport: boolean) => {
   if (!isFromSupport) {
     return content.replace(/\n/g, '<br>');
   }
 
-  // For support beskeder: vis signatur elegant
-  if (content.includes('---')) {
-    const parts = content.split('---');
+  // For support beskeder: tjek om der er en signatur
+  if (content.includes('---SIGNATUR---')) {
+    const parts = content.split('---SIGNATUR---');
     const messageText = parts[0].trim();
-    const signaturePart = parts.slice(1).join('---').trim();
+    const signatureHtml = parts[1].trim();
     
     return `
       <div style="margin-bottom: 16px;">
         ${messageText.replace(/\n/g, '<br>')}
       </div>
-      <div style="border-top: 1px solid #e5e7eb; margin-top: 16px; padding-top: 16px; color: #6b7280; font-size: 14px;">
-        <div style="font-weight: 500; margin-bottom: 8px;">Vi vaskes!</div>
-        <div style="font-weight: bold; color: #111827; margin-bottom: 4px;">Mathias Nielsen</div>
-        <div style="color: #6b7280; margin-bottom: 2px;">Serviceteknikker</div>
-        <div style="font-weight: 500; margin-bottom: 12px;">MM Multipartner</div>
-        <div style="margin-bottom: 8px;">
-          <div style="margin-bottom: 4px;">✉ <a href="mailto:info@mmmultipartner.dk" style="color: #2563eb; text-decoration: none;">info@mmmultipartner.dk</a></div>
-          <div style="margin-bottom: 4px;">📞 <a href="tel:39393038" style="color: #2563eb; text-decoration: none;">39393038</a></div>
-          <div>🌐 <a href="http://www.mmmultipartner.dk" style="color: #2563eb; text-decoration: none;">www.mmmultipartner.dk</a></div>
-        </div>
-        <div style="margin-top: 12px; font-weight: bold; color: #2563eb; font-size: 16px;">
-          MM Multipartner
-        </div>
+      <div style="border-top: 1px solid #e5e7eb; margin-top: 16px; padding-top: 12px;">
+        ${signatureHtml}
       </div>
     `;
   }
@@ -324,7 +313,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
               </div>
             )}
 
-            {/* Messages med korrekt signatur visning */}
+            {/* Messages - NU MED KORREKT SIGNATUR VISNING */}
             {messages.map((message) => {
               const isFromSupport = message.sender_email.includes('@mmmultipartner.dk');
               
@@ -447,13 +436,13 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
               </Button>
             </div>
             
-            {/* Forbedret forhåndsvisning der viser præcist hvordan emailen ser ud */}
-            {newMessage.trim() && (
+            {/* Forhåndsvisning med signatur */}
+            {newMessage.trim() && signatureHtml && (
               <div className="mt-3 p-3 bg-gray-50 rounded border">
-                <p className="text-xs text-gray-600 mb-2">Sådan vil emailen se ud:</p>
+                <p className="text-xs text-gray-600 mb-2">Sådan vil emailen se ud med signatur:</p>
                 <div className="border rounded bg-white p-3">
                   <div dangerouslySetInnerHTML={{ 
-                    __html: formatMessageWithSignature(`${newMessage}\n\n---\n\nVi vaskes!\n\nMathias Nielsen\nServiceteknikker\nMM Multipartner\n\n✉ info@mmmultipartner.dk\n📞 39393038\n🌐 www.mmmultipartner.dk`, true)
+                    __html: `${newMessage.replace(/\n/g, '<br>')}<br><br>${signatureHtml}`
                   }} />
                 </div>
               </div>
