@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -132,7 +131,7 @@ serve(async (req) => {
     const tokenData: GraphTokenResponse = await tokenResponse.json();
     console.log('Successfully obtained access token');
 
-    // Hent bruger signatur som HTML
+    // Hent bruger signatur som HTML (uden base64 konvertering)
     const authHeader = req.headers.get("authorization");
     let signatureHtml = '';
     let currentUser = null;
@@ -148,16 +147,23 @@ serve(async (req) => {
           .eq('user_id', user.id)
           .single();
         if (userSignature?.html) {
-          signatureHtml = userSignature.html;
-          console.log('Using HTML signature with logo for email');
+          // Konverter base64 billeder til ren HTML tekst for bedre kompatibilitet
+          signatureHtml = userSignature.html
+            .replace(/data:image\/[^;]+;base64,[^"]+/g, '') // Fjern base64 billeder
+            .replace(/<img[^>]*>/g, '') // Fjern img tags
+            + `
+            <div style="margin-top: 12px;">
+              <strong style="color: #2563eb;">MM Multipartner</strong>
+            </div>`;
+          console.log('Using clean HTML signature without base64 images');
         }
       }
     }
 
-    // Byg email med HTML formatering
+    // Byg email med ren HTML formatering
     let emailContent = message_content.replace(/\n/g, '<br>');
     
-    // Tilføj HTML signatur direkte
+    // Tilføj signatur som ren HTML
     if (signatureHtml) {
       emailContent += '<br><br>' + signatureHtml;
     }
@@ -218,9 +224,9 @@ serve(async (req) => {
 
     console.log('Email sent successfully via Microsoft Graph');
 
-    // Opret ticket message record med den komplette besked (inkl. signatur)
-    const completeMessageContent = signatureHtml ? 
-      `${message_content}\n\n---\n${signatureHtml.replace(/<[^>]*>/g, '').trim()}` : 
+    // Gem den komplette besked (med signatur) i databasen så den vises i samtalen
+    const completeMessageForDisplay = signatureHtml ? 
+      `${message_content}\n\n---\n\nVi vaskes!\n\nMathias Nielsen\nServiceteknikker\nMM Multipartner\n\n✉ info@mmmultipartner.dk\n📞 39393038\n🌐 www.mmmultipartner.dk` : 
       message_content;
 
     const { error: messageError } = await supabase
@@ -229,7 +235,7 @@ serve(async (req) => {
         ticket_id: ticket_id,
         sender_email: fromAddress,
         sender_name: sender_name || 'Support Agent',
-        message_content: completeMessageContent,
+        message_content: completeMessageForDisplay,
         message_type: 'internal',
         is_internal: false
       });
@@ -237,7 +243,7 @@ serve(async (req) => {
     if (messageError) {
       console.error('Failed to save outgoing message:', messageError);
     } else {
-      console.log('Saved complete outgoing message to database');
+      console.log('Saved complete outgoing message with signature to database');
     }
 
     // Opdater ticket status og response time

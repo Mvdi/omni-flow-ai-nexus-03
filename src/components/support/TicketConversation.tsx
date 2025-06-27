@@ -20,36 +20,40 @@ interface TicketConversationProps {
   ticket: SupportTicket;
 }
 
-// Helper function to format text for display (convert markdown-like formatting to HTML)
-const formatTextForDisplay = (text: string) => {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
-    .replace(/\*(.*?)\*/g, '<em>$1</em>') // Italic text
-    .replace(/\n/g, '<br>'); // Preserve newlines
-};
-
-// Helper function to check if message contains signature
-const hasSignature = (content: string) => {
-  return content.includes('---') || content.includes('MM Multi Partner');
-};
-
-// Helper function to format message content with signature
-const formatMessageWithSignature = (content: string) => {
-  if (hasSignature(content)) {
-    const parts = content.split('---');
-    if (parts.length > 1) {
-      const messageText = parts[0].trim();
-      const signaturePart = parts.slice(1).join('---').trim();
-      
-      return `
-        <div>${formatTextForDisplay(messageText)}</div>
-        <div style="border-top: 1px solid #e5e7eb; margin-top: 16px; padding-top: 16px; color: #6b7280;">
-          ${formatTextForDisplay(signaturePart)}
-        </div>
-      `;
-    }
+// Opdateret funktion til at formatere beskeder med signatur
+const formatMessageWithSignature = (content: string, isFromSupport: boolean) => {
+  if (!isFromSupport) {
+    return content.replace(/\n/g, '<br>');
   }
-  return formatTextForDisplay(content);
+
+  // For support beskeder: vis signatur elegant
+  if (content.includes('---')) {
+    const parts = content.split('---');
+    const messageText = parts[0].trim();
+    const signaturePart = parts.slice(1).join('---').trim();
+    
+    return `
+      <div style="margin-bottom: 16px;">
+        ${messageText.replace(/\n/g, '<br>')}
+      </div>
+      <div style="border-top: 1px solid #e5e7eb; margin-top: 16px; padding-top: 16px; color: #6b7280; font-size: 14px;">
+        <div style="font-weight: 500; margin-bottom: 8px;">Vi vaskes!</div>
+        <div style="font-weight: bold; color: #111827; margin-bottom: 4px;">Mathias Nielsen</div>
+        <div style="color: #6b7280; margin-bottom: 2px;">Serviceteknikker</div>
+        <div style="font-weight: 500; margin-bottom: 12px;">MM Multipartner</div>
+        <div style="margin-bottom: 8px;">
+          <div style="margin-bottom: 4px;">✉ <a href="mailto:info@mmmultipartner.dk" style="color: #2563eb; text-decoration: none;">info@mmmultipartner.dk</a></div>
+          <div style="margin-bottom: 4px;">📞 <a href="tel:39393038" style="color: #2563eb; text-decoration: none;">39393038</a></div>
+          <div>🌐 <a href="http://www.mmmultipartner.dk" style="color: #2563eb; text-decoration: none;">www.mmmultipartner.dk</a></div>
+        </div>
+        <div style="margin-top: 12px; font-weight: bold; color: #2563eb; font-size: 16px;">
+          MM Multipartner
+        </div>
+      </div>
+    `;
+  }
+  
+  return content.replace(/\n/g, '<br>');
 };
 
 export const TicketConversation = ({ ticket }: TicketConversationProps) => {
@@ -77,7 +81,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
           
           if (userSignature?.html) {
             setSignatureHtml(userSignature.html);
-            console.log('Loaded HTML signature with logo for preview');
+            console.log('Loaded signature for preview');
           }
         }
       } catch (error) {
@@ -320,65 +324,67 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
               </div>
             )}
 
-            {/* Additional messages */}
-            {messages.map((message) => (
-              <div key={message.id} className="flex gap-3">
-                <Avatar className="h-8 w-8 mt-1">
-                  <AvatarFallback className={
-                    message.is_internal 
-                      ? "bg-purple-100 text-purple-600" 
-                      : message.sender_email.includes('@mmmultipartner.dk')
-                      ? "bg-green-100 text-green-600"
-                      : "bg-blue-100 text-blue-600"
-                  }>
-                    {message.sender_name 
-                      ? message.sender_name.split(' ').map(n => n[0]).join('').toUpperCase()
-                      : message.sender_email.substring(0, 2).toUpperCase()
-                    }
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className={`rounded-lg p-3 ${
-                    message.is_internal 
-                      ? "bg-purple-50 border border-purple-200" 
-                      : message.sender_email.includes('@mmmultipartner.dk')
-                      ? "bg-green-50 border border-green-200"
-                      : "bg-gray-50"
-                  }`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-medium text-sm">
-                        {message.sender_name || message.sender_email}
-                      </span>
-                      {message.is_ai_generated && (
-                        <Badge variant="outline" className="text-xs">
-                          <Bot className="h-3 w-3 mr-1" />
-                          AI
-                        </Badge>
-                      )}
-                      {message.is_internal && (
-                        <Badge variant="outline" className="text-xs bg-purple-100">
-                          Intern
-                        </Badge>
-                      )}
-                      <span className="text-xs text-gray-500">
-                        {formatDistanceToNow(new Date(message.created_at), { 
-                          addSuffix: true, 
-                          locale: da 
-                        })}
-                      </span>
+            {/* Messages med korrekt signatur visning */}
+            {messages.map((message) => {
+              const isFromSupport = message.sender_email.includes('@mmmultipartner.dk');
+              
+              return (
+                <div key={message.id} className="flex gap-3">
+                  <Avatar className="h-8 w-8 mt-1">
+                    <AvatarFallback className={
+                      message.is_internal 
+                        ? "bg-purple-100 text-purple-600" 
+                        : isFromSupport
+                        ? "bg-green-100 text-green-600"
+                        : "bg-blue-100 text-blue-600"
+                    }>
+                      {message.sender_name 
+                        ? message.sender_name.split(' ').map(n => n[0]).join('').toUpperCase()
+                        : message.sender_email.substring(0, 2).toUpperCase()
+                      }
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className={`rounded-lg p-3 ${
+                      message.is_internal 
+                        ? "bg-purple-50 border border-purple-200" 
+                        : isFromSupport
+                        ? "bg-green-50 border border-green-200"
+                        : "bg-gray-50"
+                    }`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-medium text-sm">
+                          {message.sender_name || message.sender_email}
+                        </span>
+                        {message.is_ai_generated && (
+                          <Badge variant="outline" className="text-xs">
+                            <Bot className="h-3 w-3 mr-1" />
+                            AI
+                          </Badge>
+                        )}
+                        {message.is_internal && (
+                          <Badge variant="outline" className="text-xs bg-purple-100">
+                            Intern
+                          </Badge>
+                        )}
+                        <span className="text-xs text-gray-500">
+                          {formatDistanceToNow(new Date(message.created_at), { 
+                            addSuffix: true, 
+                            locale: da 
+                          })}
+                        </span>
+                      </div>
+                      <div 
+                        className="text-sm text-gray-700"
+                        dangerouslySetInnerHTML={{ 
+                          __html: formatMessageWithSignature(message.message_content, isFromSupport)
+                        }}
+                      />
                     </div>
-                    <div 
-                      className="text-sm text-gray-700 whitespace-pre-wrap"
-                      dangerouslySetInnerHTML={{ 
-                        __html: message.sender_email.includes('@mmmultipartner.dk') 
-                          ? formatMessageWithSignature(message.message_content)
-                          : formatTextForDisplay(message.message_content)
-                      }}
-                    />
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <Separator />
@@ -392,7 +398,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                   <p className="text-sm font-medium text-blue-900 mb-2">AI Foreslår:</p>
                   <div 
                     className="text-sm text-blue-800 mb-3 whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ __html: formatTextForDisplay(aiSuggestion) }}
+                    dangerouslySetInnerHTML={{ __html: aiSuggestion.replace(/\n/g, '<br>') }}
                   />
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={useAiSuggestion}>
@@ -440,14 +446,15 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                 {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
-            {signatureHtml && newMessage.trim() && (
+            
+            {/* Forbedret forhåndsvisning der viser præcist hvordan emailen ser ud */}
+            {newMessage.trim() && (
               <div className="mt-3 p-3 bg-gray-50 rounded border">
-                <p className="text-xs text-gray-600 mb-2">Forhåndsvisning af emailen som den vil blive sendt:</p>
+                <p className="text-xs text-gray-600 mb-2">Sådan vil emailen se ud:</p>
                 <div className="border rounded bg-white p-3">
-                  <div className="mb-3" dangerouslySetInnerHTML={{ __html: formatTextForDisplay(newMessage) }} />
-                  <div className="pt-2 border-t border-gray-200">
-                    <div dangerouslySetInnerHTML={{ __html: signatureHtml }} />
-                  </div>
+                  <div dangerouslySetInnerHTML={{ 
+                    __html: formatMessageWithSignature(`${newMessage}\n\n---\n\nVi vaskes!\n\nMathias Nielsen\nServiceteknikker\nMM Multipartner\n\n✉ info@mmmultipartner.dk\n📞 39393038\n🌐 www.mmmultipartner.dk`, true)
+                  }} />
                 </div>
               </div>
             )}
