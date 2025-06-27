@@ -15,37 +15,66 @@ export const TestOrderGenerator: React.FC = () => {
   const { employees } = useEmployees();
 
   const testCustomers = [
-    { name: 'Lars Hansen', email: 'lars@example.com', address: 'Vestergade 10, 8000 Aarhus' },
-    { name: 'Anne Sørensen', email: 'anne@example.com', address: 'Nørregade 25, 7100 Vejle' },
-    { name: 'Peter Nielsen', email: 'peter@example.com', address: 'Søndergade 15, 8200 Aarhus N' },
-    { name: 'Mette Larsen', email: 'mette@example.com', address: 'Østergade 5, 7400 Herning' },
-    { name: 'Jens Andersen', email: 'jens@example.com', address: 'Hovedgaden 30, 8300 Odder' },
-    { name: 'Kirsten Pedersen', email: 'kirsten@example.com', address: 'Brogade 12, 7000 Fredericia' },
-    { name: 'Michael Christensen', email: 'michael@example.com', address: 'Torvet 8, 8600 Silkeborg' },
-    { name: 'Susanne Møller', email: 'susanne@example.com', address: 'Skolegade 20, 7800 Skive' },
+    { name: 'Lars Hansen', email: 'lars@example.com', address: 'Vestergade 10, 8000 Aarhus', lat: 56.1629, lng: 10.2039 },
+    { name: 'Anne Sørensen', email: 'anne@example.com', address: 'Nørregade 25, 7100 Vejle', lat: 55.7058, lng: 9.5378 },
+    { name: 'Peter Nielsen', email: 'peter@example.com', address: 'Søndergade 15, 8200 Aarhus N', lat: 56.1735, lng: 10.1982 },
+    { name: 'Mette Larsen', email: 'mette@example.com', address: 'Østergade 5, 7400 Herning', lat: 56.1397, lng: 8.9733 },
+    { name: 'Jens Andersen', email: 'jens@example.com', address: 'Hovedgaden 30, 8300 Odder', lat: 55.9733, lng: 10.1533 },
+    { name: 'Kirsten Pedersen', email: 'kirsten@example.com', address: 'Brogade 12, 7000 Fredericia', lat: 55.5661, lng: 9.7516 },
+    { name: 'Michael Christensen', email: 'michael@example.com', address: 'Torvet 8, 8600 Silkeborg', lat: 56.1697, lng: 9.5502 },
+    { name: 'Susanne Møller', email: 'susanne@example.com', address: 'Skolegade 20, 7800 Skive', lat: 56.5683, lng: 9.0356 },
+    { name: 'Thomas Jakobsen', email: 'thomas@example.com', address: 'Parkvej 14, 8900 Randers', lat: 56.4607, lng: 10.0369 },
+    { name: 'Inge Kristensen', email: 'inge@example.com', address: 'Skovvej 7, 8700 Horsens', lat: 55.8607, lng: 9.8500 }
   ];
 
-  const orderTypes = [
-    'Vinduespudsning',
-    'Rengøring',
-    'Byggerengøring',
-    'Kontorrengøring',
-    'Privatrengøring',
-    'Specialrengøring'
+  // Realistic service types with estimated durations and prices
+  const serviceTypes = [
+    { type: 'Vinduespudsning', duration: 45, basePrice: 400, variance: 0.3 },
+    { type: 'Kontorrengøring', duration: 90, basePrice: 800, variance: 0.4 },
+    { type: 'Privatrengøring', duration: 120, basePrice: 600, variance: 0.2 },
+    { type: 'Byggerengøring', duration: 180, basePrice: 1200, variance: 0.5 },
+    { type: 'Specialrengøring', duration: 150, basePrice: 1000, variance: 0.3 },
+    { type: 'Terrasse rengøring', duration: 60, basePrice: 500, variance: 0.4 },
+    { type: 'Gulvbehandling', duration: 240, basePrice: 1800, variance: 0.2 },
+    { type: 'Tæpperengøring', duration: 75, basePrice: 650, variance: 0.3 }
   ];
 
-  const priorities = ['Lav', 'Normal', 'Høj', 'Kritisk'];
+  const priorities = [
+    { name: 'Kritisk', weight: 0.1 },
+    { name: 'Høj', weight: 0.2 },
+    { name: 'Normal', weight: 0.5 },
+    { name: 'Lav', weight: 0.2 }
+  ];
 
   const getRandomItem = <T,>(array: T[]): T => {
     return array[Math.floor(Math.random() * array.length)];
   };
 
-  const getRandomPrice = () => {
-    return Math.floor(Math.random() * 2000) + 200; // 200-2200 kr
+  const getWeightedRandomPriority = (): string => {
+    const random = Math.random();
+    let cumulative = 0;
+    for (const priority of priorities) {
+      cumulative += priority.weight;
+      if (random <= cumulative) {
+        return priority.name;
+      }
+    }
+    return 'Normal';
   };
 
-  const getRandomDuration = () => {
-    return Math.floor(Math.random() * 180) + 30; // 30-210 minutes
+  const getRandomServiceType = () => {
+    const service = getRandomItem(serviceTypes);
+    const variance = service.variance;
+    
+    // Add realistic variance to duration and price
+    const durationVariance = 1 + (Math.random() - 0.5) * variance;
+    const priceVariance = 1 + (Math.random() - 0.5) * variance;
+    
+    return {
+      type: service.type,
+      duration: Math.round(service.duration * durationVariance),
+      price: Math.round(service.basePrice * priceVariance)
+    };
   };
 
   const getCurrentWeekNumber = () => {
@@ -57,8 +86,24 @@ export const TestOrderGenerator: React.FC = () => {
 
   const getRandomWeek = () => {
     const currentWeek = getCurrentWeekNumber();
-    // Generate orders for current week and next 4 weeks
-    return currentWeek + Math.floor(Math.random() * 5);
+    // Generate orders for current week and next 4 weeks with higher probability for current week
+    const weekOptions = [
+      { week: currentWeek, weight: 0.4 },
+      { week: currentWeek + 1, weight: 0.3 },
+      { week: currentWeek + 2, weight: 0.2 },
+      { week: currentWeek + 3, weight: 0.07 },
+      { week: currentWeek + 4, weight: 0.03 }
+    ];
+    
+    const random = Math.random();
+    let cumulative = 0;
+    for (const option of weekOptions) {
+      cumulative += option.weight;
+      if (random <= cumulative) {
+        return option.week;
+      }
+    }
+    return currentWeek;
   };
 
   const getWeekDates = (weekNumber: number) => {
@@ -84,12 +129,6 @@ export const TestOrderGenerator: React.FC = () => {
     return weekDates;
   };
 
-  const getRandomWorkingTime = () => {
-    const workingHours = [8, 9, 10, 11, 13, 14, 15, 16, 17]; // Skip lunch hour 12
-    const hour = getRandomItem(workingHours);
-    return `${hour.toString().padStart(2, '0')}:00`;
-  };
-
   const generateTestOrders = async () => {
     if (employees.length === 0) {
       toast.error('Ingen medarbejdere fundet. Opret medarbejdere først.');
@@ -100,39 +139,50 @@ export const TestOrderGenerator: React.FC = () => {
     let created = 0;
     let failed = 0;
 
+    console.log('Starting to generate realistic test orders with VRP optimization...');
+
     for (let i = 0; i < numberOfOrders; i++) {
       const customer = getRandomItem(testCustomers);
-      const orderType = getRandomItem(orderTypes);
-      const priority = getRandomItem(priorities);
+      const service = getRandomServiceType();
+      const priority = getWeightedRandomPriority();
       const employee = getRandomItem(employees);
       const week = getRandomWeek();
       
       // Get working days for the selected week
       const weekDates = getWeekDates(week);
       const randomDay = getRandomItem(weekDates);
-      const randomTime = getRandomWorkingTime();
+      
+      // Generate realistic coordinates near the customer location with some variance
+      const latVariance = (Math.random() - 0.5) * 0.01; // ~1km variance
+      const lngVariance = (Math.random() - 0.5) * 0.01;
 
       const orderData = {
         customer: customer.name,
         customer_email: customer.email,
-        order_type: orderType,
+        order_type: service.type,
         address: customer.address,
-        price: getRandomPrice(),
+        latitude: customer.lat + latVariance,
+        longitude: customer.lng + lngVariance,
+        price: service.price,
         priority: priority,
-        estimated_duration: getRandomDuration(),
+        estimated_duration: service.duration,
         scheduled_week: week,
         scheduled_date: randomDay.toISOString().split('T')[0], // YYYY-MM-DD format
-        scheduled_time: randomTime,
+        // Don't set scheduled_time - let the VRP optimizer handle this
         status: 'Planlagt',
         assigned_employee_id: employee.id,
-        comment: `Test ordre ${i + 1} - genereret automatisk for uge ${week}`
+        comment: `Realistisk test ordre ${i + 1} - ${service.type} (${service.duration} min, ${service.price} kr)`
       };
 
-      console.log('Creating test order:', {
+      console.log('Creating realistic test order:', {
         customer: orderData.customer,
+        type: service.type,
+        duration: service.duration,
+        price: service.price,
+        priority: priority,
         week: orderData.scheduled_week,
         date: orderData.scheduled_date,
-        time: orderData.scheduled_time
+        coordinates: `${orderData.latitude?.toFixed(4)}, ${orderData.longitude?.toFixed(4)}`
       });
 
       try {
@@ -143,22 +193,23 @@ export const TestOrderGenerator: React.FC = () => {
           failed++;
         }
       } catch (error) {
-        console.error('Error creating test order:', error);
+        console.error('Error creating realistic test order:', error);
         failed++;
       }
 
       // Small delay to avoid overwhelming the system
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
 
     setIsGenerating(false);
-    toast.success(`${created} test ordre oprettet${failed > 0 ? `, ${failed} fejlede` : ''}`);
+    toast.success(`${created} realistic test ordre oprettet${failed > 0 ? `, ${failed} fejlede` : ''}`);
+    console.log('Realistic test order generation completed');
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Test Ordre Generator</CardTitle>
+        <CardTitle>Realistisk Test Ordre Generator</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
@@ -173,11 +224,20 @@ export const TestOrderGenerator: React.FC = () => {
           />
         </div>
         
-        <div className="text-sm text-gray-600">
-          <p>Nuværende uge: {getCurrentWeekNumber()}</p>
-          <p>Ordrer vil blive spredt over de næste 5 uger</p>
-          <p>Medarbejdere tilgængelige: {employees.length}</p>
-          <p className="font-semibold text-green-600">✓ Alle ordrer får både uge-nummer og specifik dato/tid</p>
+        <div className="text-sm text-gray-600 space-y-2">
+          <p><strong>Nuværende uge:</strong> {getCurrentWeekNumber()}</p>
+          <p><strong>Medarbejdere tilgængelige:</strong> {employees.length}</p>
+          <div className="bg-green-50 p-3 rounded-lg">
+            <p className="font-semibold text-green-800">🚀 VRP-Optimeret Generering:</p>
+            <ul className="text-xs text-green-700 mt-1 space-y-1">
+              <li>✓ Realistiske service-tider (45-240 min)</li>
+              <li>✓ GPS-koordinater for præcis rute-optimering</li>
+              <li>✓ Vægtede prioriteter (50% Normal, 20% Høj, etc.)</li>
+              <li>✓ Varierende priser baseret på service-type</li>
+              <li>✓ Intelligente tidsvinduer baseret på prioritet</li>
+              <li>✓ Geografisk spredning omkring Jylland</li>
+            </ul>
+          </div>
         </div>
 
         <Button 
@@ -185,7 +245,7 @@ export const TestOrderGenerator: React.FC = () => {
           disabled={isGenerating || employees.length === 0}
           className="w-full"
         >
-          {isGenerating ? 'Genererer...' : `Opret ${numberOfOrders} Test Ordre`}
+          {isGenerating ? 'Genererer Realistiske Ordre...' : `Opret ${numberOfOrders} VRP-Optimerede Test Ordre`}
         </Button>
       </CardContent>
     </Card>

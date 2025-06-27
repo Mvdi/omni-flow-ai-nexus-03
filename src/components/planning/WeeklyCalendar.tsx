@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, MapPin, Clock, Users, Zap, RefreshCw, Settings, Plus, Ban, ChevronLeft, ChevronRight, Euro, Bug } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Zap, RefreshCw, Settings, Plus, Ban, ChevronLeft, ChevronRight, Euro, Bug, Brain } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useRoutes } from '@/hooks/useRoutes';
@@ -17,6 +17,7 @@ import { RouteOptimizationPanel } from './RouteOptimizationPanel';
 import { RouteVisualization } from './RouteVisualization';
 import { TestOrderGenerator } from './TestOrderGenerator';
 import { OrderDebugInfo } from './OrderDebugInfo';
+import { VRPOptimizer } from '@/utils/vrpOptimizer';
 
 interface WeeklyCalendarProps {
   currentWeek?: Date;
@@ -26,14 +27,15 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   const [selectedWeek, setSelectedWeek] = useState(currentWeek);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
   const [isReplanning, setIsReplanning] = useState(false);
+  const [isVRPOptimizing, setIsVRPOptimizing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [showOptimizationPanel, setShowOptimizationPanel] = useState(false);
   const [showRouteVisualization, setShowRouteVisualization] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   
-  const { orders, refetch: refetchOrders } = useOrders();
+  const { orders, refetch: refetchOrders, updateOrder } = useOrders();
   const { employees } = useEmployees();
-  const { routes, refetch: refetchRoutes } = useRoutes();
+  const { routes, refetch: refetchRoutes, createRoute } = useRoutes();
   const { workSchedules } = useWorkSchedules();
   const { blockedSlots } = useBlockedTimeSlots();
 
@@ -153,6 +155,108 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
     }
   };
 
+  const handleVRPOptimization = async () => {
+    if (weekOrders.length === 0) {
+      toast.error('Ingen ordrer fundet for optimering');
+      return;
+    }
+
+    setIsVRPOptimizing(true);
+    
+    try {
+      console.log('Starting VRP optimization for', weekOrders.length, 'orders');
+      
+      // Convert orders to VRP format
+      const vrpOrders = weekOrders.map(order => ({
+        id: order.id,
+        customer: order.customer,
+        address: order.address || '',
+        latitude: order.latitude,
+        longitude: order.longitude,
+        estimated_duration: order.estimated_duration || 120,
+        priority: order.priority,
+        price: order.price,
+        preferred_time: order.scheduled_time,
+      }));
+
+      // Filter active employees
+      const activeEmployees = employees.filter(emp => emp.is_active).map(emp => ({
+        id: emp.id,
+        name: emp.name,
+        start_location: emp.start_location,
+        latitude: emp.latitude,
+        longitude: emp.longitude,
+        max_hours_per_day: emp.max_hours_per_day || 8,
+        hourly_rate: emp.hourly_rate,
+        specialties: emp.specialties
+      }));
+
+      if (activeEmployees.length === 0) {
+        toast.error('Ingen aktive medarbejdere fundet');
+        return;
+      }
+
+      // Run VRP optimization
+      const optimizedRoutes = VRPOptimizer.optimizeWeeklyRoutes(
+        vrpOrders,
+        activeEmployees,
+        formatDate(selectedWeek)
+      );
+
+      console.log('VRP optimization completed:', optimizedRoutes);
+
+      // Apply optimized schedules
+      let updatedOrders = 0;
+      let createdRoutes = 0;
+
+      for (const route of optimizedRoutes) {
+        // Create route in database
+        const routeData = {
+          name: `${route.orders[0]?.customer || 'Rute'} - ${formatDate(selectedWeek)}`,
+          employee_id: route.employee_id,
+          route_date: formatDate(selectedWeek),
+          estimated_distance_km: route.total_distance,
+          estimated_duration_hours: route.total_duration / 60,
+          total_revenue: route.total_revenue,
+          status: 'Planlagt',
+          ai_optimized: true,
+          optimization_score: route.optimization_score
+        };
+
+        const createdRoute = await createRoute(routeData);
+        if (createdRoute) {
+          createdRoutes++;
+
+          // Update orders with optimized schedule
+          for (const optimizedOrder of route.orders) {
+            await updateOrder(optimizedOrder.id, {
+              scheduled_time: optimizedOrder.scheduled_time,
+              route_id: createdRoute.id,
+              order_sequence: optimizedOrder.order_sequence,
+              travel_time_minutes: optimizedOrder.travel_time_to_here,
+              ai_suggested_time: optimizedOrder.scheduled_time
+            });
+            updatedOrders++;
+          }
+        }
+      }
+
+      toast.success(
+        `VRP Optimering færdig! ${updatedOrders} ordrer optimeret på ${createdRoutes} ruter. ` +
+        `Gennemsnitlig effektivitet: ${Math.round(optimizedRoutes.reduce((sum, r) => sum + r.optimization_score, 0) / optimizedRoutes.length)}%`
+      );
+
+      // Refresh data
+      await Promise.all([refetchOrders(), refetchRoutes()]);
+
+    } catch (error) {
+      console.error('VRP optimization error:', error);
+      toast.error('Fejl ved VRP optimering');
+    } finally {
+      setIsVRPOptimizing(false);
+    }
+  };
+
   const handleOptimizationComplete = () => {
     refetchOrders();
     refetchRoutes();
@@ -262,6 +366,20 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
                 Auto-opdater
               </Button>
+
+              {/* VRP Optimization Button */}
+              <Button 
+                onClick={handleVRPOptimization}
+                disabled={isVRPOptimizing || weekOrders.length === 0}
+                className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+              >
+                {isVRPOptimizing ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Brain className="h-4 w-4 mr-2" />
+                )}
+                {isVRPOptimizing ? 'VRP Optimerer...' : 'VRP Optimering'}
+              </Button>
               
               <Button 
                 onClick={handleIntelligentReplan}
@@ -273,7 +391,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 ) : (
                   <Zap className="h-4 w-4 mr-2" />
                 )}
-                {isReplanning ? 'AI Optimerer...' : 'Intelligent Optimering'}
+                {isReplanning ? 'AI Optimerer...' : 'Legacy Optimering'}
               </Button>
             </div>
           </div>

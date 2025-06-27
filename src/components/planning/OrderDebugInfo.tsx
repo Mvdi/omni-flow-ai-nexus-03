@@ -29,6 +29,19 @@ export const OrderDebugInfo: React.FC = () => {
 
   const weeks = Object.keys(ordersByWeek).map(Number).sort((a, b) => a - b);
 
+  // VRP Analysis
+  const ordersWithCoordinates = orders.filter(order => order.latitude && order.longitude);
+  const ordersWithDuration = orders.filter(order => order.estimated_duration && order.estimated_duration > 0);
+  const ordersWithTimeSlots = orders.filter(order => order.scheduled_time);
+  
+  // Time distribution analysis
+  const timeDistribution = orders.reduce((acc, order) => {
+    const time = order.scheduled_time || 'Ingen tid';
+    const hour = time.split(':')[0];
+    acc[hour] = (acc[hour] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   // Auto-fix function for orders missing dates
   const autoFixMissingDates = async () => {
     const ordersToFix = orders.filter(order => 
@@ -62,12 +75,51 @@ export const OrderDebugInfo: React.FC = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Ordre Debug Information</CardTitle>
+        <CardTitle>VRP Debug Information</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-sm">
           <p><strong>Nuværende uge:</strong> {currentWeek}</p>
           <p><strong>Total ordre:</strong> {orders.length}</p>
+        </div>
+
+        {/* VRP Readiness Analysis */}
+        <div className="p-4 bg-blue-50 rounded-lg">
+          <h4 className="font-semibold mb-2">VRP Optimerings-Analyse:</h4>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p><strong>GPS-koordinater:</strong> {ordersWithCoordinates.length}/{orders.length}</p>
+              <p><strong>Service-tider:</strong> {ordersWithDuration.length}/{orders.length}</p>
+              <p><strong>Tidspunkter sat:</strong> {ordersWithTimeSlots.length}/{orders.length}</p>
+            </div>
+            <div>
+              <p><strong>Gennemsnit service-tid:</strong> {
+                ordersWithDuration.length > 0 
+                  ? Math.round(ordersWithDuration.reduce((sum, o) => sum + o.estimated_duration!, 0) / ordersWithDuration.length)
+                  : 0
+              } min</p>
+              <p><strong>Højeste prioritet:</strong> {orders.filter(o => o.priority === 'Kritisk').length} kritiske</p>
+              <p><strong>VRP-klar:</strong> {ordersWithCoordinates.length === orders.length && ordersWithDuration.length === orders.length ? '✅' : '❌'}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Time Distribution Analysis */}
+        <div className="p-4 bg-yellow-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Tidsfordelings-Problem:</h4>
+          <div className="text-sm space-y-1">
+            {Object.entries(timeDistribution).map(([hour, count]) => (
+              <div key={hour} className="flex justify-between">
+                <span>Kl. {hour}:xx</span>
+                <Badge variant={count > 10 ? "destructive" : count > 5 ? "secondary" : "outline"}>
+                  {count} ordre
+                </Badge>
+              </div>
+            ))}
+            {timeDistribution['08'] > 10 && (
+              <p className="text-red-600 font-semibold mt-2">⚠️ {timeDistribution['08']} ordrer alle kl 08:xx - VRP optimering påkrævet!</p>
+            )}
+          </div>
         </div>
 
         {specificOrder && (
@@ -79,6 +131,8 @@ export const OrderDebugInfo: React.FC = () => {
               <p><strong>Planlagt uge:</strong> {specificOrder.scheduled_week || 'Ikke sat'}</p>
               <p><strong>Planlagt dato:</strong> {specificOrder.scheduled_date || 'Ikke sat'}</p>
               <p><strong>Planlagt tid:</strong> {specificOrder.scheduled_time || 'Ikke sat'}</p>
+              <p><strong>Service-tid:</strong> {specificOrder.estimated_duration || 'Ikke sat'} min</p>
+              <p><strong>GPS:</strong> {specificOrder.latitude && specificOrder.longitude ? `${specificOrder.latitude.toFixed(4)}, ${specificOrder.longitude.toFixed(4)}` : 'Ikke sat'}</p>
               <p><strong>Medarbejder:</strong> {specificOrder.assigned_employee_id ? 'Tildelt' : 'Ikke tildelt'}</p>
               {specificOrder.scheduled_week && !specificOrder.scheduled_date && (
                 <p className="text-red-600 font-semibold">⚠️ Ordre har uge men mangler specifik dato!</p>
@@ -102,6 +156,11 @@ export const OrderDebugInfo: React.FC = () => {
                   {week > 0 && ordersByWeek[week].some(order => !order.scheduled_date) && (
                     <Badge variant="destructive" className="text-xs">
                       Mangler datoer
+                    </Badge>
+                  )}
+                  {week > 0 && ordersByWeek[week].filter(o => o.scheduled_time === '08:00').length > 5 && (
+                    <Badge variant="secondary" className="text-xs">
+                      Alle kl 08:00
                     </Badge>
                   )}
                 </div>
