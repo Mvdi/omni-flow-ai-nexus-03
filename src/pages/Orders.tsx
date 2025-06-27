@@ -311,7 +311,7 @@ const Orders = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className="bg-slate-50">
+                      <Badge className="-bottom-0 rounded-3xl bg-zinc-950">
                         {order.status}
                       </Badge>
                     </TableCell>
