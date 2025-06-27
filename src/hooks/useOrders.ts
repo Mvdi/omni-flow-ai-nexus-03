@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -26,6 +25,7 @@ export interface Order {
   order_sequence?: number;
   travel_time_minutes?: number;
   ai_suggested_time?: string;
+  expected_completion_time?: string;
   created_at: string;
   updated_at: string;
   user_id: string;
@@ -52,6 +52,7 @@ export interface CreateOrderData {
   order_sequence?: number;
   travel_time_minutes?: number;
   ai_suggested_time?: string;
+  expected_completion_time?: string;
 }
 
 export const useOrders = () => {
