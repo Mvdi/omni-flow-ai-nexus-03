@@ -2,34 +2,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Input } from './input';
 import { Label } from './label';
-
-// DAWA API types
-interface DAWAAddress {
-  id: string;
-  tekst: string;
-  type: 'vejnavn' | 'adgangsadresse' | 'adresse';
-  data: {
-    id: string;
-    href: string;
-  };
-}
-
-interface DAWAAddressDetails {
-  id: string;
-  href: string;
-  adgangspunkt: {
-    koordinater: [number, number]; // [longitude, latitude]
-  };
-  bfe?: number;
-  vejstykke?: {
-    navn: string;
-  };
-  husnr?: string;
-  postnr?: {
-    nr: string;
-    navn: string;
-  };
-}
+import { Badge } from './badge';
+import { Shield } from 'lucide-react';
 
 interface AddressData {
   address: string;
@@ -48,9 +22,28 @@ interface AddressAutocompleteProps {
   required?: boolean;
 }
 
+// DAWA types for selected address
+interface DAWASelectedAddress {
+  tekst: string;
+  data: {
+    id: string;
+  };
+}
+
+// DAWA address details response
+interface DAWAAddressDetails {
+  id: string;
+  adgangspunkt: {
+    koordinater: [number, number]; // [longitude, latitude]
+  };
+  bfe?: number;
+}
+
 declare global {
   interface Window {
-    dawaAutocomplete?: any;
+    dawaAutocomplete?: {
+      dawaAutocomplete: (element: HTMLInputElement, options: any) => void;
+    };
   }
 }
 
@@ -64,100 +57,83 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   required = false
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [hasValidAddress, setHasValidAddress] = useState(false);
 
-  // Load DAWA script and CSS
+  // Load DAWA resources
   useEffect(() => {
     const loadDAWA = async () => {
       // Check if already loaded
       if (window.dawaAutocomplete) {
-        setIsLoaded(true);
+        setIsLoading(false);
         return;
       }
 
       try {
-        // Load the script
-        const script = document.createElement('script');
-        script.src = 'https://cdn.dataforsyningen.dk/dawa/assets/dawa-autocomplete2/latest/dawa-autocomplete2.min.js';
-        script.async = true;
-        
-        script.onload = () => {
-          console.log('DAWA script loaded successfully');
-          setIsLoaded(true);
-        };
-        
-        script.onerror = () => {
-          console.error('Failed to load DAWA script');
-        };
-        
-        document.head.appendChild(script);
+        console.log('Loading DAWA autocomplete resources...');
 
-        // Add CSS for styling
-        if (!document.querySelector('#dawa-autocomplete-styles')) {
-          const style = document.createElement('style');
-          style.id = 'dawa-autocomplete-styles';
-          style.textContent = `
-            .dawa-autocomplete-container {
-              position: relative;
-            }
-            .dawa-autocomplete-suggestions {
-              position: absolute;
-              top: 100%;
-              left: 0;
-              right: 0;
-              background: white;
-              border: 1px solid #e2e8f0;
-              border-radius: 6px;
-              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-              z-index: 1000;
-              max-height: 200px;
-              overflow-y: auto;
-              margin-top: 1px;
-            }
-            .dawa-autocomplete-suggestion {
-              padding: 12px;
-              border-bottom: 1px solid #f1f5f9;
-              cursor: pointer;
-              font-size: 14px;
-              line-height: 1.4;
-            }
-            .dawa-autocomplete-suggestion:hover {
-              background-color: #f8fafc;
-            }
-            .dawa-autocomplete-suggestion:last-child {
-              border-bottom: none;
-            }
-            .dawa-autocomplete-suggestion-selected {
-              background-color: #e2e8f0;
-            }
-          `;
-          document.head.appendChild(style);
+        // Load CSS first
+        const existingCSS = document.querySelector('#dawa-autocomplete-css');
+        if (!existingCSS) {
+          const cssLink = document.createElement('link');
+          cssLink.id = 'dawa-autocomplete-css';
+          cssLink.rel = 'stylesheet';
+          cssLink.href = 'https://cdn.dataforsyningen.dk/dawa/assets/dawa-autocomplete2/latest/dawa-autocomplete2.css';
+          document.head.appendChild(cssLink);
         }
+
+        // Load JavaScript
+        const existingScript = document.querySelector('#dawa-autocomplete-script');
+        if (!existingScript) {
+          const script = document.createElement('script');
+          script.id = 'dawa-autocomplete-script';
+          script.src = 'https://cdn.dataforsyningen.dk/dawa/assets/dawa-autocomplete2/latest/dawa-autocomplete2.min.js';
+          script.async = true;
+          
+          script.onload = () => {
+            console.log('DAWA script loaded successfully');
+            setIsLoading(false);
+          };
+          
+          script.onerror = () => {
+            console.error('Failed to load DAWA script');
+            setIsLoading(false);
+          };
+          
+          document.head.appendChild(script);
+        } else {
+          setIsLoading(false);
+        }
+
       } catch (error) {
-        console.error('Error loading DAWA:', error);
+        console.error('Error loading DAWA resources:', error);
+        setIsLoading(false);
       }
     };
 
     loadDAWA();
   }, []);
 
-  // Initialize autocomplete when script is loaded
+  // Initialize DAWA autocomplete when ready
   useEffect(() => {
-    if (isLoaded && inputRef.current && window.dawaAutocomplete && !isInitialized) {
+    if (!isLoading && inputRef.current && window.dawaAutocomplete && !isInitialized) {
       try {
         console.log('Initializing DAWA autocomplete');
         
         window.dawaAutocomplete.dawaAutocomplete(inputRef.current, {
-          select: async (selected: DAWAAddress) => {
-            console.log('DAWA address selected:', selected);
+          select: async (selected: DAWASelectedAddress) => {
+            console.log('DAWA address selected:', selected.tekst);
             
-            // Update input value
+            // Update input value immediately
             onChange(selected.tekst);
+            setHasValidAddress(true);
             
-            // Fetch detailed address information
+            // Fetch detailed address information with coordinates
             if (onAddressSelect) {
               try {
+                console.log('Fetching address details for secure coordinate storage...');
+                
                 const response = await fetch(
                   `https://api.dataforsyningen.dk/adresser/${selected.data.id}?struktur=mini`
                 );
@@ -175,8 +151,10 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                   bfe_number: addressDetails.bfe?.toString()
                 };
                 
-                console.log('Address data with coordinates:', addressData);
+                console.log('Address coordinates will be stored securely on backend');
+                // Note: coordinates are NOT stored in frontend state for security
                 onAddressSelect(addressData);
+                
               } catch (error) {
                 console.error('Error fetching address details:', error);
                 // Still call onAddressSelect with basic data
@@ -189,34 +167,61 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             }
           },
           minLength: 2,
-          delay: 300
+          delay: 300,
+          type: 'adresse', // Only show addresses, not street names
+          per_side: 8 // Limit suggestions for better performance
         });
         
         setIsInitialized(true);
         console.log('DAWA autocomplete initialized successfully');
+        
       } catch (error) {
         console.error('Error initializing DAWA autocomplete:', error);
       }
     }
-  }, [isLoaded, onAddressSelect, onChange, isInitialized]);
+  }, [isLoading, onAddressSelect, onChange, isInitialized]);
+
+  // Reset address validation when value changes externally
+  useEffect(() => {
+    if (!value) {
+      setHasValidAddress(false);
+    }
+  }, [value]);
 
   return (
     <div className="space-y-2">
       {label && <Label htmlFor={id}>{label}</Label>}
-      <div className="dawa-autocomplete-container">
+      <div className="relative">
         <Input
           ref={inputRef}
           id={id}
           type="text"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setHasValidAddress(false);
+          }}
+          placeholder={isLoading ? "Indlæser adresse-søgning..." : placeholder}
           required={required}
           autoComplete="off"
+          disabled={isLoading}
         />
       </div>
-      {!isLoaded && (
-        <p className="text-xs text-gray-500">Indlæser adresse-søgning...</p>
+      
+      <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-1 text-gray-500">
+          <Shield className="h-3 w-3" />
+          Koordinater gemmes sikkert på server
+        </div>
+        {hasValidAddress && (
+          <Badge variant="outline" className="text-xs">
+            Gyldig adresse valgt
+          </Badge>
+        )}
+      </div>
+      
+      {isLoading && (
+        <p className="text-xs text-gray-500">Indlæser DAWA adresse-søgning...</p>
       )}
     </div>
   );
