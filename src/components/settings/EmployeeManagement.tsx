@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,20 +23,10 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useEmployees, CreateEmployeeData } from '@/hooks/useEmployees';
-import { Plus, Edit, Trash2, User, MapPin, Clock, DollarSign } from 'lucide-react';
+import { Plus, Edit, Trash2, User, MapPin, Clock, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-const SPECIALTY_OPTIONS = [
-  'Vinduespolering',
-  'Facaderengøring',
-  'Gulvrengøring',
-  'Kontorrengøring',
-  'Byggegrundsrengøring',
-  'Trappeopgang',
-  'Specialrengøring'
-];
-
-const AREA_OPTIONS = [
+const DEFAULT_AREA_OPTIONS = [
   'København',
   'Frederiksberg',
   'Gentofte',
@@ -53,6 +43,8 @@ export const EmployeeManagement = () => {
   const { employees, loading, createEmployee, updateEmployee, deleteEmployee } = useEmployees();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [availableOrderTypes, setAvailableOrderTypes] = useState<string[]>([]);
+  const [customCity, setCustomCity] = useState('');
   const [formData, setFormData] = useState<CreateEmployeeData>({
     name: '',
     email: '',
@@ -60,9 +52,55 @@ export const EmployeeManagement = () => {
     specialties: [],
     preferred_areas: [],
     max_hours_per_day: 8,
-    hourly_rate: 0,
     is_active: true
   });
+
+  // Load order types from localStorage on component mount
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('orderSettings');
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings.orderTypes) {
+          setAvailableOrderTypes(settings.orderTypes.map((type: any) => type.name));
+        } else {
+          // Fallback to default order types
+          setAvailableOrderTypes([
+            'Vinduespolering',
+            'Facaderengøring',
+            'Gulvrengøring',
+            'Kontorrengøring',
+            'Byggegrundsrengøring',
+            'Trappeopgang',
+            'Specialrengøring'
+          ]);
+        }
+      } catch (error) {
+        console.error('Error loading order types:', error);
+        // Fallback to default order types
+        setAvailableOrderTypes([
+          'Vinduespolering',
+          'Facaderengøring',
+          'Gulvrengøring',
+          'Kontorrengøring',
+          'Byggegrundsrengøring',
+          'Trappeopgang',
+          'Specialrengøring'
+        ]);
+      }
+    } else {
+      // Default order types if no settings exist
+      setAvailableOrderTypes([
+        'Vinduespolering',
+        'Facaderengøring',
+        'Gulvrengøring',
+        'Kontorrengøring',
+        'Byggegrundsrengøring',
+        'Trappeopgang',
+        'Specialrengøring'
+      ]);
+    }
+  }, [isDialogOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +133,6 @@ export const EmployeeManagement = () => {
       specialties: employee.specialties || [],
       preferred_areas: employee.preferred_areas || [],
       max_hours_per_day: employee.max_hours_per_day,
-      hourly_rate: employee.hourly_rate || 0,
       is_active: employee.is_active
     });
     setIsDialogOpen(true);
@@ -109,6 +146,7 @@ export const EmployeeManagement = () => {
 
   const resetForm = () => {
     setSelectedEmployee(null);
+    setCustomCity('');
     setFormData({
       name: '',
       email: '',
@@ -116,7 +154,6 @@ export const EmployeeManagement = () => {
       specialties: [],
       preferred_areas: [],
       max_hours_per_day: 8,
-      hourly_rate: 0,
       is_active: true
     });
   };
@@ -136,6 +173,23 @@ export const EmployeeManagement = () => {
       preferred_areas: prev.preferred_areas.includes(area)
         ? prev.preferred_areas.filter(a => a !== area)
         : [...prev.preferred_areas, area]
+    }));
+  };
+
+  const addCustomCity = () => {
+    if (customCity.trim() && !formData.preferred_areas.includes(customCity.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        preferred_areas: [...prev.preferred_areas, customCity.trim()]
+      }));
+      setCustomCity('');
+    }
+  };
+
+  const removeCustomArea = (area: string) => {
+    setFormData(prev => ({
+      ...prev,
+      preferred_areas: prev.preferred_areas.filter(a => a !== area)
     }));
   };
 
@@ -196,31 +250,21 @@ export const EmployeeManagement = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="hourly_rate">Timeløn (kr)</Label>
+                  <Label htmlFor="max_hours">Max timer per dag</Label>
                   <Input
-                    id="hourly_rate"
+                    id="max_hours"
                     type="number"
-                    value={formData.hourly_rate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, hourly_rate: parseFloat(e.target.value) || 0 }))}
+                    step="0.5"
+                    value={formData.max_hours_per_day}
+                    onChange={(e) => setFormData(prev => ({ ...prev, max_hours_per_day: parseFloat(e.target.value) || 8 }))}
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="max_hours">Max timer per dag</Label>
-                <Input
-                  id="max_hours"
-                  type="number"
-                  step="0.5"
-                  value={formData.max_hours_per_day}
-                  onChange={(e) => setFormData(prev => ({ ...prev, max_hours_per_day: parseFloat(e.target.value) || 8 }))}
-                />
-              </div>
-
-              <div>
                 <Label>Specialer</Label>
                 <div className="grid grid-cols-2 gap-2 mt-2">
-                  {SPECIALTY_OPTIONS.map(specialty => (
+                  {availableOrderTypes.map(specialty => (
                     <div key={specialty} className="flex items-center space-x-2">
                       <input
                         type="checkbox"
@@ -236,8 +280,28 @@ export const EmployeeManagement = () => {
 
               <div>
                 <Label>Foretrukne områder</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {AREA_OPTIONS.map(area => (
+                <p className="text-xs text-gray-500 mb-2">
+                  Hvis ingen områder vælges, bruger systemet medarbejderens hjemadresse som udgangspunkt
+                </p>
+                
+                {/* Selected areas */}
+                {formData.preferred_areas.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {formData.preferred_areas.map(area => (
+                      <Badge key={area} variant="secondary" className="flex items-center gap-1">
+                        {area}
+                        <X 
+                          className="h-3 w-3 cursor-pointer" 
+                          onClick={() => removeCustomArea(area)}
+                        />
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                {/* Default area options */}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  {DEFAULT_AREA_OPTIONS.map(area => (
                     <div key={area} className="flex items-center space-x-2">
                       <input
                         type="checkbox"
@@ -248,6 +312,19 @@ export const EmployeeManagement = () => {
                       <span className="text-sm">{area}</span>
                     </div>
                   ))}
+                </div>
+
+                {/* Custom city input */}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Tilføj egen by"
+                    value={customCity}
+                    onChange={(e) => setCustomCity(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomCity())}
+                  />
+                  <Button type="button" onClick={addCustomCity} size="sm">
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
 
@@ -286,7 +363,6 @@ export const EmployeeManagement = () => {
                 <TableHead>Specialer</TableHead>
                 <TableHead>Områder</TableHead>
                 <TableHead>Timer/dag</TableHead>
-                <TableHead>Timeløn</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Handlinger</TableHead>
               </TableRow>
@@ -312,21 +388,24 @@ export const EmployeeManagement = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {employee.preferred_areas?.slice(0, 2).map(area => (
-                        <Badge key={area} variant="outline" className="text-xs">
-                          {area}
-                        </Badge>
-                      ))}
-                      {employee.preferred_areas?.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{employee.preferred_areas.length - 2}
-                        </Badge>
-                      )}
-                    </div>
+                    {employee.preferred_areas?.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {employee.preferred_areas.slice(0, 2).map(area => (
+                          <Badge key={area} variant="outline" className="text-xs">
+                            {area}
+                          </Badge>
+                        ))}
+                        {employee.preferred_areas.length > 2 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{employee.preferred_areas.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-500">Bruger hjemadresse</span>
+                    )}
                   </TableCell>
                   <TableCell>{employee.max_hours_per_day}t</TableCell>
-                  <TableCell>{employee.hourly_rate ? `${employee.hourly_rate} kr` : '-'}</TableCell>
                   <TableCell>
                     <Badge variant={employee.is_active ? "default" : "secondary"}>
                       {employee.is_active ? 'Aktiv' : 'Inaktiv'}

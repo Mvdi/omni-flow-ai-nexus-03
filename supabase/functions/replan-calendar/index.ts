@@ -36,12 +36,6 @@ interface Employee {
   is_active: boolean;
 }
 
-interface MapboxRoute {
-  distance: number;
-  duration: number;
-  geometry: any;
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -96,7 +90,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'No orders to plan or no active employees',
+          message: 'Ingen ordrer at planlægge eller ingen aktive medarbejdere',
           ordersPlanned: 0,
           routesCreated: 0
         }),
@@ -202,6 +196,10 @@ async function planOrdersIntelligently(
           ordersPlanned.push(order.id)
         }
       }
+      
+      // Remove assigned orders from the available pool
+      employeeOrders.splice(0, dayOrders.length)
+      if (employeeOrders.length === 0) break
     }
   }
 
@@ -219,13 +217,18 @@ function assignOrdersToEmployee(orders: Order[], employee: Employee): Order[] {
       order.order_type.toLowerCase().includes(specialty.toLowerCase())
     )
     
+    // If employee has no preferred areas, they can take any order (using home address as base)
+    if (!employee.preferred_areas || employee.preferred_areas.length === 0) {
+      return hasMatchingSpecialty
+    }
+    
     // Check if order is in employee's preferred area
-    const isInPreferredArea = !order.address || employee.preferred_areas.length === 0 || 
+    const isInPreferredArea = !order.address || 
       employee.preferred_areas.some(area => 
         order.address?.toLowerCase().includes(area.toLowerCase())
       )
     
-    return hasMatchingSpecialty || isInPreferredArea
+    return hasMatchingSpecialty && isInPreferredArea
   })
 }
 
@@ -235,7 +238,7 @@ function distributeOrdersToDay(orders: Order[], maxHours: number): Order[] {
   const dayOrders: Order[] = []
   
   for (const order of orders) {
-    const orderDuration = order.estimated_duration || 120 // Default 2 hours
+    const orderDuration = order.estimated_duration || 120 // Default 2 hours in minutes
     if (totalMinutes + orderDuration <= maxMinutes) {
       dayOrders.push(order)
       totalMinutes += orderDuration
@@ -251,12 +254,18 @@ async function createRoute(employee: Employee, date: string, orders: Order[], su
     const totalDuration = orders.reduce((sum, order) => sum + (order.estimated_duration || 120), 0) / 60
     const totalRevenue = orders.reduce((sum, order) => sum + order.price, 0)
     
+    // Use employee's start_location if they have no preferred areas
+    const startLocation = employee.preferred_areas?.length > 0 
+      ? employee.preferred_areas[0] 
+      : employee.start_location || 'Medarbejderens hjemadresse'
+    
     const { data, error } = await supabase
       .from('routes')
       .insert([{
         name: routeName,
         employee_id: employee.id,
         route_date: date,
+        start_location: startLocation,
         estimated_duration_hours: totalDuration,
         total_revenue: totalRevenue,
         status: 'Planlagt',
@@ -278,13 +287,42 @@ async function createRoute(employee: Employee, date: string, orders: Order[], su
 }
 
 async function optimizeOrderSequence(orders: Order[], employee: Employee): Promise<Order[]> {
-  // Simple geographical optimization - in production, use Mapbox API
-  // For now, group by area and prioritize by urgency
+  // Enhanced optimization considering employee's base location
+  const priorityOrder = { 'Kritisk': 4, 'Høj': 3, 'Normal': 2, 'Lav': 1 }
+  
   return orders.sort((a, b) => {
-    const priorityOrder = { 'Kritisk': 4, 'Høj': 3, 'Normal': 2, 'Lav': 1 }
+    // Primary sort: Priority
     const priorityA = priorityOrder[a.priority as keyof typeof priorityOrder] || 2
     const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] || 2
-    return priorityB - priorityA
+    
+    if (priorityA !== priorityB) {
+      return priorityB - priorityA
+    }
+    
+    // Secondary sort: Duration (shorter tasks first for momentum)
+    const durationA = a.estimated_duration || 120
+    const durationB = b.estimated_duration || 120
+    
+    if (Math.abs(durationA - durationB) > 30) {
+      return durationA - durationB
+    }
+    
+    // Tertiary sort: Geographical proximity
+    if (a.address && b.address && employee.preferred_areas?.length > 0) {
+      const areaA = extractArea(a.address)
+      const areaB = extractArea(b.address)
+      
+      // Prioritize orders in employee's preferred areas
+      const aInPreferred = employee.preferred_areas.includes(areaA)
+      const bInPreferred = employee.preferred_areas.includes(areaB)
+      
+      if (aInPreferred && !bInPreferred) return -1
+      if (!aInPreferred && bInPreferred) return 1
+      
+      return areaA.localeCompare(areaB)
+    }
+    
+    return 0
   })
 }
 
@@ -318,4 +356,9 @@ function getWeekNumber(dateString: string): number {
   const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
   const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000
   return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
+}
+
+function extractArea(address: string): string {
+  const areas = ['København', 'Frederiksberg', 'Gentofte', 'Gladsaxe', 'Herlev', 'Rødovre', 'Albertslund', 'Ballerup', 'Brøndby', 'Høje-Taastrup']
+  return areas.find(area => address.toLowerCase().includes(area.toLowerCase())) || 'Unknown'
 }

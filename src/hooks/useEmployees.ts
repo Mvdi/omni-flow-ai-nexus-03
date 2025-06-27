@@ -12,7 +12,8 @@ export interface Employee {
   specialties: string[];
   preferred_areas: string[];
   max_hours_per_day: number;
-  hourly_rate?: number;
+  start_location?: string;
+  work_radius_km?: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -26,7 +27,8 @@ export interface CreateEmployeeData {
   specialties: string[];
   preferred_areas: string[];
   max_hours_per_day: number;
-  hourly_rate?: number;
+  start_location?: string;
+  work_radius_km?: number;
   is_active?: boolean;
 }
 
