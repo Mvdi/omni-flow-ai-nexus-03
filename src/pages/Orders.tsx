@@ -1,14 +1,18 @@
+
 import React, { useState } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Settings, Filter, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Settings, Filter, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { OrderDialog } from '@/components/orders/OrderDialog';
 import { OrderSettingsDialog } from '@/components/orders/OrderSettingsDialog';
 import { useOrders } from '@/hooks/useOrders';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 const Orders = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,8 +21,10 @@ const Orders = () => {
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [statusOptions, setStatusOptions] = useState<any[]>([]);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
-  const { orders, createOrder, updateOrder, deleteOrder, loading } = useOrders();
+  const { orders, createOrder, updateOrder, deleteOrder, loading, refetch } = useOrders();
+  const { user } = useAuth();
 
   // Load status options from localStorage
   React.useEffect(() => {
@@ -95,6 +101,50 @@ const Orders = () => {
     setIsSettingsDialogOpen(false);
   };
 
+  const handleDeleteAllOrders = async () => {
+    if (!user) {
+      toast.error('Du skal være logget ind');
+      return;
+    }
+
+    const confirmText = `SLET ALLE ${orders.length} ORDRE`;
+    const userInput = prompt(
+      `⚠️ ADVARSEL: Dette vil slette ALLE ${orders.length} ordre permanent!\n\nSkriv "${confirmText}" for at bekræfte:`
+    );
+
+    if (userInput !== confirmText) {
+      toast.error('Sletning annulleret');
+      return;
+    }
+
+    setIsDeletingAll(true);
+    
+    try {
+      console.log('🗑️ Sletter alle ordre for bruger:', user.id);
+      
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error deleting all orders:', error);
+        toast.error('Kunne ikke slette alle ordre');
+        return;
+      }
+
+      console.log('✅ Alle ordre slettet');
+      toast.success(`Alle ${orders.length} ordre er slettet`);
+      await refetch();
+      
+    } catch (error) {
+      console.error('Error deleting all orders:', error);
+      toast.error('Fejl ved sletning af ordre');
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   // Filter orders based on search term and status
   const filteredOrders = orders.filter(order => {
     const matchesSearch = !searchTerm || 
@@ -115,8 +165,7 @@ const Orders = () => {
     enabled: true,
     interval: 30000,
     onRefresh: () => {
-      // Refresh orders data
-      window.location.reload();
+      refetch();
     }
   });
 
@@ -139,12 +188,38 @@ const Orders = () => {
               <Settings className="h-4 w-4 mr-2" />
               Indstillinger
             </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteAllOrders}
+              disabled={isDeletingAll || orders.length === 0}
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              {isDeletingAll ? 'Sletter...' : `Slet Alle (${orders.length})`}
+            </Button>
             <Button onClick={() => setIsOrderDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Ny Ordre
             </Button>
           </div>
         </div>
+
+        {/* VRP Test Notice */}
+        {orders.length === 0 && (
+          <Card className="mb-6 border-green-200 bg-green-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="text-green-600">🚀</div>
+                <div>
+                  <h3 className="font-semibold text-green-800">Klar til VRP-test</h3>
+                  <p className="text-green-700 text-sm">
+                    Alle ordre er slettet. Gå til <strong>Ruteplanlægning</strong> og brug <strong>Test Ordre Generator</strong> 
+                    for at oprette nye testordre og teste det forbedrede VRP-system med Mapbox integration.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Search and Filter */}
         <Card className="mb-6">
