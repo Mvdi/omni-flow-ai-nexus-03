@@ -89,13 +89,11 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
       selected_employee: selectedEmployee
     });
 
-    // First check if order has a scheduled week that matches current week
     if (order.scheduled_week === weekNumber) {
       if (selectedEmployee === 'all') return true;
       return order.assigned_employee_id === selectedEmployee;
     }
 
-    // If no scheduled week, check if order has a scheduled date in this week
     if (!order.scheduled_week && order.scheduled_date) {
       const orderDate = new Date(order.scheduled_date);
       const isInWeek = weekDates.some(weekDate => 
@@ -155,16 +153,21 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
     }
   };
 
-  const handleVRPOptimization = async () => {
+  const handleMultiDayVRPOptimization = async () => {
     if (weekOrders.length === 0) {
       toast.error('Ingen ordrer fundet for optimering');
+      return;
+    }
+
+    if (workSchedules.length === 0) {
+      toast.error('Ingen arbejdstider defineret. Gå til Indstillinger for at konfigurere medarbejder arbejdstider.');
       return;
     }
 
     setIsVRPOptimizing(true);
     
     try {
-      console.log('Starting VRP optimization for', weekOrders.length, 'orders');
+      console.log('Starting Multi-Day VRP optimization for', weekOrders.length, 'orders with dynamic work schedules');
       
       // Convert orders to VRP format
       const vrpOrders = weekOrders.map(order => ({
@@ -173,10 +176,12 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
         address: order.address || '',
         latitude: order.latitude,
         longitude: order.longitude,
-        estimated_duration: order.estimated_duration || 120,
+        estimated_duration: order.estimated_duration || 120, // Use actual duration
         priority: order.priority,
         price: order.price,
         preferred_time: order.scheduled_time,
+        scheduled_date: order.scheduled_date, // Include fixed dates
+        scheduled_time: order.scheduled_time, // Include fixed times
       }));
 
       // Filter active employees
@@ -196,14 +201,31 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
         return;
       }
 
-      // Run VRP optimization
+      // Convert work schedules to VRP format
+      const vrpWorkSchedules = workSchedules.map(ws => ({
+        employee_id: ws.employee_id,
+        day_of_week: ws.day_of_week,
+        start_time: ws.start_time,
+        end_time: ws.end_time,
+        is_working_day: ws.is_working_day
+      }));
+
+      console.log('VRP Input:', {
+        orders: vrpOrders.length,
+        employees: activeEmployees.length,
+        workSchedules: vrpWorkSchedules.length,
+        weekStart: formatDate(weekDates[0])
+      });
+
+      // Run Multi-Day VRP optimization with dynamic work schedules
       const optimizedRoutes = VRPOptimizer.optimizeWeeklyRoutes(
         vrpOrders,
         activeEmployees,
-        formatDate(selectedWeek)
+        vrpWorkSchedules,
+        formatDate(weekDates[0])
       );
 
-      console.log('VRP optimization completed:', optimizedRoutes);
+      console.log('Multi-Day VRP optimization completed:', optimizedRoutes.length, 'routes');
 
       // Apply optimized schedules
       let updatedOrders = 0;
@@ -212,9 +234,9 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
       for (const route of optimizedRoutes) {
         // Create route in database
         const routeData = {
-          name: `${route.orders[0]?.customer || 'Rute'} - ${formatDate(selectedWeek)}`,
+          name: `${route.orders[0]?.customer || 'Multi-dag Rute'} - ${route.date}`,
           employee_id: route.employee_id,
-          route_date: formatDate(selectedWeek),
+          route_date: route.date,
           estimated_distance_km: route.total_distance,
           estimated_duration_hours: route.total_duration / 60,
           total_revenue: route.total_revenue,
@@ -227,14 +249,16 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
         if (createdRoute) {
           createdRoutes++;
 
-          // Update orders with optimized schedule
+          // Update orders with optimized multi-day schedule
           for (const optimizedOrder of route.orders) {
             await updateOrder(optimizedOrder.id, {
+              scheduled_date: optimizedOrder.scheduled_date, // Multi-day scheduling
               scheduled_time: optimizedOrder.scheduled_time,
               route_id: createdRoute.id,
               order_sequence: optimizedOrder.order_sequence,
               travel_time_minutes: optimizedOrder.travel_time_to_here,
-              ai_suggested_time: optimizedOrder.scheduled_time
+              ai_suggested_time: optimizedOrder.scheduled_time,
+              assigned_employee_id: route.employee_id
             });
             updatedOrders++;
           }
@@ -242,7 +266,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
       }
 
       toast.success(
-        `VRP Optimering færdig! ${updatedOrders} ordrer optimeret på ${createdRoutes} ruter. ` +
+        `🚀 Multi-Dag VRP Optimering færdig! ${updatedOrders} ordrer optimeret på ${createdRoutes} ruter fordelt over hele ugen. ` +
         `Gennemsnitlig effektivitet: ${Math.round(optimizedRoutes.reduce((sum, r) => sum + r.optimization_score, 0) / optimizedRoutes.length)}%`
       );
 
@@ -250,8 +274,8 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
       await Promise.all([refetchOrders(), refetchRoutes()]);
 
     } catch (error) {
-      console.error('VRP optimization error:', error);
-      toast.error('Fejl ved VRP optimering');
+      console.error('Multi-Day VRP optimization error:', error);
+      toast.error('Fejl ved Multi-Dag VRP optimering');
     } finally {
       setIsVRPOptimizing(false);
     }
@@ -367,9 +391,9 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 Auto-opdater
               </Button>
 
-              {/* VRP Optimization Button */}
+              {/* NEW: Multi-Day VRP Optimization Button */}
               <Button 
-                onClick={handleVRPOptimization}
+                onClick={handleMultiDayVRPOptimization}
                 disabled={isVRPOptimizing || weekOrders.length === 0}
                 className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
               >
@@ -378,7 +402,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 ) : (
                   <Brain className="h-4 w-4 mr-2" />
                 )}
-                {isVRPOptimizing ? 'VRP Optimerer...' : 'VRP Optimering'}
+                {isVRPOptimizing ? 'Multi-Dag VRP...' : 'Multi-Dag VRP'}
               </Button>
               
               <Button 
