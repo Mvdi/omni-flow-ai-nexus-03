@@ -6,16 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { useOrders } from '@/hooks/useOrders';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useRoutes } from '@/hooks/useRoutes';
-import { Calendar, ChevronLeft, ChevronRight, User, MapPin, Clock, Zap } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, User, MapPin, Clock, Zap, RotateCcw } from 'lucide-react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isToday } from 'date-fns';
 import { da } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const HOURS = Array.from({ length: 11 }, (_, i) => i + 7); // 7:00 to 17:00
 const DAYS = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag'];
 
 export const WeeklyCalendar = () => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
-  const { orders, loading: ordersLoading } = useOrders();
+  const [isReplanning, setIsReplanning] = useState(false);
+  const { orders, loading: ordersLoading, refetch: refetchOrders } = useOrders();
   const { employees, loading: employeesLoading } = useEmployees();
   const { routes, optimizeRoute } = useRoutes();
 
@@ -56,6 +59,37 @@ export const WeeklyCalendar = () => {
       case 'Normal': return 'border-l-4 border-blue-500';
       case 'Lav': return 'border-l-4 border-gray-500';
       default: return 'border-l-4 border-blue-500';
+    }
+  };
+
+  const handleReplanCalendar = async () => {
+    setIsReplanning(true);
+    try {
+      console.log('Starting calendar replan...');
+      
+      const { data: replanData, error } = await supabase.functions.invoke('replan-calendar', {
+        body: { 
+          weekStart: format(weekStart, 'yyyy-MM-dd'),
+          weekEnd: format(addDays(weekStart, 6), 'yyyy-MM-dd')
+        }
+      });
+
+      if (error) {
+        console.error('Error replanning calendar:', error);
+        toast.error('Kunne ikke genplanlægge kalenderen');
+        return;
+      }
+
+      console.log('Calendar replanned successfully:', replanData);
+      toast.success(`Kalender genplanlagt! ${replanData.ordersPlanned} ordre planlagt på ${replanData.routesCreated} ruter`);
+      
+      // Refresh data
+      await refetchOrders();
+    } catch (error) {
+      console.error('Error replanning calendar:', error);
+      toast.error('Kunne ikke genplanlægge kalenderen');
+    } finally {
+      setIsReplanning(false);
     }
   };
 
@@ -104,6 +138,15 @@ export const WeeklyCalendar = () => {
             onClick={() => setCurrentWeek(new Date())}
           >
             I dag
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={handleReplanCalendar}
+            disabled={isReplanning}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            <RotateCcw className={`h-4 w-4 mr-2 ${isReplanning ? 'animate-spin' : ''}`} />
+            {isReplanning ? 'Genplanlægger...' : 'Genplanlæg Kalender'}
           </Button>
           <Button 
             className="bg-purple-600 hover:bg-purple-700"
@@ -159,7 +202,7 @@ export const WeeklyCalendar = () => {
                             <div className="text-gray-600 truncate">{order.order_type}</div>
                             <div className="flex items-center gap-1 mt-1">
                               <Clock className="h-3 w-3" />
-                              <span>{order.estimated_duration || 2}t</span>
+                              <span>{order.estimated_duration || 120} min</span>
                             </div>
                             {employee && (
                               <Badge 

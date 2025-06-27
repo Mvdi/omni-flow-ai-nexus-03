@@ -176,8 +176,10 @@ export type Database = {
           phone: string | null
           preferred_areas: string[] | null
           specialties: string[] | null
+          start_location: string | null
           updated_at: string
           user_id: string
+          work_radius_km: number | null
         }
         Insert: {
           created_at?: string
@@ -190,8 +192,10 @@ export type Database = {
           phone?: string | null
           preferred_areas?: string[] | null
           specialties?: string[] | null
+          start_location?: string | null
           updated_at?: string
           user_id: string
+          work_radius_km?: number | null
         }
         Update: {
           created_at?: string
@@ -204,8 +208,10 @@ export type Database = {
           phone?: string | null
           preferred_areas?: string[] | null
           specialties?: string[] | null
+          start_location?: string | null
           updated_at?: string
           user_id?: string
+          work_radius_km?: number | null
         }
         Relationships: []
       }
@@ -500,13 +506,16 @@ export type Database = {
           employee_id: string
           estimated_distance_km: number | null
           estimated_duration_hours: number | null
+          fuel_cost_estimate: number | null
           id: string
+          mapbox_route_data: Json | null
           name: string
           optimization_score: number | null
           route_date: string
           start_location: string | null
           status: string | null
           total_revenue: number | null
+          total_travel_time_minutes: number | null
           updated_at: string
           user_id: string
         }
@@ -518,13 +527,16 @@ export type Database = {
           employee_id: string
           estimated_distance_km?: number | null
           estimated_duration_hours?: number | null
+          fuel_cost_estimate?: number | null
           id?: string
+          mapbox_route_data?: Json | null
           name: string
           optimization_score?: number | null
           route_date: string
           start_location?: string | null
           status?: string | null
           total_revenue?: number | null
+          total_travel_time_minutes?: number | null
           updated_at?: string
           user_id: string
         }
@@ -536,13 +548,16 @@ export type Database = {
           employee_id?: string
           estimated_distance_km?: number | null
           estimated_duration_hours?: number | null
+          fuel_cost_estimate?: number | null
           id?: string
+          mapbox_route_data?: Json | null
           name?: string
           optimization_score?: number | null
           route_date?: string
           start_location?: string | null
           status?: string | null
           total_revenue?: number | null
+          total_travel_time_minutes?: number | null
           updated_at?: string
           user_id?: string
         }
