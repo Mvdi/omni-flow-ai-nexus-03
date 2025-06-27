@@ -1,43 +1,15 @@
-
 import { useState, useEffect } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { 
-  ShoppingCart, 
-  Plus, 
-  Search, 
-  Filter, 
-  Calendar,
-  MapPin,
-  User,
-  DollarSign,
-  Clock,
-  Settings,
-  Edit,
-  Trash2
-} from 'lucide-react';
+import { ShoppingCart, Plus, Search, Filter, Calendar, MapPin, User, DollarSign, Clock, Settings, Edit, Trash2 } from 'lucide-react';
 import { OrderDialog } from '@/components/orders/OrderDialog';
 import { OrderSettingsDialog } from '@/components/orders/OrderSettingsDialog';
 import { useOrders } from '@/hooks/useOrders';
-import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 const Orders = () => {
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
@@ -47,8 +19,13 @@ const Orders = () => {
   const [weekFilter, setWeekFilter] = useState('all');
   const [statusColors, setStatusColors] = useState<Record<string, string>>({});
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
-
-  const { orders, loading, createOrder, updateOrder, deleteOrder } = useOrders();
+  const {
+    orders,
+    loading,
+    createOrder,
+    updateOrder,
+    deleteOrder
+  } = useOrders();
 
   // Load status colors from localStorage
   useEffect(() => {
@@ -85,7 +62,6 @@ const Orders = () => {
           b: parseInt(result[3], 16)
         } : null;
       };
-      
       const rgb = hexToRgb(savedColor);
       if (rgb) {
         return `bg-[${savedColor}] text-white`;
@@ -94,26 +70,30 @@ const Orders = () => {
 
     // Fallback colors
     switch (status) {
-      case 'Ikke planlagt': return 'bg-gray-100 text-gray-800';
-      case 'Planlagt': return 'bg-blue-100 text-blue-800';
-      case 'I gang': return 'bg-yellow-100 text-yellow-800';
-      case 'Færdig': return 'bg-green-100 text-green-800';
-      case 'Skal impregneres': return 'bg-purple-100 text-purple-800';
-      case 'Skal algebehandles': return 'bg-orange-100 text-orange-800';
-      case 'Skal planlægges om': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'Ikke planlagt':
+        return 'bg-gray-100 text-gray-800';
+      case 'Planlagt':
+        return 'bg-blue-100 text-blue-800';
+      case 'I gang':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'Færdig':
+        return 'bg-green-100 text-green-800';
+      case 'Skal impregneres':
+        return 'bg-purple-100 text-purple-800';
+      case 'Skal algebehandles':
+        return 'bg-orange-100 text-orange-800';
+      case 'Skal planlægges om':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   // Filter orders based on search and filters
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.order_type.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const matchesSearch = order.customer.toLowerCase().includes(searchTerm.toLowerCase()) || order.id.toLowerCase().includes(searchTerm.toLowerCase()) || order.order_type.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     const matchesWeek = weekFilter === 'all' || order.scheduled_week?.toString() === weekFilter;
-    
     return matchesSearch && matchesStatus && matchesWeek;
   });
 
@@ -123,26 +103,21 @@ const Orders = () => {
   const plannedOrders = orders.filter(o => o.status === 'Planlagt').length;
   const unplannedOrders = orders.filter(o => o.status === 'Ikke planlagt').length;
   const totalRevenue = orders.reduce((sum, order) => sum + order.price, 0);
-
   const handleEditOrder = (order: any) => {
     setSelectedOrder(order);
     setIsOrderDialogOpen(true);
   };
-
   const handleNewOrder = () => {
     setSelectedOrder(null);
     setIsOrderDialogOpen(true);
   };
-
   const handleDeleteOrder = async (orderId: string) => {
     if (confirm('Er du sikker på, at du vil slette denne ordre?')) {
       await deleteOrder(orderId);
     }
   };
-
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
+    return <div className="min-h-screen bg-gray-50">
         <Navigation />
         <div className="p-6 flex items-center justify-center">
           <div className="text-center">
@@ -150,12 +125,9 @@ const Orders = () => {
             <p className="mt-4 text-gray-600">Indlæser ordre...</p>
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
+  return <div className="min-h-screen bg-gray-50">
       <Navigation />
       
       <div className="p-6">
@@ -260,12 +232,7 @@ const Orders = () => {
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Søg efter ordre, kunde eller type..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+                  <Input placeholder="Søg efter ordre, kunde eller type..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
                 </div>
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -274,11 +241,7 @@ const Orders = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Alle statusser</SelectItem>
-                  {availableStatuses.length > 0 ? 
-                    availableStatuses.map(status => (
-                      <SelectItem key={status} value={status}>{status}</SelectItem>
-                    )) : 
-                    <>
+                  {availableStatuses.length > 0 ? availableStatuses.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>) : <>
                       <SelectItem value="Ikke planlagt">Ikke planlagt</SelectItem>
                       <SelectItem value="Planlagt">Planlagt</SelectItem>
                       <SelectItem value="I gang">I gang</SelectItem>
@@ -286,8 +249,7 @@ const Orders = () => {
                       <SelectItem value="Skal impregneres">Skal impregneres</SelectItem>
                       <SelectItem value="Skal algebehandles">Skal algebehandles</SelectItem>
                       <SelectItem value="Skal planlægges om">Skal planlægges om</SelectItem>
-                    </>
-                  }
+                    </>}
                 </SelectContent>
               </Select>
               <Select value={weekFilter} onValueChange={setWeekFilter}>
@@ -329,8 +291,7 @@ const Orders = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
+                {filteredOrders.map(order => <TableRow key={order.id}>
                     <TableCell className="font-mono text-sm">{order.id.slice(0, 8)}</TableCell>
                     <TableCell>{order.order_type}</TableCell>
                     <TableCell>
@@ -341,9 +302,7 @@ const Orders = () => {
                     </TableCell>
                     <TableCell className="font-medium">{order.price.toLocaleString()} kr</TableCell>
                     <TableCell>
-                      {order.scheduled_week && (
-                        <Badge variant="outline">Uge {order.scheduled_week}</Badge>
-                      )}
+                      {order.scheduled_week && <Badge variant="outline">Uge {order.scheduled_week}</Badge>}
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
@@ -352,30 +311,21 @@ const Orders = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(order.status)}>
+                      <Badge className="bg-slate-50">
                         {order.status}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleEditOrder(order)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleEditOrder(order)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleDeleteOrder(order.id)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteOrder(order.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
-                  </TableRow>
-                ))}
+                  </TableRow>)}
               </TableBody>
             </Table>
           </CardContent>
@@ -383,32 +333,21 @@ const Orders = () => {
       </div>
 
       {/* Dialogs */}
-      <OrderDialog 
-        isOpen={isOrderDialogOpen}
-        onClose={() => setIsOrderDialogOpen(false)}
-        order={selectedOrder}
-        onSave={async (orderData) => {
-          if (selectedOrder) {
-            await updateOrder(selectedOrder.id, orderData);
-          } else {
-            await createOrder(orderData);
-          }
-          setIsOrderDialogOpen(false);
-        }}
-      />
+      <OrderDialog isOpen={isOrderDialogOpen} onClose={() => setIsOrderDialogOpen(false)} order={selectedOrder} onSave={async orderData => {
+      if (selectedOrder) {
+        await updateOrder(selectedOrder.id, orderData);
+      } else {
+        await createOrder(orderData);
+      }
+      setIsOrderDialogOpen(false);
+    }} />
 
-      <OrderSettingsDialog 
-        isOpen={isSettingsDialogOpen}
-        onClose={() => setIsSettingsDialogOpen(false)}
-        onSave={(settings) => {
-          console.log('Saving settings:', settings);
-          setIsSettingsDialogOpen(false);
-          // Reload the page to refresh status colors
-          window.location.reload();
-        }}
-      />
-    </div>
-  );
+      <OrderSettingsDialog isOpen={isSettingsDialogOpen} onClose={() => setIsSettingsDialogOpen(false)} onSave={settings => {
+      console.log('Saving settings:', settings);
+      setIsSettingsDialogOpen(false);
+      // Reload the page to refresh status colors
+      window.location.reload();
+    }} />
+    </div>;
 };
-
 export default Orders;
