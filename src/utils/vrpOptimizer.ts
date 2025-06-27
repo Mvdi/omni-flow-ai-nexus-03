@@ -194,6 +194,26 @@ export class VRPOptimizer {
   }
 
   /**
+   * Calculate time window based on order priority and type
+   */
+  private static calculateTimeWindow(order: VRPOrder): { start: string, end: string } {
+    // Default time window based on priority
+    const priorityWindows = {
+      'Kritisk': { start: '08:00', end: '12:00' },
+      'Høj': { start: '08:00', end: '14:00' },
+      'Normal': { start: '08:00', end: '16:00' },
+      'Lav': { start: '10:00', end: '16:00' }
+    };
+
+    const window = priorityWindows[order.priority as keyof typeof priorityWindows] || priorityWindows['Normal'];
+    
+    return {
+      start: window.start,
+      end: window.end
+    };
+  }
+
+  /**
    * Get default duration based on service type
    */
   private static getDefaultDurationByType(customer: string): number {
