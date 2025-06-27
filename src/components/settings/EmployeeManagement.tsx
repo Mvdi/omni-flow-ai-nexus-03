@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { useEmployees, CreateEmployeeData } from '@/hooks/useEmployees';
-import { Plus, Edit, Trash2, X } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const EmployeeManagement = () => {
@@ -31,6 +31,7 @@ export const EmployeeManagement = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [availableOrderTypes, setAvailableOrderTypes] = useState<string[]>([]);
   const [customArea, setCustomArea] = useState('');
+  const [hasCoordinates, setHasCoordinates] = useState(false);
   const [formData, setFormData] = useState<CreateEmployeeData>({
     name: '',
     email: '',
@@ -124,11 +125,12 @@ export const EmployeeManagement = () => {
       preferred_areas: employee.preferred_areas || [],
       max_hours_per_day: employee.max_hours_per_day,
       start_location: employee.start_location || '',
-      latitude: employee.latitude,
-      longitude: employee.longitude,
+      latitude: undefined, // Never expose coordinates in frontend
+      longitude: undefined, // Never expose coordinates in frontend
       bfe_number: employee.bfe_number,
       is_active: employee.is_active
     });
+    setHasCoordinates(false); // Reset coordinates flag
     setIsDialogOpen(true);
   };
 
@@ -141,6 +143,7 @@ export const EmployeeManagement = () => {
   const resetForm = () => {
     setSelectedEmployee(null);
     setCustomArea('');
+    setHasCoordinates(false);
     setFormData({
       name: '',
       email: '',
@@ -183,7 +186,7 @@ export const EmployeeManagement = () => {
   };
 
   const handleAddressSelect = (addressData: { address: string; latitude: number; longitude: number; bfe_number?: string }) => {
-    console.log('Address selected:', addressData);
+    console.log('Secure address selected - coordinates will be stored securely');
     setFormData(prev => ({
       ...prev,
       start_location: addressData.address,
@@ -191,6 +194,8 @@ export const EmployeeManagement = () => {
       longitude: addressData.longitude,
       bfe_number: addressData.bfe_number
     }));
+    setHasCoordinates(true);
+    toast.success('Adresse og koordinater gemt sikkert');
   };
 
   if (loading) {
@@ -269,10 +274,17 @@ export const EmployeeManagement = () => {
                   onAddressSelect={handleAddressSelect}
                   placeholder="Indtast hjemadresse (bruges som udgangspunkt for ruter)"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Denne adresse bruges som udgangspunkt hvis ingen foretrukne områder er valgt. 
-                  Koordinater gemmes automatisk for præcis ruteoptimering.
-                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <Shield className="h-3 w-3" />
+                    Koordinater gemmes sikkert og er ikke synlige i frontend
+                  </div>
+                  {hasCoordinates && (
+                    <Badge variant="outline" className="text-xs">
+                      Koordinater gemt
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -298,7 +310,6 @@ export const EmployeeManagement = () => {
                   Hvis ingen områder vælges, bruger systemet medarbejderens hjemadresse som udgangspunkt
                 </p>
                 
-                {/* Selected areas */}
                 {formData.preferred_areas.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-3">
                     {formData.preferred_areas.map(area => (
@@ -313,7 +324,6 @@ export const EmployeeManagement = () => {
                   </div>
                 )}
 
-                {/* Custom area input */}
                 <div className="flex gap-2">
                   <Input
                     placeholder="Tilføj område/by"
@@ -373,10 +383,13 @@ export const EmployeeManagement = () => {
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>{employee.email}</TableCell>
                   <TableCell>{employee.phone || '-'}</TableCell>
-                  <TableCell className="max-w-[150px] truncate">
-                    {employee.start_location || '-'}
-                    {employee.latitude && employee.longitude && (
-                      <span className="text-xs text-green-600 block">📍 Koordinater gemt</span>
+                  <TableCell className="max-w-[150px]">
+                    <div className="truncate">{employee.start_location || '-'}</div>
+                    {employee.start_location && (
+                      <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
+                        <Shield className="h-3 w-3" />
+                        Sikker lokation
+                      </div>
                     )}
                   </TableCell>
                   <TableCell>

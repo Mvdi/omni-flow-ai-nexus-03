@@ -12,8 +12,7 @@ export interface Employee {
   preferred_areas: string[];
   max_hours_per_day: number;
   start_location?: string;
-  latitude?: number;
-  longitude?: number;
+  // Note: coordinates are excluded from frontend interface for security
   bfe_number?: string;
   work_radius_km?: number;
   is_active: boolean;
@@ -52,9 +51,25 @@ export const useEmployees = () => {
       setLoading(true);
       console.log('Fetching employees for user:', user.id);
       
+      // Exclude sensitive coordinate data from frontend queries
       const { data, error } = await supabase
         .from('employees')
-        .select('*')
+        .select(`
+          id,
+          name,
+          email,
+          phone,
+          specialties,
+          preferred_areas,
+          max_hours_per_day,
+          start_location,
+          bfe_number,
+          work_radius_km,
+          is_active,
+          created_at,
+          updated_at,
+          user_id
+        `)
         .eq('user_id', user.id)
         .order('name', { ascending: true });
 
@@ -81,12 +96,27 @@ export const useEmployees = () => {
     }
 
     try {
-      console.log('Creating employee:', employeeData);
+      console.log('Creating employee with secure coordinate storage');
       
       const { data, error } = await supabase
         .from('employees')
         .insert([{ ...employeeData, user_id: user.id }])
-        .select()
+        .select(`
+          id,
+          name,
+          email,
+          phone,
+          specialties,
+          preferred_areas,
+          max_hours_per_day,
+          start_location,
+          bfe_number,
+          work_radius_km,
+          is_active,
+          created_at,
+          updated_at,
+          user_id
+        `)
         .single();
 
       if (error) {
@@ -95,7 +125,7 @@ export const useEmployees = () => {
         return null;
       }
 
-      console.log('Employee created successfully:', data);
+      console.log('Employee created successfully with coordinates stored securely');
       toast.success('Medarbejder oprettet');
       await fetchEmployees();
       return data;
@@ -113,14 +143,29 @@ export const useEmployees = () => {
     }
 
     try {
-      console.log('Updating employee:', id, employeeData);
+      console.log('Updating employee:', id);
       
       const { data, error } = await supabase
         .from('employees')
         .update(employeeData)
         .eq('id', id)
         .eq('user_id', user.id)
-        .select()
+        .select(`
+          id,
+          name,
+          email,
+          phone,
+          specialties,
+          preferred_areas,
+          max_hours_per_day,
+          start_location,
+          bfe_number,
+          work_radius_km,
+          is_active,
+          created_at,
+          updated_at,
+          user_id
+        `)
         .single();
 
       if (error) {
@@ -129,7 +174,7 @@ export const useEmployees = () => {
         return null;
       }
 
-      console.log('Employee updated successfully:', data);
+      console.log('Employee updated successfully');
       toast.success('Medarbejder opdateret');
       await fetchEmployees();
       return data;

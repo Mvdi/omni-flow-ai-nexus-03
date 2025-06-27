@@ -50,9 +50,7 @@ interface AddressAutocompleteProps {
 
 declare global {
   interface Window {
-    dawaAutocomplete?: {
-      dawaAutocomplete: (element: HTMLInputElement, options: any) => void;
-    };
+    dawaAutocomplete?: any;
   }
 }
 
@@ -66,81 +64,108 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   required = false
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load DAWA script
+  // Load DAWA script and CSS
   useEffect(() => {
-    const loadDAWAScript = () => {
+    const loadDAWA = async () => {
+      // Check if already loaded
       if (window.dawaAutocomplete) {
-        setIsScriptLoaded(true);
+        setIsLoaded(true);
         return;
       }
 
-      const script = document.createElement('script');
-      script.src = 'https://cdn.dataforsyningen.dk/dawa/assets/dawa-autocomplete2/latest/dawa-autocomplete2.min.js';
-      script.onload = () => setIsScriptLoaded(true);
-      script.onerror = () => console.error('Failed to load DAWA autocomplete script');
-      document.head.appendChild(script);
+      try {
+        // Load the script
+        const script = document.createElement('script');
+        script.src = 'https://cdn.dataforsyningen.dk/dawa/assets/dawa-autocomplete2/latest/dawa-autocomplete2.min.js';
+        script.async = true;
+        
+        script.onload = () => {
+          console.log('DAWA script loaded successfully');
+          setIsLoaded(true);
+        };
+        
+        script.onerror = () => {
+          console.error('Failed to load DAWA script');
+        };
+        
+        document.head.appendChild(script);
 
-      // Add CSS for autocomplete styling
-      const style = document.createElement('style');
-      style.textContent = `
-        .dawa-autocomplete-container {
-          position: relative;
+        // Add CSS for styling
+        if (!document.querySelector('#dawa-autocomplete-styles')) {
+          const style = document.createElement('style');
+          style.id = 'dawa-autocomplete-styles';
+          style.textContent = `
+            .dawa-autocomplete-container {
+              position: relative;
+            }
+            .dawa-autocomplete-suggestions {
+              position: absolute;
+              top: 100%;
+              left: 0;
+              right: 0;
+              background: white;
+              border: 1px solid #e2e8f0;
+              border-radius: 6px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+              z-index: 1000;
+              max-height: 200px;
+              overflow-y: auto;
+              margin-top: 1px;
+            }
+            .dawa-autocomplete-suggestion {
+              padding: 12px;
+              border-bottom: 1px solid #f1f5f9;
+              cursor: pointer;
+              font-size: 14px;
+              line-height: 1.4;
+            }
+            .dawa-autocomplete-suggestion:hover {
+              background-color: #f8fafc;
+            }
+            .dawa-autocomplete-suggestion:last-child {
+              border-bottom: none;
+            }
+            .dawa-autocomplete-suggestion-selected {
+              background-color: #e2e8f0;
+            }
+          `;
+          document.head.appendChild(style);
         }
-        .dawa-autocomplete-suggestions {
-          position: absolute;
-          top: 100%;
-          left: 0;
-          right: 0;
-          background: white;
-          border: 1px solid #e2e8f0;
-          border-radius: 6px;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          z-index: 1000;
-          max-height: 200px;
-          overflow-y: auto;
-        }
-        .dawa-autocomplete-suggestion {
-          padding: 8px 12px;
-          border-bottom: 1px solid #f1f5f9;
-          cursor: pointer;
-          font-size: 14px;
-        }
-        .dawa-autocomplete-suggestion:hover {
-          background-color: #f8fafc;
-        }
-        .dawa-autocomplete-suggestion:last-child {
-          border-bottom: none;
-        }
-        .dawa-autocomplete-suggestion-selected {
-          background-color: #e2e8f0;
-        }
-      `;
-      document.head.appendChild(style);
+      } catch (error) {
+        console.error('Error loading DAWA:', error);
+      }
     };
 
-    loadDAWAScript();
+    loadDAWA();
   }, []);
 
-  // Initialize DAWA autocomplete
+  // Initialize autocomplete when script is loaded
   useEffect(() => {
-    if (isScriptLoaded && inputRef.current && window.dawaAutocomplete && !isInitialized) {
+    if (isLoaded && inputRef.current && window.dawaAutocomplete && !isInitialized) {
       try {
+        console.log('Initializing DAWA autocomplete');
+        
         window.dawaAutocomplete.dawaAutocomplete(inputRef.current, {
           select: async (selected: DAWAAddress) => {
             console.log('DAWA address selected:', selected);
             
-            // Update the input value
+            // Update input value
             onChange(selected.tekst);
             
-            // Fetch detailed address information including coordinates
+            // Fetch detailed address information
             if (onAddressSelect) {
               try {
                 const response = await fetch(
                   `https://api.dataforsyningen.dk/adresser/${selected.data.id}?struktur=mini`
                 );
+                
+                if (!response.ok) {
+                  throw new Error('Failed to fetch address details');
+                }
+                
                 const addressDetails: DAWAAddressDetails = await response.json();
                 
                 const addressData: AddressData = {
@@ -162,28 +187,37 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                 });
               }
             }
-          }
+          },
+          minLength: 2,
+          delay: 300
         });
+        
         setIsInitialized(true);
+        console.log('DAWA autocomplete initialized successfully');
       } catch (error) {
         console.error('Error initializing DAWA autocomplete:', error);
       }
     }
-  }, [isScriptLoaded, onAddressSelect, onChange, isInitialized]);
+  }, [isLoaded, onAddressSelect, onChange, isInitialized]);
 
   return (
-    <div className="dawa-autocomplete-container">
+    <div className="space-y-2">
       {label && <Label htmlFor={id}>{label}</Label>}
-      <Input
-        ref={inputRef}
-        id={id}
-        type="search"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        required={required}
-        autoComplete="off"
-      />
+      <div className="dawa-autocomplete-container">
+        <Input
+          ref={inputRef}
+          id={id}
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          required={required}
+          autoComplete="off"
+        />
+      </div>
+      {!isLoaded && (
+        <p className="text-xs text-gray-500">Indlæser adresse-søgning...</p>
+      )}
     </div>
   );
 };
