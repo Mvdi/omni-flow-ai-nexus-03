@@ -20,6 +20,30 @@ interface TicketConversationProps {
   ticket: SupportTicket;
 }
 
+// Helper function to convert HTML signature to plain text
+const convertSignatureToPlainText = (htmlSignature: string): string => {
+  // Remove all HTML tags and base64 image data
+  let plainText = htmlSignature
+    .replace(/<img[^>]*>/gi, '') // Remove all img tags
+    .replace(/data:image\/[^;]+;base64,[^"]+/gi, '') // Remove base64 data
+    .replace(/<br\s*\/?>/gi, '\n') // Convert br tags to newlines
+    .replace(/<div[^>]*>/gi, '\n') // Convert divs to newlines
+    .replace(/<\/div>/gi, '') // Remove closing divs
+    .replace(/<[^>]+>/gi, '') // Remove all other HTML tags
+    .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double newlines
+    .trim();
+
+  // Decode HTML entities
+  plainText = plainText
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"');
+
+  return plainText;
+};
+
 // Helper function to format text for display (convert markdown-like formatting to HTML)
 const formatTextForDisplay = (text: string) => {
   return text
@@ -33,6 +57,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [signatureHtml, setSignatureHtml] = useState('');
+  const [signaturePlainText, setSignaturePlainText] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -53,7 +78,10 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
           
           if (userSignature?.html) {
             setSignatureHtml(userSignature.html);
-            console.log('Loaded signature HTML from database');
+            // Konverter til ren tekst til forhåndsvisning
+            const plainTextSignature = convertSignatureToPlainText(userSignature.html);
+            setSignaturePlainText(plainTextSignature);
+            console.log('Loaded and converted signature to plain text');
           }
         }
       } catch (error) {
@@ -65,7 +93,9 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
         const savedSignatureHtml = localStorage.getItem('signature-html');
         if (savedSignatureHtml) {
           setSignatureHtml(savedSignatureHtml);
-          console.log('Loaded signature HTML from localStorage');
+          const plainTextSignature = convertSignatureToPlainText(savedSignatureHtml);
+          setSignaturePlainText(plainTextSignature);
+          console.log('Loaded signature HTML from localStorage and converted to plain text');
         }
       }
     };
@@ -93,7 +123,6 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
     try {
       console.log('Sending email via Office 365...');
       
-      // Send email via Office 365
       await sendEmail({
         ticket_id: ticket.id,
         message_content: newMessage,
@@ -103,7 +132,6 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
       console.log('Email sent successfully via Office 365');
       setNewMessage('');
       
-      // Refresh messages after sending
       setTimeout(() => {
         refetch();
         queryClient.invalidateQueries({ queryKey: ['ticket-messages', ticket.id] });
@@ -424,20 +452,16 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                 {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
-            {signatureHtml && (
+            {signaturePlainText && (
               <div className="mt-3 p-3 bg-gray-50 rounded border">
-                <p className="text-xs text-gray-600 mb-2">Forhåndsvisning af hvordan emailen vil se ud:</p>
-                <div className="border rounded bg-white p-3">
-                  <div 
-                    className="text-sm text-gray-700 mb-2"
-                    style={{ whiteSpace: 'pre-wrap' }}
-                  >
+                <p className="text-xs text-gray-600 mb-2">Forhåndsvisning af emailen som den vil blive sendt:</p>
+                <div className="border rounded bg-white p-3 font-mono text-sm">
+                  <div className="mb-3">
                     {newMessage || 'Din besked her...'}
                   </div>
-                  <div 
-                    className="text-sm"
-                    dangerouslySetInnerHTML={{ __html: signatureHtml }}
-                  />
+                  <div className="pt-2 border-t border-gray-200 text-gray-600">
+                    {signaturePlainText}
+                  </div>
                 </div>
               </div>
             )}

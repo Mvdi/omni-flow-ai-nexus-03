@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -18,6 +17,30 @@ interface GraphTokenResponse {
   token_type: string;
   expires_in: number;
 }
+
+// Helper function to convert HTML signature to plain text with proper formatting
+const convertSignatureToText = (htmlSignature: string): string => {
+  // Remove all HTML tags and base64 image data
+  let plainText = htmlSignature
+    .replace(/<img[^>]*>/gi, '') // Remove all img tags
+    .replace(/data:image\/[^;]+;base64,[^"]+/gi, '') // Remove base64 data
+    .replace(/<br\s*\/?>/gi, '\n') // Convert br tags to newlines
+    .replace(/<div[^>]*>/gi, '\n') // Convert divs to newlines
+    .replace(/<\/div>/gi, '') // Remove closing divs
+    .replace(/<[^>]+>/gi, '') // Remove all other HTML tags
+    .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double newlines
+    .trim();
+
+  // If we still have encoded entities, decode them
+  plainText = plainText
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"');
+
+  return plainText;
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -132,7 +155,7 @@ serve(async (req) => {
     const tokenData: GraphTokenResponse = await tokenResponse.json();
     console.log('Successfully obtained access token');
 
-    // Hent bruger signatur
+    // Hent bruger signatur og konverter til ren tekst
     const authHeader = req.headers.get("authorization");
     let signature = '';
     if (authHeader) {
@@ -145,34 +168,33 @@ serve(async (req) => {
           .eq('user_id', user.id)
           .single();
         if (userSignature?.html) {
-          signature = userSignature.html;
-          console.log('Using user signature');
+          // Konverter HTML signatur til ren tekst
+          signature = convertSignatureToText(userSignature.html);
+          console.log('Using converted plain text signature');
         }
       }
     }
 
-    // Forbered email med korrekt formatering
-    let emailBody = message_content.replace(/\n/g, '<br>');
+    // Byg email med ren tekst-baseret tilgang
+    let emailContent = message_content;
     
-    // Tilføj signatur som en naturlig del af emailen med korrekt spacing
+    // Tilføj signatur som ren tekst med korrekt formatering
     if (signature) {
-      emailBody += '<br><br>' + signature;
+      emailContent += '\n\n' + signature;
     }
 
-    // Wrap hele emailen i en container der sikrer korrekt formatering
-    const fullEmailBody = `
-      <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333;">
-        ${emailBody}
-      </div>
-    `;
+    // Konverter til HTML men behold det simpelt
+    const htmlEmailBody = emailContent
+      .replace(/\n/g, '<br>')
+      .replace(/\r/g, '');
 
-    // Forbered email med korrekt reply headers - brug x- prefix for custom headers
+    // Forbered email med simpel HTML formatering
     const emailMessage = {
       message: {
         subject: ticket.subject.startsWith('Re:') ? ticket.subject : `Re: ${ticket.subject}`,
         body: {
           contentType: 'HTML',
-          content: fullEmailBody
+          content: htmlEmailBody
         },
         toRecipients: [
           {
