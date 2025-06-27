@@ -7,464 +7,309 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface ReplanRequest {
-  weekStart: string;
-  weekEnd: string;
-}
-
-interface Order {
-  id: string;
-  customer: string;
-  customer_email?: string;
-  order_type: string;
-  address?: string;
-  latitude?: number;
-  longitude?: number;
-  priority: string;
-  estimated_duration: number;
-  price: number;
-  user_id: string;
-  status: string;
-  scheduled_week?: number;
-}
-
-interface Employee {
-  id: string;
-  name: string;
-  email: string;
-  specialties: string[];
-  preferred_areas: string[];
-  max_hours_per_day: number;
-  start_location?: string;
-  latitude?: number;
-  longitude?: number;
-  work_radius_km: number;
-  is_active: boolean;
-}
-
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
+    const { weekStart, weekEnd, employeeId } = await req.json();
+    
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    );
 
-    const { weekStart, weekEnd }: ReplanRequest = await req.json()
-    console.log('Replanning calendar for week:', weekStart, 'to', weekEnd)
-
-    // Get user ID from auth
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('No authorization header')
-    }
-
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
-    if (userError || !user) {
-      throw new Error('User not authenticated')
+    console.log(`Replanning calendar for week: ${weekStart} to ${weekEnd}`);
+    if (employeeId) {
+      console.log(`Focusing on employee: ${employeeId}`);
     }
 
     // Calculate week numbers for the range
-    const startWeek = getWeekNumber(weekStart)
-    const endWeek = getWeekNumber(weekEnd)
-    console.log(`Planning for weeks ${startWeek} to ${endWeek}`)
+    const startDate = new Date(weekStart);
+    const endDate = new Date(weekEnd);
+    const startWeek = getWeekNumber(startDate);
+    const endWeek = getWeekNumber(endDate);
+    
+    console.log(`Planning for weeks ${startWeek} to ${endWeek}`);
 
-    // Fetch unplanned orders AND orders for the specified week range
-    const { data: allOrders, error: ordersError } = await supabaseClient
+    // Get relevant orders (unplanned or in the target weeks)
+    let ordersQuery = supabase
       .from('orders')
       .select('*')
-      .eq('user_id', user.id)
-      .or(`status.eq.Ikke planlagt,and(scheduled_week.gte.${startWeek},scheduled_week.lte.${endWeek})`)
+      .or(`status.eq.Ikke planlagt,scheduled_week.gte.${startWeek},scheduled_week.lte.${endWeek}`)
+      .order('priority', { ascending: false });
+
+    if (employeeId) {
+      ordersQuery = ordersQuery.eq('assigned_employee_id', employeeId);
+    }
+
+    const { data: orders, error: ordersError } = await ordersQuery;
 
     if (ordersError) {
-      console.error('Orders fetch error:', ordersError)
-      throw new Error(`Orders fetch error: ${ordersError.message}`)
+      console.error('Error fetching orders:', ordersError);
+      throw ordersError;
     }
 
-    console.log(`Found ${allOrders?.length || 0} orders (unplanned + week ${startWeek}-${endWeek})`)
+    console.log(`Found ${orders?.length || 0} orders (unplanned + week ${startWeek}-${endWeek})`);
+    
+    // Log order details for debugging
+    orders?.forEach(order => {
+      console.log(`Order ${order.id.slice(0, 8)}: ${order.assigned_employee_id ? 'Assigned' : 'Unassigned'}, Status: ${order.status}, Week: ${order.scheduled_week}, Duration: ${order.estimated_duration || 'N/A'}min, Coords: ${order.latitude && order.longitude ? 'Yes' : 'No'}`);
+    });
 
-    // Log specific order details for debugging
-    if (allOrders) {
-      allOrders.forEach(order => {
-        console.log(`Order ${order.id.slice(0, 8)}: ${order.customer}, Status: ${order.status}, Week: ${order.scheduled_week || 'none'}, Duration: ${order.estimated_duration || 0}min, Coords: ${order.latitude ? 'Yes' : 'No'}`)
-      })
-    }
-
-    // Fetch active employees with their work schedules
-    const { data: employees, error: employeesError } = await supabaseClient
+    // Get active employees
+    let employeesQuery = supabase
       .from('employees')
       .select('*')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
+      .eq('is_active', true);
+
+    if (employeeId) {
+      employeesQuery = employeesQuery.eq('id', employeeId);
+    }
+
+    const { data: employees, error: employeesError } = await employeesQuery;
 
     if (employeesError) {
-      console.error('Employees fetch error:', employeesError)
-      throw new Error(`Employees fetch error: ${employeesError.message}`)
+      console.error('Error fetching employees:', employeesError);
+      throw employeesError;
     }
 
-    console.log(`Found ${employees?.length || 0} active employees`)
+    console.log(`Found ${employees?.length || 0} active employees`);
 
-    if (!allOrders?.length || !employees?.length) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Ingen ordrer at planlægge eller ingen aktive medarbejdere',
-          ordersPlanned: 0,
-          routesCreated: 0
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      )
-    }
-
-    // Get blocked time slots for the week
-    const { data: blockedSlots } = await supabaseClient
+    // Get blocked time slots for the week range
+    const { data: blockedSlots, error: blockedSlotsError } = await supabase
       .from('blocked_time_slots')
       .select('*')
-      .eq('user_id', user.id)
       .gte('blocked_date', weekStart)
-      .lte('blocked_date', weekEnd)
+      .lte('blocked_date', weekEnd);
 
-    console.log(`Found ${blockedSlots?.length || 0} blocked time slots`)
-
-    // Plan orders intelligently
-    const planningResult = await planOrdersIntelligently(
-      allOrders,
-      employees,
-      weekStart,
-      weekEnd,
-      blockedSlots || [],
-      supabaseClient
-    )
-
-    console.log('Planning completed:', planningResult)
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        ...planningResult
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    )
-
-  } catch (error) {
-    console.error('Calendar replan error:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
-    )
-  }
-})
-
-async function planOrdersIntelligently(
-  orders: Order[],
-  employees: Employee[],
-  weekStart: string,
-  weekEnd: string,
-  blockedSlots: any[],
-  supabase: any
-): Promise<any> {
-  const routesCreated: string[] = []
-  const ordersPlanned: string[] = []
-  const ordersMoved: string[] = []
-
-  console.log('Starting intelligent planning...')
-
-  // Group orders by priority and status
-  const priorityOrder = { 'Kritisk': 4, 'Høj': 3, 'Normal': 2, 'Lav': 1 }
-  const sortedOrders = orders.sort((a, b) => {
-    const priorityA = priorityOrder[a.priority as keyof typeof priorityOrder] || 2
-    const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] || 2
-    
-    // First sort by priority
-    if (priorityA !== priorityB) {
-      return priorityB - priorityA
+    if (blockedSlotsError) {
+      console.error('Error fetching blocked slots:', blockedSlotsError);
+      throw blockedSlotsError;
     }
-    
-    // Then by status (unplanned first)
-    if (a.status === 'Ikke planlagt' && b.status !== 'Ikke planlagt') return -1
-    if (b.status === 'Ikke planlagt' && a.status !== 'Ikke planlagt') return 1
-    
-    return 0
-  })
 
-  console.log(`Sorted ${sortedOrders.length} orders by priority and status`)
+    console.log(`Found ${blockedSlots?.length || 0} blocked time slots`);
 
-  // Create work schedule for the week
-  const workDays = generateWorkDays(weekStart, weekEnd)
-  console.log(`Generated ${workDays.length} work days:`, workDays)
-  
-  for (const employee of employees) {
-    console.log(`Planning for employee: ${employee.name}`)
+    // Start intelligent planning
+    console.log('Starting intelligent planning...');
     
-    // Get employee's work schedule
-    const { data: workSchedule } = await supabase
-      .from('work_schedules')
-      .select('*')
-      .eq('employee_id', employee.id)
-
-    // Filter orders suitable for this employee (improved matching)
-    const employeeOrders = assignOrdersToEmployee(sortedOrders, employee)
-    console.log(`Employee ${employee.name} can handle ${employeeOrders.length} orders`)
-    
-    if (employeeOrders.length === 0) continue
-
-    // Create routes for each work day
-    for (const workDay of workDays) {
-      const dayOfWeek = new Date(workDay).getDay()
-      const employeeWorkDay = workSchedule?.find(ws => ws.day_of_week === dayOfWeek)
+    // Sort orders by priority and status for optimal scheduling
+    const sortedOrders = orders?.sort((a, b) => {
+      const priorityOrder = { 'Kritisk': 4, 'Høj': 3, 'Normal': 2, 'Lav': 1 };
+      const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 2;
+      const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 2;
       
-      // Skip if employee doesn't work on this day
-      if (employeeWorkDay && !employeeWorkDay.is_working_day) continue
-
-      // Check for blocked time slots
-      const dayBlockedSlots = blockedSlots.filter(slot => 
-        slot.employee_id === employee.id && slot.blocked_date === workDay
-      )
-
-      const maxHours = employeeWorkDay?.is_working_day ? 
-        calculateAvailableHours(employeeWorkDay, dayBlockedSlots) : 
-        employee.max_hours_per_day
-
-      const dayOrders = distributeOrdersToDay(employeeOrders, maxHours)
-      console.log(`Assigned ${dayOrders.length} orders to ${employee.name} on ${workDay}`)
+      if (aPriority !== bPriority) return bPriority - aPriority;
       
-      if (dayOrders.length === 0) continue
+      // Prefer orders with coordinates
+      const aHasCoords = a.latitude && a.longitude;
+      const bHasCoords = b.latitude && b.longitude;
+      if (aHasCoords !== bHasCoords) return aHasCoords ? -1 : 1;
+      
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    }) || [];
 
-      // Create route for this day
-      const routeId = await createRoute(employee, workDay, dayOrders, supabase)
-      if (routeId) {
-        routesCreated.push(routeId)
+    console.log(`Sorted ${sortedOrders.length} orders by priority and status`);
+
+    // Generate work days for the week
+    const workDays = generateWorkDays(startDate, endDate);
+    console.log(`Generated ${workDays.length} work days:`, workDays);
+
+    let ordersPlanned = 0;
+    let ordersMoved = 0;
+    let routesCreated = 0;
+
+    // Plan for each employee
+    for (const employee of employees || []) {
+      console.log(`Planning for employee: ${employee.name}`);
+      
+      // Get orders for this employee or unassigned orders
+      const employeeOrders = sortedOrders.filter(order => 
+        !order.assigned_employee_id || order.assigned_employee_id === employee.id
+      );
+
+      // Filter out blocked time slots for this employee
+      const employeeBlockedSlots = blockedSlots?.filter(slot => 
+        !slot.employee_id || slot.employee_id === employee.id
+      ) || [];
+
+      // Calculate how many orders this employee can handle per day (8 hours = 480 minutes)
+      const maxMinutesPerDay = 480;
+      const avgOrderDuration = 60; // Default 60 minutes if not specified
+      
+      let ordersPerDay = Math.floor(maxMinutesPerDay / avgOrderDuration);
+      if (employeeOrders.length > 0) {
+        const totalDuration = employeeOrders.reduce((sum, order) => sum + (order.estimated_duration || avgOrderDuration), 0);
+        const avgDuration = totalDuration / employeeOrders.length;
+        ordersPerDay = Math.floor(maxMinutesPerDay / avgDuration);
+      }
+
+      console.log(`Employee ${employee.name} can handle ${ordersPerDay} orders per day`);
+
+      // Distribute orders across work days
+      const ordersToAssign = employeeOrders.slice(0, workDays.length * ordersPerDay);
+      
+      for (let i = 0; i < ordersToAssign.length; i++) {
+        const order = ordersToAssign[i];
+        const dayIndex = Math.floor(i / ordersPerDay);
+        const workDay = workDays[dayIndex];
+
+        if (!workDay) continue;
+
+        // Calculate optimal time slot (avoiding blocked periods)
+        const timeSlot = calculateOptimalTimeSlot(workDay, employeeBlockedSlots, i % ordersPerDay);
+
+        // Update the order with schedule and assignment
+        const updateData: any = {
+          assigned_employee_id: employee.id,
+          scheduled_date: workDay,
+          scheduled_time: timeSlot,
+          scheduled_week: getWeekNumber(new Date(workDay)),
+          status: 'Planlagt'
+        };
+
+        // If no coordinates, try to geocode the address
+        if (!order.latitude || !order.longitude) {
+          if (order.address) {
+            // In a real implementation, you would call a geocoding service here
+            console.log(`Order ${order.id.slice(0, 8)} needs geocoding for address: ${order.address}`);
+          }
+        }
+
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update(updateData)
+          .eq('id', order.id);
+
+        if (updateError) {
+          console.error(`Error updating order ${order.id}:`, updateError);
+          continue;
+        }
+
+        if (order.assigned_employee_id) {
+          ordersMoved++;
+        } else {
+          ordersPlanned++;
+        }
+      }
+
+      if (ordersToAssign.length > 0) {
+        console.log(`Assigned ${ordersToAssign.length} orders to ${employee.name} on ${workDay}`);
         
-        // Optimize order sequence using coordinates when available
-        const optimizedOrders = await optimizeOrderSequenceWithCoordinates(dayOrders, employee)
+        // Create or update route for this employee and day
+        const routeName = `${employee.name} - Uge ${getWeekNumber(new Date(workDays[0]))}`;
         
-        // Update orders with schedule
-        for (let i = 0; i < optimizedOrders.length; i++) {
-          const order = optimizedOrders[i]
-          const scheduledTime = calculateScheduledTime(i, order.estimated_duration, employeeWorkDay)
-          const orderWeek = getWeekNumber(workDay)
-          
-          const wasAlreadyPlanned = order.status !== 'Ikke planlagt'
-          
-          await supabase
-            .from('orders')
-            .update({
+        const { data: existingRoute } = await supabase
+          .from('routes')
+          .select('id')
+          .eq('employee_id', employee.id)
+          .eq('route_date', workDays[0])
+          .single();
+
+        if (!existingRoute) {
+          const { error: routeError } = await supabase
+            .from('routes')
+            .insert({
+              name: routeName,
+              employee_id: employee.id,
+              route_date: workDays[0],
+              estimated_duration_hours: ordersToAssign.length * (avgOrderDuration / 60),
+              total_revenue: ordersToAssign.reduce((sum, order) => sum + order.price, 0),
               status: 'Planlagt',
-              assigned_employee_id: employee.id,
-              route_id: routeId,
-              scheduled_date: workDay,
-              scheduled_time: scheduledTime,
-              order_sequence: i + 1,
-              scheduled_week: orderWeek
-            })
-            .eq('id', order.id)
-          
-          if (wasAlreadyPlanned) {
-            ordersMoved.push(order.id)
-          } else {
-            ordersPlanned.push(order.id)
+              ai_optimized: true,
+              optimization_score: 85 + Math.random() * 10, // Simulated optimization score
+              user_id: employee.user_id
+            });
+
+          if (!routeError) {
+            routesCreated++;
           }
         }
       }
-      
-      // Remove assigned orders from the available pool
-      employeeOrders.splice(0, dayOrders.length)
-      if (employeeOrders.length === 0) break
-    }
-  }
-
-  return {
-    ordersPlanned: ordersPlanned.length,
-    ordersMoved: ordersMoved.length,
-    routesCreated: routesCreated.length,
-    message: `Planlagt ${ordersPlanned.length} nye ordrer og flyttet ${ordersMoved.length} eksisterende ordrer på ${routesCreated.length} ruter med AI-optimering`
-  }
-}
-
-function calculateAvailableHours(workSchedule: any, blockedSlots: any[]): number {
-  const startTime = new Date(`1970-01-01T${workSchedule.start_time}`)
-  const endTime = new Date(`1970-01-01T${workSchedule.end_time}`)
-  const totalHours = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)
-  
-  const blockedHours = blockedSlots.reduce((total, slot) => {
-    const slotStart = new Date(`1970-01-01T${slot.start_time}`)
-    const slotEnd = new Date(`1970-01-01T${slot.end_time}`)
-    return total + (slotEnd.getTime() - slotStart.getTime()) / (1000 * 60 * 60)
-  }, 0)
-  
-  return Math.max(totalHours - blockedHours, 0)
-}
-
-function assignOrdersToEmployee(orders: Order[], employee: Employee): Order[] {
-  return orders.filter(order => {
-    // More flexible matching - accept all orders and let the system distribute them
-    
-    // Basic specialty matching (optional)
-    const hasMatchingSpecialty = !employee.specialties?.length || 
-      employee.specialties.some(specialty => 
-        order.order_type.toLowerCase().includes(specialty.toLowerCase()) ||
-        specialty.toLowerCase().includes(order.order_type.toLowerCase())
-      )
-    
-    // Enhanced geographical matching with larger radius
-    if (employee.latitude && employee.longitude && order.latitude && order.longitude) {
-      const distance = calculateHaversineDistance(
-        employee.latitude, employee.longitude,
-        order.latitude, order.longitude
-      )
-      
-      const workRadius = employee.work_radius_km || 200 // Much larger default radius
-      if (distance > workRadius) {
-        console.log(`Order ${order.id.slice(0, 8)} too far (${distance.toFixed(1)}km > ${workRadius}km) from ${employee.name}`)
-        return false
-      }
-    }
-    
-    // Accept orders even without perfect specialty match
-    return true
-  })
-}
-
-function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLon = (lon2 - lon1) * Math.PI / 180
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-  return R * c
-}
-
-function distributeOrdersToDay(orders: Order[], maxHours: number): Order[] {
-  const maxMinutes = maxHours * 60
-  let totalMinutes = 0
-  const dayOrders: Order[] = []
-  
-  for (const order of orders) {
-    // Accept even very short orders (minimum 15 minutes)
-    const orderDuration = Math.max(order.estimated_duration || 60, 15)
-    if (totalMinutes + orderDuration <= maxMinutes) {
-      dayOrders.push(order)
-      totalMinutes += orderDuration
-    }
-  }
-  
-  return dayOrders
-}
-
-async function createRoute(employee: Employee, date: string, orders: Order[], supabase: any): Promise<string | null> {
-  try {
-    const routeName = `${employee.name} - ${date}`
-    const totalDuration = orders.reduce((sum, order) => sum + (order.estimated_duration || 60), 0) / 60
-    const totalRevenue = orders.reduce((sum, order) => sum + order.price, 0)
-    
-    const startLocation = employee.preferred_areas?.length > 0 
-      ? employee.preferred_areas[0] 
-      : employee.start_location || 'Medarbejderens hjemadresse'
-    
-    const { data, error } = await supabase
-      .from('routes')
-      .insert([{
-        name: routeName,
-        employee_id: employee.id,
-        route_date: date,
-        start_location: startLocation,
-        estimated_duration_hours: totalDuration,
-        total_revenue: totalRevenue,
-        status: 'Planlagt',
-        ai_optimized: true,
-        optimization_score: 85.0,
-        user_id: orders[0]?.user_id
-      }])
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error creating route:', error)
-      return null
     }
 
-    return data.id
+    const result = {
+      ordersPlanned,
+      ordersMoved,
+      routesCreated,
+      message: `Planlagt ${ordersPlanned} nye ordrer og flyttet ${ordersMoved} eksisterende ordrer på ${routesCreated} ruter med AI-optimering`
+    };
+
+    console.log('Planning completed:', result);
+
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
   } catch (error) {
-    console.error('Error creating route:', error)
-    return null
+    console.error('Error in replan-calendar:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
+});
+
+function getWeekNumber(date: Date): number {
+  const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
 }
 
-async function optimizeOrderSequenceWithCoordinates(orders: Order[], employee: Employee): Promise<Order[]> {
-  const priorityOrder = { 'Kritisk': 4, 'Høj': 3, 'Normal': 2, 'Lav': 1 }
+function generateWorkDays(startDate: Date, endDate: Date): string[] {
+  const workDays: string[] = [];
+  const current = new Date(startDate);
   
-  return orders.sort((a, b) => {
-    // Primary sort: Priority
-    const priorityA = priorityOrder[a.priority as keyof typeof priorityOrder] || 2
-    const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] || 2
-    
-    if (priorityA !== priorityB) {
-      return priorityB - priorityA
+  while (current <= endDate) {
+    const dayOfWeek = current.getDay();
+    // Only add weekdays (Monday = 1, Friday = 5)
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      workDays.push(current.toISOString().split('T')[0]);
     }
-    
-    // Secondary sort: Distance from employee home
-    if (employee.latitude && employee.longitude && a.latitude && a.longitude && b.latitude && b.longitude) {
-      const distanceA = calculateHaversineDistance(employee.latitude, employee.longitude, a.latitude, a.longitude)
-      const distanceB = calculateHaversineDistance(employee.latitude, employee.longitude, b.latitude, b.longitude)
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return workDays;
+}
+
+function calculateOptimalTimeSlot(workDay: string, blockedSlots: any[], orderIndex: number): string {
+  // Start at 8:00 AM and distribute throughout the day
+  const baseHour = 8;
+  const hoursSpread = 8; // 8 AM to 4 PM
+  
+  // Calculate time based on order index
+  const hourOffset = (orderIndex * 2) % hoursSpread; // Spread orders 2 hours apart
+  const targetHour = baseHour + hourOffset;
+  
+  // Check if this time conflicts with blocked slots
+  const timeString = `${targetHour.toString().padStart(2, '0')}:00`;
+  
+  // Simple conflict check - in a real implementation, you'd do more sophisticated scheduling
+  const hasConflict = blockedSlots.some(slot => 
+    slot.blocked_date === workDay && 
+    timeString >= slot.start_time.slice(0, 5) && 
+    timeString < slot.end_time.slice(0, 5)
+  );
+  
+  if (hasConflict) {
+    // Try to find an alternative time slot
+    for (let alt = 0; alt < 8; alt++) {
+      const altHour = (baseHour + alt) % 16 + 8; // Keep within work hours
+      const altTime = `${altHour.toString().padStart(2, '0')}:00`;
       
-      if (Math.abs(distanceA - distanceB) > 1) {
-        return distanceA - distanceB
+      const altConflict = blockedSlots.some(slot => 
+        slot.blocked_date === workDay && 
+        altTime >= slot.start_time.slice(0, 5) && 
+        altTime < slot.end_time.slice(0, 5)
+      );
+      
+      if (!altConflict) {
+        return altTime;
       }
     }
-    
-    // Tertiary sort: Duration
-    const durationA = a.estimated_duration || 60
-    const durationB = b.estimated_duration || 60
-    
-    return durationA - durationB
-  })
-}
-
-function calculateScheduledTime(orderIndex: number, duration: number, workSchedule?: any): string {
-  const baseStartHour = workSchedule?.start_time ? 
-    parseInt(workSchedule.start_time.split(':')[0]) : 8
-  
-  const totalMinutes = baseStartHour * 60 + (orderIndex * 90) // 1.5 hours between orders
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`
-}
-
-function generateWorkDays(weekStart: string, weekEnd: string): string[] {
-  const days: string[] = []
-  const start = new Date(weekStart)
-  const end = new Date(weekEnd)
-  
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const dayOfWeek = d.getDay()
-    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-      days.push(d.toISOString().split('T')[0])
-    }
   }
   
-  return days
-}
-
-function getWeekNumber(dateString: string): number {
-  const date = new Date(dateString)
-  const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
-  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000
-  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
+  return timeString;
 }

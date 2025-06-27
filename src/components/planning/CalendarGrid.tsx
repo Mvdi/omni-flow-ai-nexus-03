@@ -2,28 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Clock, User, MapPin, Euro, Ban, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, User, MapPin, Euro, Ban, Settings, Trash2 } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useBlockedTimeSlots } from '@/hooks/useBlockedTimeSlots';
 import { OrderDialog } from '@/components/orders/OrderDialog';
 import { BlockTimeSlotDialog } from './BlockTimeSlotDialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface CalendarGridProps {
   currentWeek?: Date;
+  selectedEmployee?: string;
 }
 
-export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Date() }) => {
-  // Use the currentWeek prop as the source of truth
+export const CalendarGrid: React.FC<CalendarGridProps> = ({ 
+  currentWeek = new Date(),
+  selectedEmployee = 'all'
+}) => {
   const [statusOptions, setStatusOptions] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{date: string, time: string} | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [blockToDelete, setBlockToDelete] = useState<any>(null);
   
   const { orders, updateOrder } = useOrders();
   const { employees } = useEmployees();
-  const { blockedSlots, createBlockedSlot } = useBlockedTimeSlots();
+  const { blockedSlots, createBlockedSlot, deleteBlockedSlot } = useBlockedTimeSlots();
 
   // Load status options from localStorage
   useEffect(() => {
@@ -92,13 +99,18 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
     timeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
   }
 
-  // Filter orders for the current week (using the prop)
+  // Filter orders for the current week and selected employee
   const weekOrders = orders.filter(order => {
     if (!order.scheduled_date) return false;
     const orderDate = new Date(order.scheduled_date);
-    return weekDates.some(weekDate => 
+    const isInWeek = weekDates.some(weekDate => 
       formatDate(orderDate) === formatDate(weekDate)
     );
+    
+    if (!isInWeek) return false;
+    
+    if (selectedEmployee === 'all') return true;
+    return order.assigned_employee_id === selectedEmployee;
   });
 
   // Group orders by date and time
@@ -130,6 +142,17 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
     return employee ? employee.name : 'Ikke tildelt';
   };
 
+  const getEmployeeColor = (employeeId: string) => {
+    const colors = [
+      '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', 
+      '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'
+    ];
+    const employee = employees.find(e => e.id === employeeId);
+    if (!employee) return '#6B7280';
+    const index = employees.findIndex(e => e.id === employeeId);
+    return colors[index % colors.length];
+  };
+
   const handleOrderClick = (order: any) => {
     setSelectedOrder(order);
     setIsOrderDialogOpen(true);
@@ -137,16 +160,34 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
 
   const handleEmptySlotClick = (date: string, time: string) => {
     // Check if this slot is already blocked
-    const isBlocked = blockedSlotsByDateTime[date]?.[time]?.length > 0;
+    const isBlocked = isTimeSlotBlocked(date, time);
     if (isBlocked) return;
 
     setSelectedTimeSlot({ date, time });
     setIsBlockDialogOpen(true);
   };
 
+  const handleBlockedSlotClick = (slot: any) => {
+    setBlockToDelete(slot);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteBlock = async () => {
+    if (blockToDelete) {
+      await deleteBlockedSlot(blockToDelete.id);
+      setDeleteDialogOpen(false);
+      setBlockToDelete(null);
+    }
+  };
+
   const handleOrderSave = async (orderData: any) => {
     if (selectedOrder) {
-      await updateOrder(selectedOrder.id, orderData);
+      // Pass the current week to ensure proper week calculation
+      const updatedData = {
+        ...orderData,
+        currentWeek: formatDate(currentWeek)
+      };
+      await updateOrder(selectedOrder.id, updatedData);
     }
     setIsOrderDialogOpen(false);
     setSelectedOrder(null);
@@ -237,12 +278,23 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
                         }}
                       >
                         {isBlocked && (
-                          <div className="mb-1 p-2 rounded-lg bg-red-100 border border-red-300">
-                            <div className="flex items-center gap-1 text-xs text-red-700">
+                          <div className="mb-1 p-2 rounded-lg bg-red-100 border border-red-300 relative group">
+                            <div 
+                              className="flex items-center gap-1 text-xs text-red-700 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const blockedSlot = Object.entries(blockedSlotsByDateTime[dateKey] || {})
+                                  .flatMap(([time, slots]) => 
+                                    slots.filter(slot => timeSlot >= slot.start_time.slice(0, 5) && timeSlot < slot.end_time.slice(0, 5))
+                                  )[0];
+                                if (blockedSlot) handleBlockedSlotClick(blockedSlot);
+                              }}
+                            >
                               <Ban className="h-3 w-3" />
                               Blokeret
+                              <Trash2 className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 text-red-600" />
                             </div>
-                            {/* Show reason from any blocked slot for this time period */}
+                            {/* Show reason from blocked slot */}
                             {Object.entries(blockedSlotsByDateTime[dateKey] || {}).map(([time, slots]) => 
                               slots.filter(slot => timeSlot >= slot.start_time.slice(0, 5) && timeSlot < slot.end_time.slice(0, 5))
                                 .map(slot => slot.reason).filter(Boolean).slice(0, 1)
@@ -260,8 +312,12 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
                             key={order.id}
                             className="mb-1 p-2 rounded-lg border shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                             style={{ 
-                              backgroundColor: getStatusColor(order.status) + '20',
-                              borderColor: getStatusColor(order.status)
+                              backgroundColor: selectedEmployee === 'all' 
+                                ? getEmployeeColor(order.assigned_employee_id) + '20'
+                                : getStatusColor(order.status) + '20',
+                              borderColor: selectedEmployee === 'all' 
+                                ? getEmployeeColor(order.assigned_employee_id)
+                                : getStatusColor(order.status)
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -311,17 +367,31 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
       {/* Legend */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <span className="text-sm font-medium">Status farver:</span>
-            {statusOptions.map(status => (
-              <div key={status.name} className="flex items-center gap-2">
-                <div 
-                  className="w-3 h-3 rounded"
-                  style={{ backgroundColor: status.color }}
-                />
-                <span className="text-sm">{status.name}</span>
-              </div>
-            ))}
+            {selectedEmployee === 'all' ? (
+              <>
+                {employees.filter(e => e.is_active).map((employee, index) => (
+                  <div key={employee.id} className="flex items-center gap-2">
+                    <div 
+                      className="w-3 h-3 rounded"
+                      style={{ backgroundColor: getEmployeeColor(employee.id) }}
+                    />
+                    <span className="text-sm">{employee.name}</span>
+                  </div>
+                ))}
+              </>
+            ) : (
+              statusOptions.map(status => (
+                <div key={status.name} className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded"
+                    style={{ backgroundColor: status.color }}
+                  />
+                  <span className="text-sm">{status.name}</span>
+                </div>
+              ))
+            )}
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded bg-red-300" />
               <span className="text-sm">Blokeret</span>
@@ -329,6 +399,30 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fjern Blokering</AlertDialogTitle>
+            <AlertDialogDescription>
+              Er du sikker på, at du vil fjerne denne blokering? Dette kan ikke fortrydes.
+              {blockToDelete && blockToDelete.reason && (
+                <div className="mt-2 p-2 bg-gray-100 rounded text-sm">
+                  <strong>Årsag:</strong> {blockToDelete.reason}
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuller</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteBlock} className="bg-red-600 hover:bg-red-700">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Fjern Blokering
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Order Edit Dialog */}
       <OrderDialog
@@ -339,6 +433,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ currentWeek = new Da
         }}
         order={selectedOrder}
         onSave={handleOrderSave}
+        currentWeek={currentWeek}
       />
 
       {/* Block Time Slot Dialog */}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,13 +14,15 @@ interface OrderDialogProps {
   onClose: () => void;
   order?: any;
   onSave: (orderData: any) => void;
+  currentWeek?: Date;
 }
 
 export const OrderDialog: React.FC<OrderDialogProps> = ({
   isOpen,
   onClose,
   order,
-  onSave
+  onSave,
+  currentWeek = new Date()
 }) => {
   const [orderTypes, setOrderTypes] = useState<string[]>([]);
   const [statusOptions, setStatusOptions] = useState<any[]>([]);
@@ -151,10 +154,9 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
     }));
   };
 
-  const getCurrentWeekNumber = () => {
-    const now = new Date();
-    const firstDayOfYear = new Date(now.getFullYear(), 0, 1);
-    const pastDaysOfYear = (now.getTime() - firstDayOfYear.getTime()) / 86400000;
+  const getCurrentWeekNumber = (date: Date = currentWeek) => {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
     return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
   };
 
@@ -174,7 +176,10 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
       case 'week':
         finalData.scheduled_date = '';
         finalData.scheduled_time = '';
-        // Keep scheduled_week as is
+        // Use the current week number if not set
+        if (!finalData.scheduled_week) {
+          finalData.scheduled_week = getCurrentWeekNumber();
+        }
         finalData.status = 'Planlagt';
         break;
       case 'date':
@@ -182,9 +187,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         // Calculate week from date
         if (finalData.scheduled_date) {
           const date = new Date(finalData.scheduled_date);
-          const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-          const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-          finalData.scheduled_week = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+          finalData.scheduled_week = getCurrentWeekNumber(date);
         }
         finalData.status = 'Planlagt';
         break;
@@ -192,9 +195,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         // Calculate week from date
         if (finalData.scheduled_date) {
           const date = new Date(finalData.scheduled_date);
-          const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-          const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-          finalData.scheduled_week = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+          finalData.scheduled_week = getCurrentWeekNumber(date);
         }
         finalData.status = 'Planlagt';
         break;
@@ -346,6 +347,9 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
                   value={formData.scheduled_week || getCurrentWeekNumber()}
                   onChange={(e) => setFormData(prev => ({ ...prev, scheduled_week: parseInt(e.target.value) || null }))}
                 />
+                <p className="text-sm text-gray-500 mt-1">
+                  Nuværende uge: {getCurrentWeekNumber()}
+                </p>
               </div>
             )}
 

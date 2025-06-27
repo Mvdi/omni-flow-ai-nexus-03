@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, MapPin, Clock, Users, Zap, RefreshCw, Settings, Plus, Ban, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useEmployees } from '@/hooks/useEmployees';
@@ -19,13 +20,27 @@ interface WeeklyCalendarProps {
 
 export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = new Date() }) => {
   const [selectedWeek, setSelectedWeek] = useState(currentWeek);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
   const [isReplanning, setIsReplanning] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   
   const { orders, refetch: refetchOrders } = useOrders();
   const { employees } = useEmployees();
   const { routes, refetch: refetchRoutes } = useRoutes();
   const { workSchedules } = useWorkSchedules();
   const { blockedSlots } = useBlockedTimeSlots();
+
+  // Auto-refresh functionality
+  useEffect(() => {
+    if (!autoRefresh) return;
+    
+    const interval = setInterval(() => {
+      refetchOrders();
+      refetchRoutes();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, refetchOrders, refetchRoutes]);
 
   const getWeekDates = (date: Date) => {
     const startOfWeek = new Date(date);
@@ -55,13 +70,18 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   const weekDates = getWeekDates(selectedWeek);
   const weekNumber = getWeekNumber(selectedWeek);
 
-  // Filter orders for the SELECTED week (not current week)
+  // Filter orders for the SELECTED week and employee
   const weekOrders = orders.filter(order => {
     if (!order.scheduled_date) return false;
     const orderDate = new Date(order.scheduled_date);
-    return weekDates.some(weekDate => 
+    const isInWeek = weekDates.some(weekDate => 
       formatDate(orderDate) === formatDate(weekDate)
     );
+    
+    if (!isInWeek) return false;
+    
+    if (selectedEmployee === 'all') return true;
+    return order.assigned_employee_id === selectedEmployee;
   });
 
   // Filter blocked slots for the SELECTED week
@@ -79,7 +99,11 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
       console.log('Replanning week:', weekStart, 'to', weekEnd);
       
       const { data, error } = await supabase.functions.invoke('replan-calendar', {
-        body: { weekStart, weekEnd }
+        body: { 
+          weekStart, 
+          weekEnd,
+          employeeId: selectedEmployee !== 'all' ? selectedEmployee : undefined
+        }
       });
 
       if (error) {
@@ -108,9 +132,15 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
     setSelectedWeek(newWeek);
   };
 
+  const goToCurrentWeek = () => {
+    setSelectedWeek(new Date());
+  };
+
+  const activeEmployees = employees.filter(e => e.is_active);
+
   return (
     <div className="space-y-6">
-      {/* Simplified Header */}
+      {/* Enhanced Header */}
       <Card className="shadow-sm border-0">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
@@ -130,6 +160,9 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
+                <Button variant="outline" size="sm" onClick={goToCurrentWeek}>
+                  I dag
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -137,6 +170,32 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
             </div>
             
             <div className="flex items-center gap-2">
+              {/* Employee Filter */}
+              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Vælg medarbejder" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle medarbejdere</SelectItem>
+                  {activeEmployees.map(employee => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Auto-refresh toggle */}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={autoRefresh ? 'bg-green-50 border-green-200' : ''}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
+                Auto-opdater
+              </Button>
+              
               <Button 
                 onClick={handleReplanWeek}
                 disabled={isReplanning}
@@ -154,13 +213,15 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
         </CardHeader>
       </Card>
 
-      {/* Compact Week Statistics for SELECTED week */}
+      {/* Enhanced Week Statistics */}
       <div className="grid grid-cols-4 gap-4">
         <Card className="shadow-sm border-0">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Ordrer denne uge</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {selectedEmployee === 'all' ? 'Ordrer denne uge' : `${employees.find(e => e.id === selectedEmployee)?.name || 'Medarbejder'} ordrer`}
+                </p>
                 <p className="text-2xl font-bold text-gray-900">{weekOrders.length}</p>
               </div>
               <Calendar className="h-8 w-8 text-blue-600" />
@@ -173,7 +234,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Aktive medarbejdere</p>
-                <p className="text-2xl font-bold text-gray-900">{employees.filter(e => e.is_active).length}</p>
+                <p className="text-2xl font-bold text-gray-900">{activeEmployees.length}</p>
               </div>
               <Users className="h-8 w-8 text-green-600" />
             </div>
@@ -207,8 +268,11 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
         </Card>
       </div>
 
-      {/* Calendar Grid - pass selectedWeek as prop */}
-      <CalendarGrid currentWeek={selectedWeek} />
+      {/* Calendar Grid - pass both selectedWeek and selectedEmployee */}
+      <CalendarGrid 
+        currentWeek={selectedWeek} 
+        selectedEmployee={selectedEmployee}
+      />
     </div>
   );
 };
