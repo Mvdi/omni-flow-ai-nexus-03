@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { 
   Settings as SettingsIcon, 
   User, 
@@ -23,6 +24,12 @@ import { EmployeeManagement } from '@/components/settings/EmployeeManagement';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('general');
+  const [companyAddress, setCompanyAddress] = useState('');
+
+  const handleCompanyAddressSelect = (addressData: { address: string; latitude: number; longitude: number; bfe_number?: string }) => {
+    console.log('Company address selected');
+    // Handle company address selection - could save to settings/database
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -106,8 +113,13 @@ const Settings = () => {
                     <Input id="cvr" placeholder="12345678" />
                   </div>
                   <div>
-                    <Label htmlFor="address">Adresse</Label>
-                    <Input id="address" placeholder="Vej 123, 1234 By" />
+                    <AddressAutocomplete
+                      label="Adresse"
+                      value={companyAddress}
+                      onChange={setCompanyAddress}
+                      onAddressSelect={handleCompanyAddressSelect}
+                      placeholder="Vælg virksomhedsadresse"
+                    />
                   </div>
                   <Button>Gem Ændringer</Button>
                 </CardContent>

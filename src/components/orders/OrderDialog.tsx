@@ -1,8 +1,10 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import {
   Dialog,
   DialogContent,
@@ -48,11 +50,14 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
     scheduled_week: '',
     scheduled_date: '',
     scheduled_time: '',
-    status: 'Ikke planlagt', // Changed default to "Ikke planlagt"
+    status: 'Ikke planlagt',
     comment: '',
     address: '',
     priority: 'Normal',
-    estimated_duration: ''
+    estimated_duration: '',
+    latitude: undefined as number | undefined,
+    longitude: undefined as number | undefined,
+    bfe_number: undefined as string | undefined
   });
 
   // Get saved settings from localStorage
@@ -99,7 +104,10 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
         comment: order.comment || '',
         address: order.address || '',
         priority: order.priority || 'Normal',
-        estimated_duration: order.estimated_duration?.toString() || ''
+        estimated_duration: order.estimated_duration?.toString() || '',
+        latitude: undefined,
+        longitude: undefined,
+        bfe_number: order.bfe_number
       });
     } else {
       // Reset form for new order with default status
@@ -111,14 +119,28 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
         scheduled_week: '',
         scheduled_date: '',
         scheduled_time: '',
-        status: 'Ikke planlagt', // Ensure new orders start with "Ikke planlagt"
+        status: 'Ikke planlagt',
         comment: '',
         address: '',
         priority: 'Normal',
-        estimated_duration: ''
+        estimated_duration: '',
+        latitude: undefined,
+        longitude: undefined,
+        bfe_number: undefined
       });
     }
   }, [order, isOpen]);
+
+  const handleAddressSelect = (addressData: { address: string; latitude: number; longitude: number; bfe_number?: string }) => {
+    console.log('Address selected for order');
+    setFormData(prev => ({
+      ...prev,
+      address: addressData.address,
+      latitude: addressData.latitude,
+      longitude: addressData.longitude,
+      bfe_number: addressData.bfe_number
+    }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,6 +156,9 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
       status: formData.status,
       comment: formData.comment || undefined,
       address: formData.address || undefined,
+      latitude: formData.latitude,
+      longitude: formData.longitude,
+      bfe_number: formData.bfe_number,
       priority: formData.priority,
       estimated_duration: formData.estimated_duration ? parseFloat(formData.estimated_duration) : undefined
     };
@@ -222,12 +247,12 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address">Adresse</Label>
-            <Input
-              id="address"
+            <AddressAutocomplete
+              label="Adresse"
               value={formData.address}
-              onChange={(e) => setFormData({...formData, address: e.target.value})}
-              placeholder="Fuld adresse hvor arbejdet skal udføres"
+              onChange={(value) => setFormData({...formData, address: value})}
+              onAddressSelect={handleAddressSelect}
+              placeholder="Vælg adresse hvor arbejdet skal udføres"
             />
           </div>
 

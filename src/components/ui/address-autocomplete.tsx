@@ -3,7 +3,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Input } from './input';
 import { Label } from './label';
 import { Badge } from './badge';
-import { Shield } from 'lucide-react';
 
 interface AddressData {
   address: string;
@@ -22,7 +21,7 @@ interface AddressAutocompleteProps {
   required?: boolean;
 }
 
-// DAWA types for selected address
+// DAWA types
 interface DAWASelectedAddress {
   tekst: string;
   data: {
@@ -30,7 +29,6 @@ interface DAWASelectedAddress {
   };
 }
 
-// DAWA address details response
 interface DAWAAddressDetails {
   id: string;
   adgangspunkt: {
@@ -80,6 +78,11 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           cssLink.id = 'dawa-autocomplete-css';
           cssLink.rel = 'stylesheet';
           cssLink.href = 'https://cdn.dataforsyningen.dk/dawa/assets/dawa-autocomplete2/latest/dawa-autocomplete2.css';
+          
+          cssLink.onload = () => {
+            console.log('DAWA CSS loaded successfully');
+          };
+          
           document.head.appendChild(cssLink);
         }
 
@@ -132,7 +135,7 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
             // Fetch detailed address information with coordinates
             if (onAddressSelect) {
               try {
-                console.log('Fetching address details for secure coordinate storage...');
+                console.log('Fetching address details...');
                 
                 const response = await fetch(
                   `https://api.dataforsyningen.dk/adresser/${selected.data.id}?struktur=mini`
@@ -151,8 +154,7 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                   bfe_number: addressDetails.bfe?.toString()
                 };
                 
-                console.log('Address coordinates will be stored securely on backend');
-                // Note: coordinates are NOT stored in frontend state for security
+                console.log('Address data ready for backend storage');
                 onAddressSelect(addressData);
                 
               } catch (error) {
@@ -168,8 +170,8 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           },
           minLength: 2,
           delay: 300,
-          type: 'adresse', // Only show addresses, not street names
-          per_side: 8 // Limit suggestions for better performance
+          type: 'adresse',
+          per_side: 8
         });
         
         setIsInitialized(true);
@@ -206,16 +208,9 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           autoComplete="off"
           disabled={isLoading}
         />
-      </div>
-      
-      <div className="flex items-center gap-2 text-xs">
-        <div className="flex items-center gap-1 text-gray-500">
-          <Shield className="h-3 w-3" />
-          Koordinater gemmes sikkert på server
-        </div>
         {hasValidAddress && (
-          <Badge variant="outline" className="text-xs">
-            Gyldig adresse valgt
+          <Badge variant="outline" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs">
+            Gyldig adresse
           </Badge>
         )}
       </div>

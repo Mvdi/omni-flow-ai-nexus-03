@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { Plus } from 'lucide-react';
 import { useAddTicket } from '@/hooks/useTickets';
 
@@ -20,10 +21,16 @@ export const CreateTicketDialog = ({ children }: CreateTicketDialogProps) => {
     content: '',
     customer_email: '',
     customer_name: '',
+    customer_address: '',
     priority: 'Medium' as 'Høj' | 'Medium' | 'Lav'
   });
 
   const addTicket = useAddTicket();
+
+  const handleAddressSelect = (addressData: { address: string; latitude: number; longitude: number; bfe_number?: string }) => {
+    console.log('Customer address selected for ticket');
+    setFormData(prev => ({ ...prev, customer_address: addressData.address }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,9 +39,11 @@ export const CreateTicketDialog = ({ children }: CreateTicketDialogProps) => {
       return;
     }
 
+    const ticketContent = formData.content + (formData.customer_address ? `\n\nKunde adresse: ${formData.customer_address}` : '');
+
     addTicket.mutate({
       subject: formData.subject,
-      content: formData.content || null,
+      content: ticketContent || null,
       customer_email: formData.customer_email,
       customer_name: formData.customer_name || null,
       priority: formData.priority,
@@ -48,6 +57,7 @@ export const CreateTicketDialog = ({ children }: CreateTicketDialogProps) => {
           content: '',
           customer_email: '',
           customer_name: '',
+          customer_address: '',
           priority: 'Medium'
         });
       }
@@ -100,6 +110,16 @@ export const CreateTicketDialog = ({ children }: CreateTicketDialogProps) => {
               value={formData.subject}
               onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
               placeholder="Beskriv problemet kort"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <AddressAutocomplete
+              label="Kunde Adresse (valgfrit)"
+              value={formData.customer_address}
+              onChange={(value) => setFormData(prev => ({ ...prev, customer_address: value }))}
+              onAddressSelect={handleAddressSelect}
+              placeholder="Vælg kundens adresse"
             />
           </div>
 

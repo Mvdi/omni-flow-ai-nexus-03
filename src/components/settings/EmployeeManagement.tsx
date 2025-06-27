@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { useEmployees, CreateEmployeeData } from '@/hooks/useEmployees';
-import { Plus, Edit, Trash2, X, Shield, CheckCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const EmployeeManagement = () => {
@@ -31,7 +31,6 @@ export const EmployeeManagement = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [availableOrderTypes, setAvailableOrderTypes] = useState<string[]>([]);
   const [customArea, setCustomArea] = useState('');
-  const [addressSelected, setAddressSelected] = useState(false);
   const [formData, setFormData] = useState<CreateEmployeeData>({
     name: '',
     email: '',
@@ -84,7 +83,7 @@ export const EmployeeManagement = () => {
       setAvailableOrderTypes([
         'Vinduespolering',
         'Facaderengøring',
-        'Gulvrengøring',
+        'Gulvrengøring', 
         'Kontorrengøring', 
         'Byggegrundsrengøring',
         'Trappeopgang',
@@ -125,12 +124,11 @@ export const EmployeeManagement = () => {
       preferred_areas: employee.preferred_areas || [],
       max_hours_per_day: employee.max_hours_per_day,
       start_location: employee.start_location || '',
-      latitude: undefined, // Security: Never expose coordinates in frontend
-      longitude: undefined, // Security: Never expose coordinates in frontend
+      latitude: undefined,
+      longitude: undefined,
       bfe_number: employee.bfe_number,
       is_active: employee.is_active
     });
-    setAddressSelected(!!employee.start_location);
     setIsDialogOpen(true);
   };
 
@@ -143,7 +141,6 @@ export const EmployeeManagement = () => {
   const resetForm = () => {
     setSelectedEmployee(null);
     setCustomArea('');
-    setAddressSelected(false);
     setFormData({
       name: '',
       email: '',
@@ -186,7 +183,7 @@ export const EmployeeManagement = () => {
   };
 
   const handleAddressSelect = (addressData: { address: string; latitude: number; longitude: number; bfe_number?: string }) => {
-    console.log('Address selected with secure coordinate handling');
+    console.log('Address selected for employee');
     setFormData(prev => ({
       ...prev,
       start_location: addressData.address,
@@ -194,8 +191,7 @@ export const EmployeeManagement = () => {
       longitude: addressData.longitude,
       bfe_number: addressData.bfe_number
     }));
-    setAddressSelected(true);
-    toast.success('Adresse valgt - koordinater gemmes sikkert');
+    toast.success('Adresse valgt');
   };
 
   if (loading) {
@@ -272,26 +268,10 @@ export const EmployeeManagement = () => {
                   value={formData.start_location || ''}
                   onChange={(value) => {
                     setFormData(prev => ({ ...prev, start_location: value }));
-                    if (!value) setAddressSelected(false);
                   }}
                   onAddressSelect={handleAddressSelect}
-                  placeholder="Vælg hjemadresse fra DAWA"
+                  placeholder="Vælg hjemadresse"
                 />
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Shield className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium text-blue-800">Sikkerhed & Privatliv</span>
-                  </div>
-                  <p className="text-xs text-blue-700 mt-1">
-                    Koordinater og præcise adresseoplysninger gemmes kun på server og er aldrig synlige i frontend for at beskytte medarbejdernes privatliv.
-                  </p>
-                  {addressSelected && (
-                    <div className="flex items-center gap-1 mt-2 text-xs text-green-700">
-                      <CheckCircle className="h-3 w-3" />
-                      Adresse og koordinater gemt sikkert
-                    </div>
-                  )}
-                </div>
               </div>
 
               <div>
@@ -392,12 +372,6 @@ export const EmployeeManagement = () => {
                   <TableCell>{employee.phone || '-'}</TableCell>
                   <TableCell className="max-w-[150px]">
                     <div className="truncate">{employee.start_location || '-'}</div>
-                    {employee.start_location && (
-                      <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
-                        <Shield className="h-3 w-3" />
-                        Sikker lokation
-                      </div>
-                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
