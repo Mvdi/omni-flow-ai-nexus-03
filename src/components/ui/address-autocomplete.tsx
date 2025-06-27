@@ -21,27 +21,21 @@ interface AddressAutocompleteProps {
   required?: boolean;
 }
 
-// DAWA types
-interface DAWASelectedAddress {
+// DAWA types based on official documentation
+interface DAWAAutocompleteItem {
   tekst: string;
-  data: {
+  adresse?: {
     id: string;
+    adgangspunkt: {
+      koordinater: [number, number]; // [longitude, latitude]
+    };
+    bfe?: number;
   };
-}
-
-interface DAWAAddressDetails {
-  id: string;
-  adgangspunkt: {
-    koordinater: [number, number]; // [longitude, latitude]
-  };
-  bfe?: number;
 }
 
 declare global {
   interface Window {
-    dawaAutocomplete?: {
-      dawaAutocomplete: (element: HTMLInputElement, options: any) => void;
-    };
+    dawaAutocomplete?: (element: HTMLInputElement, options: any) => void;
   }
 }
 
@@ -56,63 +50,35 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
   const [hasValidAddress, setHasValidAddress] = useState(false);
 
-  // Load DAWA resources
+  // Load DAWA autocomplete library
   useEffect(() => {
-    const loadDAWA = async () => {
+    const loadDAWA = () => {
       // Check if already loaded
       if (window.dawaAutocomplete) {
         setIsLoading(false);
         return;
       }
 
-      try {
-        console.log('Loading DAWA autocomplete resources...');
+      console.log('Loading DAWA autocomplete...');
 
-        // Load CSS first
-        const existingCSS = document.querySelector('#dawa-autocomplete-css');
-        if (!existingCSS) {
-          const cssLink = document.createElement('link');
-          cssLink.id = 'dawa-autocomplete-css';
-          cssLink.rel = 'stylesheet';
-          cssLink.href = 'https://cdn.dataforsyningen.dk/dawa/assets/dawa-autocomplete2/latest/dawa-autocomplete2.css';
-          
-          cssLink.onload = () => {
-            console.log('DAWA CSS loaded successfully');
-          };
-          
-          document.head.appendChild(cssLink);
-        }
-
-        // Load JavaScript
-        const existingScript = document.querySelector('#dawa-autocomplete-script');
-        if (!existingScript) {
-          const script = document.createElement('script');
-          script.id = 'dawa-autocomplete-script';
-          script.src = 'https://cdn.dataforsyningen.dk/dawa/assets/dawa-autocomplete2/latest/dawa-autocomplete2.min.js';
-          script.async = true;
-          
-          script.onload = () => {
-            console.log('DAWA script loaded successfully');
-            setIsLoading(false);
-          };
-          
-          script.onerror = () => {
-            console.error('Failed to load DAWA script');
-            setIsLoading(false);
-          };
-          
-          document.head.appendChild(script);
-        } else {
-          setIsLoading(false);
-        }
-
-      } catch (error) {
-        console.error('Error loading DAWA resources:', error);
+      // Load the script
+      const script = document.createElement('script');
+      script.src = 'https://dawa.aws.dk/js/autocomplete/autocomplete.js';
+      script.async = true;
+      
+      script.onload = () => {
+        console.log('DAWA autocomplete loaded successfully');
         setIsLoading(false);
-      }
+      };
+      
+      script.onerror = () => {
+        console.error('Failed to load DAWA autocomplete');
+        setIsLoading(false);
+      };
+      
+      document.head.appendChild(script);
     };
 
     loadDAWA();
@@ -120,68 +86,43 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
 
   // Initialize DAWA autocomplete when ready
   useEffect(() => {
-    if (!isLoading && inputRef.current && window.dawaAutocomplete && !isInitialized) {
+    if (!isLoading && inputRef.current && window.dawaAutocomplete) {
       try {
-        console.log('Initializing DAWA autocomplete');
+        console.log('Initializing DAWA autocomplete on input');
         
-        window.dawaAutocomplete.dawaAutocomplete(inputRef.current, {
-          select: async (selected: DAWASelectedAddress) => {
-            console.log('DAWA address selected:', selected.tekst);
+        window.dawaAutocomplete(inputRef.current, {
+          id: 'autocomplete-container-' + id,
+          select: (selected: DAWAAutocompleteItem) => {
+            console.log('DAWA address selected:', selected);
             
-            // Update input value immediately
+            // Update input value
             onChange(selected.tekst);
             setHasValidAddress(true);
             
-            // Fetch detailed address information with coordinates
-            if (onAddressSelect) {
-              try {
-                console.log('Fetching address details...');
-                
-                const response = await fetch(
-                  `https://api.dataforsyningen.dk/adresser/${selected.data.id}?struktur=mini`
-                );
-                
-                if (!response.ok) {
-                  throw new Error('Failed to fetch address details');
-                }
-                
-                const addressDetails: DAWAAddressDetails = await response.json();
-                
-                const addressData: AddressData = {
-                  address: selected.tekst,
-                  latitude: addressDetails.adgangspunkt.koordinater[1], // latitude is second
-                  longitude: addressDetails.adgangspunkt.koordinater[0], // longitude is first
-                  bfe_number: addressDetails.bfe?.toString()
-                };
-                
-                console.log('Address data ready for backend storage');
-                onAddressSelect(addressData);
-                
-              } catch (error) {
-                console.error('Error fetching address details:', error);
-                // Still call onAddressSelect with basic data
-                onAddressSelect({
-                  address: selected.tekst,
-                  latitude: 0,
-                  longitude: 0
-                });
-              }
+            // Extract coordinates and call onAddressSelect if provided
+            if (onAddressSelect && selected.adresse) {
+              const addressData: AddressData = {
+                address: selected.tekst,
+                latitude: selected.adresse.adgangspunkt.koordinater[1], // latitude is second
+                longitude: selected.adresse.adgangspunkt.koordinater[0], // longitude is first
+                bfe_number: selected.adresse.bfe?.toString()
+              };
+              
+              console.log('Calling onAddressSelect with:', addressData);
+              onAddressSelect(addressData);
             }
           },
           minLength: 2,
-          delay: 300,
-          type: 'adresse',
-          per_side: 8
+          delay: 300
         });
         
-        setIsInitialized(true);
         console.log('DAWA autocomplete initialized successfully');
         
       } catch (error) {
         console.error('Error initializing DAWA autocomplete:', error);
       }
     }
-  }, [isLoading, onAddressSelect, onChange, isInitialized]);
+  }, [isLoading, onAddressSelect, onChange, id]);
 
   // Reset address validation when value changes externally
   useEffect(() => {
@@ -189,6 +130,11 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
       setHasValidAddress(false);
     }
   }, [value]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(e.target.value);
+    setHasValidAddress(false);
+  };
 
   return (
     <div className="space-y-2">
@@ -199,11 +145,8 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           id={id}
           type="text"
           value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-            setHasValidAddress(false);
-          }}
-          placeholder={isLoading ? "Indlæser adresse-søgning..." : placeholder}
+          onChange={handleInputChange}
+          placeholder={isLoading ? "Indlæser..." : placeholder}
           required={required}
           autoComplete="off"
           disabled={isLoading}
@@ -216,7 +159,7 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
       </div>
       
       {isLoading && (
-        <p className="text-xs text-gray-500">Indlæser DAWA adresse-søgning...</p>
+        <p className="text-xs text-gray-500">Indlæser adresse-søgning...</p>
       )}
     </div>
   );
