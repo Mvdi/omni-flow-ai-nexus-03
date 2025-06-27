@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -99,9 +100,19 @@ export const useOrders = () => {
     try {
       console.log('Creating order:', orderData);
       
+      // Ensure estimated_duration is a valid number
+      const cleanOrderData = {
+        ...orderData,
+        estimated_duration: orderData.estimated_duration ?? 0,
+        scheduled_date: orderData.scheduled_date || null,
+        scheduled_time: orderData.scheduled_time || null,
+        scheduled_week: orderData.scheduled_week || null,
+        user_id: user.id
+      };
+      
       const { data, error } = await supabase
         .from('orders')
-        .insert([{ ...orderData, user_id: user.id }])
+        .insert([cleanOrderData])
         .select()
         .single();
 
@@ -131,9 +142,27 @@ export const useOrders = () => {
     try {
       console.log('Updating order:', id, orderData);
       
+      // Clean the data before sending to database
+      const cleanOrderData = {
+        ...orderData,
+        estimated_duration: orderData.estimated_duration ?? 0,
+        scheduled_date: orderData.scheduled_date || null,
+        scheduled_time: orderData.scheduled_time || null,
+        scheduled_week: orderData.scheduled_week || null,
+        latitude: orderData.latitude || null,
+        longitude: orderData.longitude || null
+      };
+
+      // Remove any undefined values
+      Object.keys(cleanOrderData).forEach(key => {
+        if (cleanOrderData[key as keyof typeof cleanOrderData] === undefined) {
+          delete cleanOrderData[key as keyof typeof cleanOrderData];
+        }
+      });
+      
       const { data, error } = await supabase
         .from('orders')
-        .update(orderData)
+        .update(cleanOrderData)
         .eq('id', id)
         .eq('user_id', user.id)
         .select()

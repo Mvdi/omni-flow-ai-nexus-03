@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -33,7 +32,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
     bfe_number: '',
     price: 0,
     priority: 'Normal',
-    estimated_duration: 120, // Default 2 hours in minutes
+    estimated_duration: 0, // Changed default to 0
     comment: '',
     scheduled_date: '',
     scheduled_time: '',
@@ -47,10 +46,12 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
-        if (settings.orderTypes) {
-          setOrderTypes(settings.orderTypes.map((t: any) => t.name));
+        if (settings.orderTypes && Array.isArray(settings.orderTypes)) {
+          // Keep existing order types and only add new ones from settings
+          const settingsTypes = settings.orderTypes.map((t: any) => t.name || t);
+          setOrderTypes(settingsTypes);
         }
-        if (settings.statusOptions) {
+        if (settings.statusOptions && Array.isArray(settings.statusOptions)) {
           setStatusOptions(settings.statusOptions);
         }
       } catch (error) {
@@ -88,7 +89,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         bfe_number: order.bfe_number || '',
         price: order.price || 0,
         priority: order.priority || 'Normal',
-        estimated_duration: order.estimated_duration || 120,
+        estimated_duration: order.estimated_duration || 0, // Allow any value including 0
         comment: order.comment || '',
         scheduled_date: order.scheduled_date || '',
         scheduled_time: order.scheduled_time || '',
@@ -106,7 +107,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         bfe_number: '',
         price: 0,
         priority: 'Normal',
-        estimated_duration: 120,
+        estimated_duration: 0, // Default to 0 for new orders
         comment: '',
         scheduled_date: '',
         scheduled_time: '',
@@ -128,7 +129,19 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Submitting form data:', formData);
     onSave(formData);
+  };
+
+  const handleEstimatedDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow empty string or valid numbers including 0
+    if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+      setFormData(prev => ({ 
+        ...prev, 
+        estimated_duration: value === '' ? 0 : Number(value)
+      }));
+    }
   };
 
   const priorities = ['Lav', 'Normal', 'Høj', 'Kritisk'];
@@ -220,10 +233,11 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
               <Input
                 id="estimated_duration"
                 type="number"
-                min="1"
+                min="0"
                 step="1"
                 value={formData.estimated_duration}
-                onChange={(e) => setFormData(prev => ({ ...prev, estimated_duration: parseInt(e.target.value) || 120 }))}
+                onChange={handleEstimatedDurationChange}
+                placeholder="0"
               />
             </div>
           </div>
