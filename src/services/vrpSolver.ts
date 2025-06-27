@@ -51,7 +51,7 @@ export interface VRPOptimizeRequest {
   depot_lon?: number;
 }
 
-class VRPSolverService {
+export class VRPSolverService {
   private baseUrl: string;
 
   constructor() {
