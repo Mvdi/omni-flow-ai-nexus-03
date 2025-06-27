@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -117,7 +116,7 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {weekRoutes.reduce((sum, route) => sum + (route.total_revenue || 0), 0).toLocaleString()} kr
+                {weekRoutes.reduce((sum, route) => sum + (route.total_revenue || 0), 0).toLocaleString('da-DK')} kr
               </div>
               <div className="text-sm text-gray-600">Total Omsætning</div>
             </div>
@@ -214,7 +213,7 @@ export const RouteVisualization: React.FC<RouteVisualizationProps> = ({
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-medium">
-                                  {order.price.toLocaleString()} kr
+                                  {order.price.toLocaleString('da-DK')} kr
                                 </div>
                                 <div className="text-xs text-gray-600">
                                   {order.order_type}

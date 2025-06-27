@@ -19,12 +19,17 @@ export interface MapboxDirectionsResponse {
   }>;
 }
 
+export interface MapboxMatrixResponse {
+  distances: number[][]; // meters
+  durations: number[][]; // seconds
+}
+
 export class MapboxService {
   private readonly accessToken: string;
   private readonly baseUrl = 'https://api.mapbox.com';
 
   constructor() {
-    // Use a public token for development - in production, this should be from environment
+    // Use the public token - in production this should be from Supabase secrets
     this.accessToken = 'pk.eyJ1IjoibG92YWJsZS1kZXYiLCJhIjoiY2x6NHQ4YmZqMGFjeTJycGZpb2VmbGhzZCJ9.qzHLmkYaBHjfJGCGGGfZ3Q';
   }
 
@@ -37,7 +42,7 @@ export class MapboxService {
       const response = await fetch(url);
       
       if (!response.ok) {
-        console.error('Mapbox geocoding error:', response.status);
+        console.error('Mapbox geocoding error:', response.status, response.statusText);
         return null;
       }
 
@@ -62,38 +67,68 @@ export class MapboxService {
     destinations: Array<{ lat: number; lng: number }>
   ): Promise<{ distances: number[][]; durations: number[][] }> {
     try {
+      console.log('🗺️ Calculating distance matrix for', origins.length, 'origins to', destinations.length, 'destinations');
+      
+      // For now, we'll use individual route requests since Matrix API requires paid plan
+      // This is more accurate than Haversine but slower for large matrices
       const distances: number[][] = [];
       const durations: number[][] = [];
-
-      // Mapbox Directions API doesn't have a matrix endpoint in the free tier
-      // So we calculate point-to-point distances using Haversine for now
-      // For production, you'd use Mapbox Matrix API or make individual direction requests
 
       for (let i = 0; i < origins.length; i++) {
         const distanceRow: number[] = [];
         const durationRow: number[] = [];
         
         for (let j = 0; j < destinations.length; j++) {
-          const distance = this.calculateHaversineDistance(
-            origins[i].lat, origins[i].lng,
-            destinations[j].lat, destinations[j].lng
-          );
-          
-          // Estimate driving time: ~2.5 minutes per km in city traffic
-          const duration = Math.round(distance * 2.5 * 60); // seconds
-          
-          distanceRow.push(Math.round(distance * 1000)); // meters
-          durationRow.push(duration);
+          if (i === j) {
+            // Same location
+            distanceRow.push(0);
+            durationRow.push(0);
+          } else {
+            try {
+              // Use Mapbox Directions API for real driving routes
+              const routeData = await this.getRouteDistance(origins[i], destinations[j]);
+              
+              if (routeData) {
+                distanceRow.push(routeData.distance); // meters
+                durationRow.push(routeData.duration); // seconds
+                console.log(`📍 Route ${i}->${j}: ${Math.round(routeData.distance/1000)}km, ${Math.round(routeData.duration/60)}min`);
+              } else {
+                // Fallback to Haversine if API fails
+                const distance = this.calculateHaversineDistance(
+                  origins[i].lat, origins[i].lng,
+                  destinations[j].lat, destinations[j].lng
+                );
+                distanceRow.push(Math.round(distance * 1000)); // meters
+                durationRow.push(Math.round(distance * 2.5 * 60)); // seconds (2.5 min/km city driving)
+                console.warn(`⚠️ Using Haversine fallback for ${i}->${j}: ${Math.round(distance)}km`);
+              }
+              
+              // Rate limiting - wait 100ms between requests to avoid hitting API limits
+              await new Promise(resolve => setTimeout(resolve, 100));
+              
+            } catch (error) {
+              console.error(`Error calculating route ${i}->${j}:`, error);
+              // Fallback to Haversine
+              const distance = this.calculateHaversineDistance(
+                origins[i].lat, origins[i].lng,
+                destinations[j].lat, destinations[j].lng
+              );
+              distanceRow.push(Math.round(distance * 1000));
+              durationRow.push(Math.round(distance * 2.5 * 60));
+            }
+          }
         }
         
         distances.push(distanceRow);
         durations.push(durationRow);
       }
 
+      console.log('✅ Distance matrix calculation completed');
       return { distances, durations };
+      
     } catch (error) {
-      console.error('Distance matrix calculation failed:', error);
-      throw error;
+      console.error('❌ Distance matrix calculation failed, using Haversine fallback');
+      return this.calculateHaversineMatrix(origins);
     }
   }
 
@@ -102,12 +137,12 @@ export class MapboxService {
     end: { lat: number; lng: number }
   ): Promise<{ distance: number; duration: number } | null> {
     try {
-      const url = `${this.baseUrl}/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?access_token=${this.accessToken}&geometries=geojson`;
+      const url = `${this.baseUrl}/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?access_token=${this.accessToken}&geometries=geojson&overview=simplified`;
       
       const response = await fetch(url);
       
       if (!response.ok) {
-        console.error('Mapbox directions error:', response.status);
+        console.error('Mapbox directions error:', response.status, response.statusText);
         return null;
       }
 
@@ -128,8 +163,34 @@ export class MapboxService {
     }
   }
 
+  private calculateHaversineMatrix(
+    points: Array<{ lat: number; lng: number }>
+  ): { distances: number[][]; durations: number[][] } {
+    const n = points.length;
+    const distances: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
+    const durations: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
+    
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === j) {
+          distances[i][j] = 0;
+          durations[i][j] = 0;
+        } else {
+          const dist = this.calculateHaversineDistance(
+            points[i].lat, points[i].lng,
+            points[j].lat, points[j].lng
+          );
+          distances[i][j] = Math.round(dist * 1000); // meters
+          durations[i][j] = Math.round(dist * 2.5 * 60); // seconds (2.5 min/km)
+        }
+      }
+    }
+    
+    return { distances, durations };
+  }
+
   private calculateHaversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-    const R = 6371; // Earth's radius in kilometers
+    const R = 6371; // Earth radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
     const a = 
@@ -137,7 +198,7 @@ export class MapboxService {
       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
       Math.sin(dLng/2) * Math.sin(dLng/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c; // kilometers
+    return R * c;
   }
 }
 

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -300,7 +299,7 @@ const Orders = () => {
                             )}
                           </div>
                         </td>
-                        <td className="p-3">{order.price.toLocaleString()} kr</td>
+                        <td className="p-3">{order.price.toLocaleString('da-DK')} kr</td>
                         <td className="p-3">{order.scheduled_week || '-'}</td>
                         <td className="p-3">
                           {order.scheduled_date ? (
