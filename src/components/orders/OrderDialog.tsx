@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +27,18 @@ interface OrderDialogProps {
   onSave: (orderData: any) => void;
 }
 
+// Default status options - these will be used if no custom settings are provided
+const DEFAULT_STATUS_OPTIONS = [
+  'Ikke planlagt',
+  'Planlagt',
+  'I gang',
+  'Færdig',
+  'Skal impregneres',
+  'Skal algebehandles',
+  'Skal planlægges om',
+  'Annulleret'
+];
+
 export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps) => {
   const [formData, setFormData] = useState({
     order_type: '',
@@ -37,12 +48,42 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
     scheduled_week: '',
     scheduled_date: '',
     scheduled_time: '',
-    status: 'Planlagt',
+    status: 'Ikke planlagt', // Changed default to "Ikke planlagt"
     comment: '',
     address: '',
     priority: 'Normal',
     estimated_duration: ''
   });
+
+  // Get saved settings from localStorage
+  const [statusOptions, setStatusOptions] = useState(DEFAULT_STATUS_OPTIONS);
+  const [orderTypes, setOrderTypes] = useState([
+    'Vinduespolering',
+    'Rengøring',
+    'Algebehandling',
+    'Impregnering',
+    'Facaderengøring',
+    'Gulvbehandling',
+    'Andet'
+  ]);
+
+  useEffect(() => {
+    // Load saved settings from localStorage if available
+    const savedSettings = localStorage.getItem('orderSettings');
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings.statusOptions && settings.statusOptions.length > 0) {
+          setStatusOptions(settings.statusOptions.map((s: any) => s.name));
+        }
+        if (settings.orderTypes && settings.orderTypes.length > 0) {
+          setOrderTypes(settings.orderTypes.map((t: any) => t.name));
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (order) {
@@ -54,14 +95,14 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
         scheduled_week: order.scheduled_week?.toString() || '',
         scheduled_date: order.scheduled_date || '',
         scheduled_time: order.scheduled_time || '',
-        status: order.status || 'Planlagt',
+        status: order.status || 'Ikke planlagt',
         comment: order.comment || '',
         address: order.address || '',
         priority: order.priority || 'Normal',
         estimated_duration: order.estimated_duration?.toString() || ''
       });
     } else {
-      // Reset form for new order
+      // Reset form for new order with default status
       setFormData({
         order_type: '',
         customer: '',
@@ -70,7 +111,7 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
         scheduled_week: '',
         scheduled_date: '',
         scheduled_time: '',
-        status: 'Planlagt',
+        status: 'Ikke planlagt', // Ensure new orders start with "Ikke planlagt"
         comment: '',
         address: '',
         priority: 'Normal',
@@ -99,26 +140,6 @@ export const OrderDialog = ({ isOpen, onClose, order, onSave }: OrderDialogProps
 
     onSave(orderData);
   };
-
-  const orderTypes = [
-    'Vinduespolering',
-    'Rengøring',
-    'Algebehandling',
-    'Impregnering',
-    'Facaderengøring',
-    'Gulvbehandling',
-    'Andet'
-  ];
-
-  const statusOptions = [
-    'Planlagt',
-    'I gang',
-    'Færdig',
-    'Skal impregneres',
-    'Skal algebehandles',
-    'Skal planlægges om',
-    'Annulleret'
-  ];
 
   const priorityOptions = [
     'Lav',

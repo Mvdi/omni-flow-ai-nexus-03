@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,12 +45,56 @@ const Orders = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [weekFilter, setWeekFilter] = useState('all');
+  const [statusColors, setStatusColors] = useState<Record<string, string>>({});
+  const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
 
   const { orders, loading, createOrder, updateOrder, deleteOrder } = useOrders();
 
-  // Status color mapping
+  // Load status colors from localStorage
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('orderSettings');
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings.statusOptions) {
+          const colorMap: Record<string, string> = {};
+          const statuses: string[] = [];
+          settings.statusOptions.forEach((status: any) => {
+            colorMap[status.name] = status.color;
+            statuses.push(status.name);
+          });
+          setStatusColors(colorMap);
+          setAvailableStatuses(statuses);
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      }
+    }
+  }, []);
+
+  // Status color mapping with fallback colors
   const getStatusColor = (status: string) => {
+    const savedColor = statusColors[status];
+    if (savedColor) {
+      // Convert hex color to Tailwind-compatible classes
+      const hexToRgb = (hex: string) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : null;
+      };
+      
+      const rgb = hexToRgb(savedColor);
+      if (rgb) {
+        return `bg-[${savedColor}] text-white`;
+      }
+    }
+
+    // Fallback colors
     switch (status) {
+      case 'Ikke planlagt': return 'bg-gray-100 text-gray-800';
       case 'Planlagt': return 'bg-blue-100 text-blue-800';
       case 'I gang': return 'bg-yellow-100 text-yellow-800';
       case 'Færdig': return 'bg-green-100 text-green-800';
@@ -77,6 +121,7 @@ const Orders = () => {
   const totalOrders = orders.length;
   const completedOrders = orders.filter(o => o.status === 'Færdig').length;
   const plannedOrders = orders.filter(o => o.status === 'Planlagt').length;
+  const unplannedOrders = orders.filter(o => o.status === 'Ikke planlagt').length;
   const totalRevenue = orders.reduce((sum, order) => sum + order.price, 0);
 
   const handleEditOrder = (order: any) => {
@@ -136,7 +181,7 @@ const Orders = () => {
         </div>
 
         {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <Card className="shadow-sm border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -146,6 +191,20 @@ const Orders = () => {
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                   <ShoppingCart className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Ikke Planlagt</p>
+                  <p className="text-2xl font-bold text-gray-900">{unplannedOrders}</p>
+                </div>
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-gray-600" />
                 </div>
               </div>
             </CardContent>
@@ -215,12 +274,20 @@ const Orders = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Alle statusser</SelectItem>
-                  <SelectItem value="Planlagt">Planlagt</SelectItem>
-                  <SelectItem value="I gang">I gang</SelectItem>
-                  <SelectItem value="Færdig">Færdig</SelectItem>
-                  <SelectItem value="Skal impregneres">Skal impregneres</SelectItem>
-                  <SelectItem value="Skal algebehandles">Skal algebehandles</SelectItem>
-                  <SelectItem value="Skal planlægges om">Skal planlægges om</SelectItem>
+                  {availableStatuses.length > 0 ? 
+                    availableStatuses.map(status => (
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                    )) : 
+                    <>
+                      <SelectItem value="Ikke planlagt">Ikke planlagt</SelectItem>
+                      <SelectItem value="Planlagt">Planlagt</SelectItem>
+                      <SelectItem value="I gang">I gang</SelectItem>
+                      <SelectItem value="Færdig">Færdig</SelectItem>
+                      <SelectItem value="Skal impregneres">Skal impregneres</SelectItem>
+                      <SelectItem value="Skal algebehandles">Skal algebehandles</SelectItem>
+                      <SelectItem value="Skal planlægges om">Skal planlægges om</SelectItem>
+                    </>
+                  }
                 </SelectContent>
               </Select>
               <Select value={weekFilter} onValueChange={setWeekFilter}>
@@ -336,6 +403,8 @@ const Orders = () => {
         onSave={(settings) => {
           console.log('Saving settings:', settings);
           setIsSettingsDialogOpen(false);
+          // Reload the page to refresh status colors
+          window.location.reload();
         }}
       />
     </div>

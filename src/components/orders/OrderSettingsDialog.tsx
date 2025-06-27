@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,18 +32,37 @@ export const OrderSettingsDialog = ({ isOpen, onClose, onSave }: OrderSettingsDi
   ]);
 
   const [statusOptions, setStatusOptions] = useState([
-    { id: 1, name: 'Planlagt', enabled: true, color: '#3B82F6' },
-    { id: 2, name: 'I gang', enabled: true, color: '#F59E0B' },
-    { id: 3, name: 'Færdig', enabled: true, color: '#10B981' },
-    { id: 4, name: 'Skal impregneres', enabled: true, color: '#8B5CF6' },
-    { id: 5, name: 'Skal algebehandles', enabled: true, color: '#F97316' },
-    { id: 6, name: 'Skal planlægges om', enabled: true, color: '#EF4444' },
-    { id: 7, name: 'Annulleret', enabled: true, color: '#6B7280' }
+    { id: 1, name: 'Ikke planlagt', enabled: true, color: '#6B7280' },
+    { id: 2, name: 'Planlagt', enabled: true, color: '#3B82F6' },
+    { id: 3, name: 'I gang', enabled: true, color: '#F59E0B' },
+    { id: 4, name: 'Færdig', enabled: true, color: '#10B981' },
+    { id: 5, name: 'Skal impregneres', enabled: true, color: '#8B5CF6' },
+    { id: 6, name: 'Skal algebehandles', enabled: true, color: '#F97316' },
+    { id: 7, name: 'Skal planlægges om', enabled: true, color: '#EF4444' },
+    { id: 8, name: 'Annulleret', enabled: true, color: '#6B7280' }
   ]);
 
   const [newOrderType, setNewOrderType] = useState('');
   const [newStatus, setNewStatus] = useState('');
   const [newStatusColor, setNewStatusColor] = useState('#3B82F6');
+
+  // Load settings from localStorage on component mount
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('orderSettings');
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings.orderTypes) {
+          setOrderTypes(settings.orderTypes);
+        }
+        if (settings.statusOptions) {
+          setStatusOptions(settings.statusOptions);
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      }
+    }
+  }, [isOpen]);
 
   const addOrderType = () => {
     if (newOrderType.trim()) {
@@ -97,10 +115,15 @@ export const OrderSettingsDialog = ({ isOpen, onClose, onSave }: OrderSettingsDi
   };
 
   const handleSave = () => {
-    onSave({
+    const settings = {
       orderTypes: orderTypes.filter(type => type.enabled),
       statusOptions: statusOptions.filter(status => status.enabled)
-    });
+    };
+    
+    // Save to localStorage
+    localStorage.setItem('orderSettings', JSON.stringify(settings));
+    
+    onSave(settings);
   };
 
   return (
