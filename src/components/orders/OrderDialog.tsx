@@ -35,7 +35,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
     longitude: null as number | null,
     bfe_number: '',
     price: 0,
-    priority: '', // Changed from 'Normal' to empty string - no default
+    priority: 'none', // Changed to use 'none' instead of empty string
     estimated_duration: 0,
     comment: '',
     scheduled_date: '',
@@ -89,7 +89,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         longitude: order.longitude,
         bfe_number: order.bfe_number || '',
         price: order.price || 0,
-        priority: order.priority || '', // Keep existing priority or empty
+        priority: order.priority || 'none', // Keep existing priority or use 'none'
         estimated_duration: order.estimated_duration || 0,
         comment: order.comment || '',
         scheduled_date: order.scheduled_date || '',
@@ -118,7 +118,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         longitude: null,
         bfe_number: '',
         price: 0,
-        priority: '', // No default priority for new orders
+        priority: 'none', // Use 'none' for new orders
         estimated_duration: 0,
         comment: '',
         scheduled_date: '',
@@ -164,6 +164,11 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
     
     // Prepare data based on scheduling type
     let finalData = { ...formData };
+    
+    // Convert 'none' back to empty string for database storage
+    if (finalData.priority === 'none') {
+      finalData.priority = '';
+    }
     
     switch (schedulingType) {
       case 'unplanned':
@@ -292,7 +297,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
                   <SelectValue placeholder="Vælg prioritet (valgfri)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Ingen prioritet</SelectItem>
+                  <SelectItem value="none">Ingen prioritet</SelectItem>
                   {priorities.map(priority => (
                     <SelectItem key={priority} value={priority}>{priority}</SelectItem>
                   ))}

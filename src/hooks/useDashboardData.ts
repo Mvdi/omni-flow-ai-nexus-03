@@ -6,7 +6,7 @@ import { useLeads } from './useLeads';
 
 export const useDashboardData = () => {
   const { data: tickets = [] } = useTickets();
-  const { orders } = useOrders(); // Fix: use 'orders' instead of 'data'
+  const { orders } = useOrders();
   const { data: leads = [] } = useLeads();
 
   const dashboardQuery = useQuery({
@@ -67,8 +67,10 @@ export const useDashboardData = () => {
         ? tickets.reduce((sum, t) => sum + (t.response_time_hours || 0), 0) / tickets.length 
         : 0;
 
-      // Calculate route efficiency (mock calculation)
-      const routeEfficiency = orders.length > 0 ? 80 : 0; // Mock value
+      // Calculate route efficiency based on completed orders
+      const completedOrders = orders.filter(o => o.status === 'Færdig').length;
+      const totalOrders = orders.length;
+      const routeEfficiency = totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0;
 
       // Conversion rate calculation
       const totalLeadsEver = leads.length;
@@ -83,20 +85,20 @@ export const useDashboardData = () => {
         routeEfficiency,
         conversionRate: Math.round(conversionRate * 10) / 10,
         avgResponseTime: Math.round(avgResponseTime * 10) / 10,
-        totalCustomers: leads.length, // Use leads as customer proxy
-        completedOrders: orders.filter(o => o.status === 'Færdig').length
+        totalCustomers: leads.length,
+        completedOrders: completedOrders
       };
 
       console.log('=== FINAL DASHBOARD STATS ===');
       console.log('Stats:', stats);
 
-      // Generate chart data
+      // Generate dynamic chart data based on actual data
       const leadsChartData = [
-        { name: 'Jan', leads: 45, converted: 12 },
-        { name: 'Feb', leads: 52, converted: 15 },
-        { name: 'Mar', leads: 48, converted: 11 },
-        { name: 'Apr', leads: 61, converted: 18 },
-        { name: 'Maj', leads: 55, converted: 16 },
+        { name: 'Jan', leads: 0, converted: 0 },
+        { name: 'Feb', leads: 0, converted: 0 },
+        { name: 'Mar', leads: 0, converted: 0 },
+        { name: 'Apr', leads: 0, converted: 0 },
+        { name: 'Maj', leads: 0, converted: 0 },
         { name: 'Jun', leads: activeLeads.length, converted: convertedLeads }
       ];
 
@@ -107,33 +109,72 @@ export const useDashboardData = () => {
         { name: 'Løst', value: tickets.filter(t => t.status === 'Løst').length, color: '#10b981' }
       ];
 
+      // Dynamic revenue data - only show current month's actual data
       const revenueData = [
-        { name: 'Jan', revenue: 180000, forecast: 190000 },
-        { name: 'Feb', revenue: 220000, forecast: 230000 },
-        { name: 'Mar', revenue: 190000, forecast: 200000 },
-        { name: 'Apr', revenue: 250000, forecast: 260000 },
-        { name: 'Maj', revenue: 280000, forecast: 290000 },
+        { name: 'Jan', revenue: 0, forecast: 0 },
+        { name: 'Feb', revenue: 0, forecast: 0 },
+        { name: 'Mar', revenue: 0, forecast: 0 },
+        { name: 'Apr', revenue: 0, forecast: 0 },
+        { name: 'Maj', revenue: 0, forecast: 0 },
         { name: 'Jun', revenue: monthlyRevenue, forecast: Math.round(monthlyRevenue * 1.1) }
       ];
 
       const performanceData = [
         { name: 'Lead Konvertering', value: Math.round(conversionRate), target: 25 },
-        { name: 'Kunde Tilfredsstillelse', value: 87, target: 90 },
+        { name: 'Ordre Færdiggjort', value: routeEfficiency, target: 90 },
         { name: 'Responstid Mål', value: avgResponseTime > 0 ? Math.max(100 - avgResponseTime * 5, 0) : 95, target: 95 },
         { name: 'Månedligt Mål', value: Math.round((monthlyRevenue / 300000) * 100), target: 100 }
       ];
 
-      const recentActivity = [
-        { title: 'Nyt lead oprettet', description: 'Mathias Nielsen - Potentiel værdi: 15.000 kr', time: '2 min siden' },
-        { title: 'Ordre færdiggjort', description: 'Installation hos Hansen Familie', time: '1 time siden' },
-        { title: 'Support ticket løst', description: 'Teknisk support for Jensen A/S', time: '3 timer siden' },
-        { title: 'Lead konverteret', description: 'Andersen Familie blev til ordre', time: '5 timer siden' }
-      ];
+      // Dynamic activity based on actual recent data
+      const recentActivity = [];
+      
+      // Add recent leads
+      const recentLeads = leads.slice(-2);
+      recentLeads.forEach(lead => {
+        recentActivity.push({
+          title: 'Nyt lead oprettet',
+          description: `${lead.navn} - Potentiel værdi: ${lead.vaerdi || 0} kr`,
+          time: 'Nyligt'
+        });
+      });
 
+      // Add recent orders
+      const recentOrders = orders.slice(-2);
+      recentOrders.forEach(order => {
+        if (order.status === 'Færdig') {
+          recentActivity.push({
+            title: 'Ordre færdiggjort',
+            description: `${order.order_type} hos ${order.customer}`,
+            time: 'Nyligt'
+          });
+        }
+      });
+
+      // Add recent tickets
+      const recentTickets = tickets.filter(t => t.status === 'Løst').slice(-1);
+      recentTickets.forEach(ticket => {
+        recentActivity.push({
+          title: 'Support ticket løst',
+          description: `${ticket.subject}`,
+          time: 'Nyligt'
+        });
+      });
+
+      // If no recent activity, show a default message
+      if (recentActivity.length === 0) {
+        recentActivity.push({
+          title: 'Velkommen til systemet',
+          description: 'Ingen aktivitet endnu - start med at oprette leads eller ordre',
+          time: 'Nu'
+        });
+      }
+
+      // Dynamic top performers (simplified for now)
       const topPerformers = [
-        { name: 'Michael Jensen', metric: 'Leads konverteret', value: '23', change: '+12%' },
-        { name: 'Sarah Nielsen', metric: 'Kundetilfredshed', value: '94%', change: '+5%' },
-        { name: 'Lars Andersen', metric: 'Responstid', value: '1.2h', change: '-23%' }
+        { name: 'System', metric: 'Aktive leads', value: activeLeads.length.toString(), change: `${activeLeads.length > 0 ? '+' : ''}${activeLeads.length}` },
+        { name: 'System', metric: 'Månedlig omsætning', value: `${monthlyRevenue.toLocaleString()} kr`, change: monthlyRevenue > 0 ? '+100%' : '0%' },
+        { name: 'System', metric: 'Ordre færdige', value: `${completedOrders}`, change: completedOrders > 0 ? '+100%' : '0%' }
       ];
 
       return {
