@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -242,15 +243,13 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
   return null;
 }
 
-// Function to download and store attachments - ENHANCED WITH BETTER ERROR HANDLING
+// Function to download and store attachments
 async function processAttachments(supabase: any, accessToken: string, mailboxAddress: string, messageId: string): Promise<any[]> {
   console.log(`Processing attachments for message: ${messageId}`);
   
   try {
     // Get attachments list from Microsoft Graph
     const attachmentsUrl = `https://graph.microsoft.com/v1.0/users/${mailboxAddress}/messages/${messageId}/attachments`;
-    console.log(`Fetching attachments from: ${attachmentsUrl}`);
-    
     const attachmentsResponse = await fetch(attachmentsUrl, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -259,26 +258,19 @@ async function processAttachments(supabase: any, accessToken: string, mailboxAdd
     });
 
     if (!attachmentsResponse.ok) {
-      const errorText = await attachmentsResponse.text();
-      console.error(`Failed to fetch attachments for message ${messageId}:`, errorText);
-      console.error(`Response status: ${attachmentsResponse.status}`);
+      console.error(`Failed to fetch attachments for message ${messageId}:`, await attachmentsResponse.text());
       return [];
     }
 
     const attachmentsData = await attachmentsResponse.json();
     const attachments: GraphAttachment[] = attachmentsData.value || [];
     
-    console.log(`Found ${attachments.length} attachments for message: ${messageId}`);
-    
     if (attachments.length === 0) {
       console.log(`No attachments found for message: ${messageId}`);
       return [];
     }
 
-    // Log attachment details for debugging
-    attachments.forEach((attachment, index) => {
-      console.log(`Attachment ${index + 1}: ${attachment.name} (${attachment.size} bytes, ${attachment.contentType}, inline: ${attachment.isInline})`);
-    });
+    console.log(`Found ${attachments.length} attachments for message: ${messageId}`);
     
     const processedAttachments = [];
 
@@ -290,14 +282,6 @@ async function processAttachments(supabase: any, accessToken: string, mailboxAdd
           continue;
         }
 
-        // Skip very large files (>25MB)
-        if (attachment.size > 25 * 1024 * 1024) {
-          console.log(`Skipping large attachment: ${attachment.name} (${attachment.size} bytes)`);
-          continue;
-        }
-
-        console.log(`Processing attachment: ${attachment.name} (${attachment.size} bytes)`);
-
         // Get attachment content
         const attachmentUrl = `https://graph.microsoft.com/v1.0/users/${mailboxAddress}/messages/${messageId}/attachments/${attachment.id}`;
         const attachmentResponse = await fetch(attachmentUrl, {
@@ -308,9 +292,7 @@ async function processAttachments(supabase: any, accessToken: string, mailboxAdd
         });
 
         if (!attachmentResponse.ok) {
-          const errorText = await attachmentResponse.text();
-          console.error(`Failed to fetch attachment ${attachment.name}:`, errorText);
-          console.error(`Response status: ${attachmentResponse.status}`);
+          console.error(`Failed to fetch attachment ${attachment.name}:`, await attachmentResponse.text());
           continue;
         }
 
@@ -321,8 +303,6 @@ async function processAttachments(supabase: any, accessToken: string, mailboxAdd
           continue;
         }
 
-        console.log(`Downloaded attachment data for: ${attachment.name}`);
-
         // Convert base64 to binary
         const contentBytes = Uint8Array.from(atob(attachmentData.contentBytes), c => c.charCodeAt(0));
         
@@ -330,8 +310,6 @@ async function processAttachments(supabase: any, accessToken: string, mailboxAdd
         const timestamp = new Date().getTime();
         const fileName = `${messageId}_${timestamp}_${attachment.name}`;
         const filePath = `attachments/${fileName}`;
-
-        console.log(`Uploading to storage: ${filePath}`);
 
         // Upload to Supabase Storage
         const { data: uploadData, error: uploadError } = await supabase.storage
@@ -345,8 +323,6 @@ async function processAttachments(supabase: any, accessToken: string, mailboxAdd
           console.error(`Failed to upload attachment ${attachment.name}:`, uploadError);
           continue;
         }
-
-        console.log(`Successfully uploaded: ${attachment.name} to ${filePath}`);
 
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
@@ -491,7 +467,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting Office 365 email sync with ENHANCED attachment support and debugging...');
+    console.log('Starting Office 365 email sync with STRICT duplicate prevention and attachment support...');
     
     // First run cleanup to remove existing duplicates
     const duplicatesRemoved = await cleanupDuplicateMessages(supabase);
@@ -581,7 +557,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Processing ${mailboxes.length} monitored mailboxes with ENHANCED attachment support and debugging`);
+    console.log(`Processing ${mailboxes.length} monitored mailboxes with STRICT duplicate prevention and attachment support`);
     let totalProcessed = 0;
     let totalErrors = 0;
     let totalMerged = 0;
@@ -715,13 +691,12 @@ serve(async (req) => {
 
             console.log(`Created new ticket ${newTicket.ticket_number} from email ${message.id}`);
 
-            // Process attachments for new ticket - ENHANCED
+            // Process attachments for new ticket
             let attachments = [];
             if (message.hasAttachments) {
-              console.log(`🔗 Processing attachments for NEW ticket...`);
+              console.log(`Processing attachments for new ticket...`);
               attachments = await processAttachments(supabase, tokenData.access_token, mailbox.email_address, message.id);
               totalAttachmentsProcessed += attachments.length;
-              console.log(`🔗 Processed ${attachments.length} attachments for new ticket`);
             }
 
             const messageData = {
@@ -806,7 +781,7 @@ serve(async (req) => {
       attachmentsProcessed: totalAttachmentsProcessed,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `ENHANCED attachment support with debugging - cleaned ${duplicatesRemoved} duplicates, merged ${totalMerged} messages, processed ${totalAttachmentsProcessed} attachments`
+      details: `STRICT duplicate prevention with attachments - cleaned ${duplicatesRemoved} duplicates, merged ${totalMerged} messages, processed ${totalAttachmentsProcessed} attachments`
     }), {
       status: 200,
       headers: corsHeaders

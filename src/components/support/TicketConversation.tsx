@@ -15,7 +15,6 @@ import { Send, Bot, User, Clock, Mail, Tag, Sparkles, Loader2 } from 'lucide-rea
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import { AttachmentViewer } from './AttachmentViewer';
 
 interface TicketConversationProps {
   ticket: SupportTicket;
@@ -314,7 +313,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
               </div>
             )}
 
-            {/* Messages - NOW WITH ATTACHMENT SUPPORT */}
+            {/* Messages - NU MED KORREKT SIGNATUR VISNING */}
             {messages.map((message) => {
               const isFromSupport = message.sender_email.includes('@mmmultipartner.dk');
               
@@ -370,13 +369,6 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                           __html: formatMessageWithSignature(message.message_content, isFromSupport)
                         }}
                       />
-                      
-                      {/* SHOW ATTACHMENTS HERE */}
-                      {message.attachments && message.attachments.length > 0 && (
-                        <div className="mt-3">
-                          <AttachmentViewer attachments={message.attachments} />
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
