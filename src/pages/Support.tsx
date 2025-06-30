@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,9 +11,11 @@ import { TicketConversation } from '@/components/support/TicketConversation';
 import { CustomerInfo } from '@/components/support/CustomerInfo';
 import { CreateTicketDialog } from '@/components/support/CreateTicketDialog';
 import { SignatureSettings } from '@/components/support/SignatureSettings';
-import { useTickets, SupportTicket } from '@/hooks/useTickets';
+import { useTickets, SupportTicket, useTicketAnalytics } from '@/hooks/useTickets';
 import { useRouteMemory } from '@/hooks/useRouteMemory';
-import { Ticket, Search, Settings, Zap } from 'lucide-react';
+import { formatDanishTime, formatDanishDistance } from '@/utils/danishTime';
+import { Ticket, Search, Settings, Zap, Clock, TrendingUp, AlertTriangle, CheckCircle, Bell, Users } from 'lucide-react';
+
 const Support = () => {
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -21,16 +24,12 @@ const Support = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState('alle');
 
-  // Brug optimeret real-time hook (fjernet lokale polling)
-  const {
-    data: tickets = [],
-    isLoading
-  } = useTickets();
+  const { data: tickets = [], isLoading } = useTickets();
+  const { data: analytics } = useTicketAnalytics();
 
-  // Gem sidste besøgte route
   useRouteMemory();
+
   useEffect(() => {
-    // Ved load: hvis ?ticket=... i URL, vælg det ticket
     const params = new URLSearchParams(window.location.search);
     const ticketId = params.get('ticket');
     if (ticketId && tickets.length > 0) {
@@ -38,16 +37,24 @@ const Support = () => {
       if (ticket) setSelectedTicket(ticket);
     }
   }, [tickets]);
+
   const filteredTickets = tickets.filter(ticket => {
     const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
-    const matchesSearch = !searchQuery || ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) || ticket.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) || ticket.customer_email.toLowerCase().includes(searchQuery.toLowerCase()) || ticket.ticket_number.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = !searchQuery || 
+      ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      ticket.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      ticket.customer_email.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      ticket.ticket_number.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesPriority && matchesSearch;
   });
 
-  // Filter tickets by tab
   const getTicketsByTab = (tab: string) => {
     switch (tab) {
+      case 'nyt-svar':
+        return filteredTickets.filter(t => t.status === 'Nyt svar').sort((a, b) => 
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        );
       case 'aabne':
         return filteredTickets.filter(t => t.status === 'Åben');
       case 'i-gang':
@@ -58,14 +65,28 @@ const Support = () => {
         return filteredTickets.filter(t => t.status === 'Løst');
       case 'lukket':
         return filteredTickets.filter(t => t.status === 'Lukket');
+      case 'sla-brudt':
+        return filteredTickets.filter(t => {
+          if (!t.sla_deadline) return false;
+          return new Date(t.sla_deadline) < new Date() && t.status !== 'Løst' && t.status !== 'Lukket';
+        });
       default:
-        // 'alle' tab: show only open, in progress, or awaiting
-        return filteredTickets.filter(t => t.status === 'Åben' || t.status === 'I gang' || t.status === 'Afventer kunde');
+        return filteredTickets.filter(t => 
+          t.status === 'Nyt svar' || t.status === 'Åben' || t.status === 'I gang' || t.status === 'Afventer kunde'
+        ).sort((a, b) => {
+          // Prioritize "Nyt svar" tickets at the top
+          if (a.status === 'Nyt svar' && b.status !== 'Nyt svar') return -1;
+          if (b.status === 'Nyt svar' && a.status !== 'Nyt svar') return 1;
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+        });
     }
   };
 
-  // Count tickets for each tab
-  const alleTicketsCount = filteredTickets.filter(t => t.status === 'Åben' || t.status === 'I gang' || t.status === 'Afventer kunde').length;
+  // Enhanced counters
+  const nytSvarCount = filteredTickets.filter(t => t.status === 'Nyt svar').length;
+  const alleTicketsCount = filteredTickets.filter(t => 
+    t.status === 'Nyt svar' || t.status === 'Åben' || t.status === 'I gang' || t.status === 'Afventer kunde'
+  ).length;
   const openTickets = filteredTickets.filter(t => t.status === 'Åben').length;
   const inProgressTickets = filteredTickets.filter(t => t.status === 'I gang').length;
   const awaitingTickets = filteredTickets.filter(t => t.status === 'Afventer kunde').length;
@@ -74,8 +95,12 @@ const Support = () => {
     return t.status === 'Løst' && new Date(t.updated_at).toDateString() === today;
   }).length;
   const closedTickets = filteredTickets.filter(t => t.status === 'Lukket').length;
+  const slaBreaches = analytics?.slaBreaches || 0;
+
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'Nyt svar':
+        return 'bg-orange-100 text-orange-800 border-orange-200 animate-pulse';
       case 'Åben':
         return 'bg-red-100 text-red-800 border-red-200';
       case 'I gang':
@@ -90,7 +115,8 @@ const Support = () => {
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
-  const getPriorityColor = (priority: string) => {
+
+  const getPriorityColor = (priority: string | null) => {
     switch (priority) {
       case 'Høj':
         return 'destructive';
@@ -102,18 +128,32 @@ const Support = () => {
         return 'secondary';
     }
   };
+
   const handleTicketSelect = (ticketId: string) => {
     const ticket = tickets.find(t => t.id === ticketId);
     if (ticket) {
       setSelectedTicket(ticket);
-      // Opdater URL uden reload
       const params = new URLSearchParams(window.location.search);
       params.set('ticket', ticketId);
       window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
     }
   };
+
+  const getSLAStatus = (ticket: SupportTicket) => {
+    if (!ticket.sla_deadline) return null;
+    const deadline = new Date(ticket.sla_deadline);
+    const now = new Date();
+    const hoursLeft = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursLeft < 0) return 'expired';
+    if (hoursLeft < 2) return 'critical';
+    if (hoursLeft < 4) return 'warning';
+    return 'good';
+  };
+
   if (showSettings) {
-    return <div className="min-h-screen bg-gray-50">
+    return (
+      <div className="min-h-screen bg-gray-50">
         <Navigation />
         <div className="p-2">
           <div className="flex items-center justify-between mb-4">
@@ -123,20 +163,22 @@ const Support = () => {
           </div>
           <SignatureSettings />
         </div>
-      </div>;
+      </div>
+    );
   }
+
   if (selectedTicket) {
-    return <div className="min-h-screen bg-gray-50">
+    return (
+      <div className="min-h-screen bg-gray-50">
         <Navigation />
         <div className="p-2">
           <div className="flex items-center justify-between mb-4">
             <Button variant="outline" onClick={() => {
-            setSelectedTicket(null);
-            // Fjern ticket-param fra URL
-            const params = new URLSearchParams(window.location.search);
-            params.delete('ticket');
-            window.history.pushState({}, '', `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`);
-          }} className="flex items-center gap-2">
+              setSelectedTicket(null);
+              const params = new URLSearchParams(window.location.search);
+              params.delete('ticket');
+              window.history.pushState({}, '', `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`);
+            }} className="flex items-center gap-2">
               ← Tilbage til oversigt
             </Button>
           </div>
@@ -149,9 +191,12 @@ const Support = () => {
             </div>
           </div>
         </div>
-      </div>;
+      </div>
+    );
   }
-  return <div className="min-h-screen bg-gray-50">
+
+  return (
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
       
       <div className="p-2">
@@ -160,12 +205,18 @@ const Support = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
               <Ticket className="h-7 w-7 text-orange-600" />
-              Support Ticket System
+              Autonomt Support System
+              {nytSvarCount > 0 && (
+                <Badge className="bg-orange-500 text-white animate-bounce">
+                  {nytSvarCount} nye svar
+                </Badge>
+              )}
             </h1>
-            <p className="text-gray-600">Administrer og løs kundesupport tickets effektivt</p>
+            <p className="text-gray-600">
+              AI-drevet ticket system med dansk tidszone - Klokken er nu {formatDanishTime(new Date(), 'HH:mm')}
+            </p>
           </div>
           <div className="flex items-center gap-4">
-            
             <Button variant="outline" onClick={() => setShowSettings(true)} className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Indstillinger
@@ -173,24 +224,28 @@ const Support = () => {
           </div>
         </div>
 
-        {/* Real-time status */}
-        <div className="mb-4">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span>
-              Live opdateringer aktiv - Nye tickets vises øjeblikkeligt
-            </span>
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {/* Enhanced Analytics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
           <Card className="shadow-sm border-0">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Åbne Tickets</p>
-                  <p className="text-xl font-bold text-gray-900">{openTickets}</p>
+                  <p className="text-sm font-medium text-gray-600">Nye Svar</p>
+                  <p className="text-xl font-bold text-orange-600">{nytSvarCount}</p>
+                </div>
+                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <Bell className="h-5 w-5 text-orange-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Åbne</p>
+                  <p className="text-xl font-bold text-red-600">{openTickets}</p>
                 </div>
                 <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
                   <Ticket className="h-5 w-5 text-red-600" />
@@ -204,10 +259,10 @@ const Support = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">I Gang</p>
-                  <p className="text-xl font-bold text-gray-900">{inProgressTickets}</p>
+                  <p className="text-xl font-bold text-yellow-600">{inProgressTickets}</p>
                 </div>
                 <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <Ticket className="h-5 w-5 text-yellow-600" />
+                  <Clock className="h-5 w-5 text-yellow-600" />
                 </div>
               </div>
             </CardContent>
@@ -217,11 +272,11 @@ const Support = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Afventer Kunde</p>
-                  <p className="text-xl font-bold text-gray-900">{awaitingTickets}</p>
+                  <p className="text-sm font-medium text-gray-600">Afventer</p>
+                  <p className="text-xl font-bold text-blue-600">{awaitingTickets}</p>
                 </div>
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Ticket className="h-5 w-5 text-blue-600" />
+                  <Users className="h-5 w-5 text-blue-600" />
                 </div>
               </div>
             </CardContent>
@@ -232,29 +287,61 @@ const Support = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Løst i dag</p>
-                  <p className="text-xl font-bold text-gray-900">{solvedToday}</p>
+                  <p className="text-xl font-bold text-green-600">{solvedToday}</p>
                 </div>
                 <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Ticket className="h-5 w-5 text-green-600" />
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">SLA Brudt</p>
+                  <p className="text-xl font-bold text-red-600">{slaBreaches}</p>
+                </div>
+                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* Real-time status */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span>Live opdateringer aktiv • Dansk tidszone • Email sync automatisk</span>
+            {analytics && (
+              <span className="ml-4 text-blue-600">
+                • Gns. svartid: {Math.round(analytics.avgResponseTime)} timer
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* Filters */}
         <Card className="shadow-sm border-0 mb-4">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Ticket Oversigt</CardTitle>
-              <CreateTicketDialog isOpen={false} onClose={() => {}} /> {/* Fix: Provide required props */}
+              <CardTitle className="text-lg">Smart Ticket Oversigt</CardTitle>
+              <CreateTicketDialog isOpen={false} onClose={() => {}} />
             </div>
           </CardHeader>
           <CardContent className="pb-3">
             <div className="flex gap-4 items-center">
               <div className="relative flex-1">
                 <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-                <Input placeholder="Søg tickets..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
+                <Input 
+                  placeholder="Søg tickets..." 
+                  value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)} 
+                  className="pl-10" 
+                />
               </div>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                 <SelectTrigger className="w-48">
@@ -271,58 +358,122 @@ const Support = () => {
           </CardContent>
         </Card>
 
-        {/* Ticket Tabs */}
+        {/* Enhanced Ticket Tabs */}
         <Card className="shadow-sm border-0">
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-6 mb-4">
+              <TabsList className="grid w-full grid-cols-8 mb-4">
                 <TabsTrigger value="alle">Alle ({alleTicketsCount})</TabsTrigger>
+                <TabsTrigger value="nyt-svar" className="text-orange-600 font-bold">
+                  🔔 Nye Svar ({nytSvarCount})
+                </TabsTrigger>
                 <TabsTrigger value="aabne">Åbne ({openTickets})</TabsTrigger>
                 <TabsTrigger value="i-gang">I Gang ({inProgressTickets})</TabsTrigger>
                 <TabsTrigger value="afventer">Afventer ({awaitingTickets})</TabsTrigger>
+                <TabsTrigger value="sla-brudt" className="text-red-600">
+                  ⚠️ SLA ({slaBreaches})
+                </TabsTrigger>
                 <TabsTrigger value="loest">Løst</TabsTrigger>
                 <TabsTrigger value="lukket">Lukket</TabsTrigger>
               </TabsList>
 
-              {['alle', 'aabne', 'i-gang', 'afventer', 'loest', 'lukket'].map(tab => <TabsContent key={tab} value={tab} className="mt-0">
-                  {isLoading ? <div className="text-center py-6 text-gray-500">
+              {['alle', 'nyt-svar', 'aabne', 'i-gang', 'afventer', 'sla-brudt', 'loest', 'lukket'].map(tab => (
+                <TabsContent key={tab} value={tab} className="mt-0">
+                  {isLoading ? (
+                    <div className="text-center py-6 text-gray-500">
                       Indlæser tickets...
-                    </div> : getTicketsByTab(tab).length === 0 ? <div className="text-center py-6 text-gray-500">
+                    </div>
+                  ) : getTicketsByTab(tab).length === 0 ? (
+                    <div className="text-center py-6 text-gray-500">
                       Ingen tickets fundet
-                    </div> : <div className="divide-y">
-                      {getTicketsByTab(tab).map(ticket => <div key={ticket.id} className="p-3 hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => handleTicketSelect(ticket.id)}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4 flex-1">
-                              <div className="flex items-center gap-3">
-                                <span className="font-mono text-sm font-medium text-blue-600">
-                                  {ticket.ticket_number}
-                                </span>
-                                <Badge variant={getPriorityColor(ticket.priority)} className="text-xs">
-                                  {ticket.priority}
-                                </Badge>
-                                <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
-                                  {ticket.status}
-                                </Badge>
-                              </div>
-                              <div className="flex-1">
-                                <h3 className="font-medium text-gray-900 mb-1">
-                                  {ticket.subject}
-                                </h3>
-                                <div className="flex items-center gap-4 text-sm text-gray-600">
-                                  <span>{ticket.customer_name || ticket.customer_email}</span>
-                                  <span>•</span>
-                                  <span>{new Date(ticket.created_at).toLocaleDateString('da-DK')}</span>
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {getTicketsByTab(tab).map(ticket => {
+                        const slaStatus = getSLAStatus(ticket);
+                        return (
+                          <div 
+                            key={ticket.id} 
+                            className={`p-3 hover:bg-gray-50 cursor-pointer transition-colors ${
+                              ticket.status === 'Nyt svar' ? 'bg-orange-50 border-l-4 border-orange-400' : ''
+                            } ${
+                              slaStatus === 'expired' ? 'bg-red-50 border-r-4 border-red-500' : 
+                              slaStatus === 'critical' ? 'bg-red-50 border-r-4 border-red-400' :
+                              slaStatus === 'warning' ? 'bg-yellow-50 border-r-4 border-yellow-400' : ''
+                            }`}
+                            onClick={() => handleTicketSelect(ticket.id)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4 flex-1">
+                                <div className="flex items-center gap-3">
+                                  <span className="font-mono text-sm font-medium text-blue-600">
+                                    {ticket.ticket_number}
+                                  </span>
+                                  {ticket.priority && (
+                                    <Badge variant={getPriorityColor(ticket.priority)} className="text-xs">
+                                      {ticket.priority}
+                                    </Badge>
+                                  )}
+                                  <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
+                                    {ticket.status}
+                                  </Badge>
+                                  {ticket.category && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {ticket.category}
+                                    </Badge>
+                                  )}
+                                  {slaStatus === 'expired' && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      SLA BRUDT
+                                    </Badge>
+                                  )}
+                                  {slaStatus === 'critical' && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      KRITISK
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="font-medium text-gray-900 mb-1">
+                                    {ticket.subject}
+                                  </h3>
+                                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                                    <span>{ticket.customer_name || ticket.customer_email}</span>
+                                    <span>•</span>
+                                    <span>{formatDanishDate(ticket.created_at)}</span>
+                                    {ticket.last_response_at && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="text-green-600">
+                                          Sidst: {formatDanishDistance(ticket.last_response_at)}
+                                        </span>
+                                      </>
+                                    )}
+                                    {ticket.assignee_name && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="text-blue-600">
+                                          Tildelt: {ticket.assignee_name}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>)}
-                    </div>}
-                </TabsContent>)}
+                        );
+                      })}
+                    </div>
+                  )}
+                </TabsContent>
+              ))}
             </Tabs>
           </CardContent>
         </Card>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Support;

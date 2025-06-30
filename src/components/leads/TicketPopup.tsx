@@ -9,9 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SupportTicket, TicketMessage, useUpdateTicket, useAddTicketMessage } from '@/hooks/useTickets';
 import { useTicketMessages } from '@/hooks/useTicketMessages';
-import { formatDistanceToNow } from 'date-fns';
-import { da } from 'date-fns/locale';
-import { Send, Bot, User, Clock, Mail, Sparkles, X, Paperclip } from 'lucide-react';
+import { formatDanishDistance, formatDanishDateTime } from '@/utils/danishTime';
+import { Send, Bot, User, Clock, Mail, Sparkles, X, Paperclip, Bell, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AttachmentViewer } from '../support/AttachmentViewer';
@@ -22,12 +21,11 @@ interface TicketPopupProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Helper function to format text for display (convert markdown-like formatting to HTML)
 const formatTextForDisplay = (text: string) => {
   return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
-    .replace(/\*(.*?)\*/g, '<em>$1</em>') // Italic text
-    .replace(/\n/g, '<br>'); // Preserve newlines
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
 };
 
 export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) => {
@@ -43,7 +41,6 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
   const updateTicket = useUpdateTicket();
   const addMessage = useAddTicketMessage();
 
-  // Load signature on component mount
   useEffect(() => {
     const savedSignatureHtml = localStorage.getItem('signature-html');
     if (savedSignatureHtml) {
@@ -74,7 +71,6 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
     const files = event.target.files;
     if (files) {
       const fileArray = Array.from(files);
-      // Limit file size to 10MB per file
       const validFiles = fileArray.filter(file => {
         if (file.size > 10 * 1024 * 1024) {
           toast({
@@ -157,12 +153,10 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
     
     let messageWithSignature = newMessage;
     
-    // Always add signature if it exists
     if (signatureHtml && newMessage.trim()) {
       messageWithSignature = `${newMessage}\n\n${signatureHtml}`;
     }
 
-    // Upload attachments if any
     const attachments = await uploadAttachments();
     
     addMessage.mutate({
@@ -220,6 +214,7 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'Nyt svar': return 'bg-orange-100 text-orange-800 animate-pulse';
       case 'Åben': return 'bg-red-100 text-red-800';
       case 'I gang': return 'bg-yellow-100 text-yellow-800';
       case 'Afventer kunde': return 'bg-blue-100 text-blue-800';
@@ -236,7 +231,7 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
     return email.substring(0, 2).toUpperCase();
   };
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority: string | null) => {
     switch (priority) {
       case 'Høj': return 'destructive';
       case 'Medium': return 'secondary';
@@ -244,6 +239,20 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
       default: return 'secondary';
     }
   };
+
+  const getSLAStatus = () => {
+    if (!ticket.sla_deadline) return null;
+    const deadline = new Date(ticket.sla_deadline);
+    const now = new Date();
+    const hoursLeft = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursLeft < 0) return 'expired';
+    if (hoursLeft < 2) return 'critical';
+    if (hoursLeft < 4) return 'warning';
+    return 'good';
+  };
+
+  const slaStatus = getSLAStatus();
 
   if (isLoading) {
     return (
@@ -261,10 +270,30 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
+              {ticket.status === 'Nyt svar' && (
+                <Bell className="h-5 w-5 text-orange-600 animate-bounce" />
+              )}
               <span>Support Ticket #{ticket.ticket_number}</span>
               <Badge className={getStatusColor(ticket.status)}>
                 {ticket.status}
               </Badge>
+              {ticket.category && (
+                <Badge variant="outline" className="bg-purple-100 text-purple-800">
+                  {ticket.category}
+                </Badge>
+              )}
+              {slaStatus === 'expired' && (
+                <Badge variant="destructive">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  SLA BRUDT
+                </Badge>
+              )}
+              {slaStatus === 'critical' && (
+                <Badge variant="destructive">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  KRITISK
+                </Badge>
+              )}
             </DialogTitle>
             <Button
               variant="ghost"
@@ -278,7 +307,7 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Ticket Header */}
+          {/* Enhanced Ticket Header */}
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
@@ -303,27 +332,39 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        <span>
-                          {formatDistanceToNow(new Date(ticket.created_at), { 
-                            addSuffix: true, 
-                            locale: da 
-                          })}
-                        </span>
+                        <span>{formatDanishDistance(ticket.created_at)}</span>
                       </div>
+                      {ticket.assignee_name && (
+                        <span className="text-blue-600 font-medium">
+                          Tildelt: {ticket.assignee_name}
+                        </span>
+                      )}
                     </div>
+                    {ticket.sla_deadline && (
+                      <div className={`text-sm mt-1 font-medium ${
+                        slaStatus === 'expired' ? 'text-red-600' :
+                        slaStatus === 'critical' ? 'text-red-500' :
+                        slaStatus === 'warning' ? 'text-yellow-600' :
+                        'text-green-600'
+                      }`}>
+                        SLA deadline: {formatDanishDateTime(ticket.sla_deadline)}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Select value={ticket.priority} onValueChange={handlePriorityChange}>
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Lav">Lav</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Høj">Høj</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {ticket.priority && (
+                    <Select value={ticket.priority} onValueChange={handlePriorityChange}>
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Lav">Lav</SelectItem>
+                        <SelectItem value="Medium">Medium</SelectItem>
+                        <SelectItem value="Høj">Høj</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                   <Select value={ticket.status} onValueChange={handleStatusChange}>
                     <SelectTrigger className="w-32">
                       <SelectValue />
@@ -340,17 +381,16 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
               </div>
             </CardHeader>
             <CardContent>
-              {/* Fjernet ticket.content herfra */}
+              {/* Removed ticket.content display here */}
             </CardContent>
           </Card>
 
-          {/* Messages */}
+          {/* Messages with Danish time */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Conversation</CardTitle>
+              <CardTitle className="text-lg">Conversation (Dansk tid)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Første besked fra kunden - nu som boble */}
               {ticket.content && (
                 <div className="flex gap-3">
                   <Avatar className="h-8 w-8 mt-1">
@@ -365,7 +405,7 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
                           {ticket.customer_name || ticket.customer_email}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true, locale: da })}
+                          {formatDanishDistance(ticket.created_at)}
                         </span>
                       </div>
                       <div className="text-sm text-gray-700 whitespace-pre-wrap">
@@ -375,7 +415,7 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
                   </div>
                 </div>
               )}
-              {/* Resten af beskederne */}
+              
               {messages.map((message) => (
                 <div key={message.id} className={`flex gap-3 ${message.is_internal ? 'opacity-75' : ''}`}>
                   <Avatar className="h-8 w-8 flex-shrink-0">
@@ -390,7 +430,7 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
                         {message.is_internal && <span className="text-gray-500"> (Intern)</span>}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {formatDistanceToNow(new Date(message.created_at), { addSuffix: true, locale: da })}
+                        {formatDanishDistance(message.created_at)}
                       </span>
                       {message.is_ai_generated && (
                         <Badge variant="outline" className="text-xs">
@@ -405,7 +445,6 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
                         __html: formatTextForDisplay(message.message_content) 
                       }}
                     />
-                    {/* Show attachments if present */}
                     {message.attachments && message.attachments.length > 0 && (
                       <div className="mt-3">
                         <AttachmentViewer attachments={message.attachments} />
@@ -417,10 +456,17 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
             </CardContent>
           </Card>
 
-          {/* Reply Section */}
+          {/* Enhanced Reply Section */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Svar</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2">
+                Svar
+                {ticket.status === 'Nyt svar' && (
+                  <Badge className="bg-orange-500 text-white">
+                    Nyt kundesvar - Kræver handling
+                  </Badge>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {aiSuggestion && (
@@ -462,7 +508,6 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
                   className="resize-none"
                 />
                 
-                {/* File attachments section */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <input
@@ -485,7 +530,6 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
                     </Button>
                   </div>
                   
-                  {/* Show selected files */}
                   {selectedFiles.length > 0 && (
                     <div className="space-y-1">
                       {selectedFiles.map((file, index) => (

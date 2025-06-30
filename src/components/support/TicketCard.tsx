@@ -1,6 +1,8 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatDanishDate, formatDanishDateTime } from '@/utils/danishTime';
 
 interface TicketCardProps {
   ticket: any;
@@ -8,17 +10,6 @@ interface TicketCardProps {
 }
 
 export const TicketCard = ({ ticket, onTicketClick }: TicketCardProps) => {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('da-DK');
-  };
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('da-DK', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
-
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'Høj': return 'bg-red-100 text-red-800 border-red-200';
@@ -30,6 +21,7 @@ export const TicketCard = ({ ticket, onTicketClick }: TicketCardProps) => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'Nyt svar': return 'bg-orange-100 text-orange-800 animate-pulse border-orange-300';
       case 'Åben': return 'bg-blue-100 text-blue-800';
       case 'I gang': return 'bg-yellow-100 text-yellow-800';
       case 'Afventer kunde': return 'bg-orange-100 text-orange-800';
@@ -39,9 +31,28 @@ export const TicketCard = ({ ticket, onTicketClick }: TicketCardProps) => {
     }
   };
 
+  const getSLAStatus = () => {
+    if (!ticket.sla_deadline) return null;
+    const deadline = new Date(ticket.sla_deadline);
+    const now = new Date();
+    const hoursLeft = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursLeft < 0) return 'expired';
+    if (hoursLeft < 2) return 'critical';
+    if (hoursLeft < 4) return 'warning';
+    return 'good';
+  };
+
+  const slaStatus = getSLAStatus();
+
   return (
     <Card 
-      className="hover:shadow-lg transition-all duration-200 cursor-pointer border-l-4 border-l-blue-500" 
+      className={`hover:shadow-lg transition-all duration-200 cursor-pointer border-l-4 ${
+        ticket.status === 'Nyt svar' ? 'border-l-orange-500 bg-orange-50' : 
+        slaStatus === 'expired' ? 'border-l-red-500 bg-red-50' :
+        slaStatus === 'critical' ? 'border-l-red-400 bg-red-50' :
+        'border-l-blue-500'
+      }`}
       onClick={() => onTicketClick(ticket)}
     >
       <CardHeader className="pb-3">
@@ -53,9 +64,18 @@ export const TicketCard = ({ ticket, onTicketClick }: TicketCardProps) => {
             <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
               {ticket.status}
             </Badge>
+            {slaStatus === 'expired' && (
+              <Badge variant="destructive" className="text-xs">
+                SLA BRUDT
+              </Badge>
+            )}
+            {slaStatus === 'critical' && (
+              <Badge variant="destructive" className="text-xs">
+                KRITISK
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
-            {/* Only show priority badge if priority is actually set and not null/empty */}
             {ticket.priority && ticket.priority.trim() !== '' && (
               <Badge 
                 variant="outline" 
@@ -64,8 +84,13 @@ export const TicketCard = ({ ticket, onTicketClick }: TicketCardProps) => {
                 {ticket.priority}
               </Badge>
             )}
+            {ticket.category && (
+              <Badge variant="outline" className="text-xs bg-purple-100 text-purple-800">
+                {ticket.category}
+              </Badge>
+            )}
             <span className="text-xs text-muted-foreground">
-              {formatDate(ticket.created_at)}
+              {formatDanishDate(ticket.created_at)}
             </span>
           </div>
         </div>
@@ -81,16 +106,35 @@ export const TicketCard = ({ ticket, onTicketClick }: TicketCardProps) => {
             <span className="text-muted-foreground">Email:</span>
             <span className="truncate max-w-48">{ticket.customer_email}</span>
           </div>
+          {ticket.assignee_name && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Tildelt:</span>
+              <span className="text-blue-600 font-medium">{ticket.assignee_name}</span>
+            </div>
+          )}
           {ticket.last_response_at && (
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Sidste svar:</span>
-              <span>{formatDate(ticket.last_response_at)} {formatTime(ticket.last_response_at)}</span>
+              <span className="text-green-600">{formatDanishDateTime(ticket.last_response_at)}</span>
+            </div>
+          )}
+          {ticket.sla_deadline && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">SLA deadline:</span>
+              <span className={`font-medium ${
+                slaStatus === 'expired' ? 'text-red-600' :
+                slaStatus === 'critical' ? 'text-red-500' :
+                slaStatus === 'warning' ? 'text-yellow-600' :
+                'text-green-600'
+              }`}>
+                {formatDanishDateTime(ticket.sla_deadline)}
+              </span>
             </div>
           )}
           {ticket.response_time_hours && (
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Svartid:</span>
-              <span>{ticket.response_time_hours}h</span>
+              <span>{Math.round(ticket.response_time_hours)}h</span>
             </div>
           )}
         </div>
