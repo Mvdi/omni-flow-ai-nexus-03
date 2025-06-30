@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { SupportTicket, useUpdateTicket } from '@/hooks/useTickets';
 import { useTicketMessages } from '@/hooks/useTicketMessages';
 import { useOffice365EmailSender } from '@/hooks/useOffice365EmailSender';
+import { AttachmentViewer } from './AttachmentViewer';
 import { formatDistanceToNow } from 'date-fns';
 import { da } from 'date-fns/locale';
 import { Send, Bot, User, Clock, Mail, Tag, Sparkles, Loader2 } from 'lucide-react';
@@ -369,6 +370,12 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                           __html: formatMessageWithSignature(message.message_content, isFromSupport)
                         }}
                       />
+                      {/* Add AttachmentViewer for message attachments */}
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="mt-3">
+                          <AttachmentViewer attachments={message.attachments} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
