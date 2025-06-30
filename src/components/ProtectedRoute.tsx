@@ -13,15 +13,8 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const location = useLocation();
   const { getLastRoute } = useRouteMemory();
 
-  useEffect(() => {
-    // Hvis brugeren kommer fra login eller root, redirect til sidste besøgte route
-    if (user && location.pathname === '/') {
-      const lastRoute = getLastRoute();
-      if (lastRoute && lastRoute !== '/' && lastRoute !== '/auth') {
-        window.history.replaceState(null, '', lastRoute);
-      }
-    }
-  }, [user, location.pathname, getLastRoute]);
+  // Remove the problematic redirect logic that causes reload issues
+  // Users should stay on the page they reload, not be redirected to dashboard
 
   if (loading) {
     return (
