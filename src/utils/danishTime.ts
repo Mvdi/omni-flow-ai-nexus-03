@@ -14,11 +14,10 @@ export const toDanishTime = (utcDate: string | Date): Date => {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
-    fractionalSecondDigits: 3
+    second: '2-digit'
   }).format(date);
   
-  // Konverter fra "YYYY-MM-DD HH:mm:ss.SSS" format til Date objekt
+  // Konverter fra "YYYY-MM-DD HH:mm:ss" format til Date objekt
   const [datePart, timePart] = danishTimeString.split(' ');
   const [year, month, day] = datePart.split('-').map(Number);
   const [hour, minute, second] = timePart.split(':').map(Number);
