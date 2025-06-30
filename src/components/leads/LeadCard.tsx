@@ -61,22 +61,22 @@ export const LeadCard = ({ lead, onEdit }: LeadCardProps) => {
   };
 
   return (
-    <div className="p-4 bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-grab select-none group">
-      {/* Header with name and actions */}
-      <div className="flex items-center justify-between mb-3">
+    <div className="p-3 bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-grab select-none group">
+      {/* Compact Header */}
+      <div className="flex items-start justify-between mb-2">
         <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-base text-gray-900 truncate">{lead.navn}</h4>
+          <h4 className="font-semibold text-sm text-gray-900 truncate leading-tight">{lead.navn}</h4>
           {lead.virksomhed && (
-            <p className="text-sm text-gray-600 truncate flex items-center gap-1 mt-1">
-              <Building className="h-3 w-3" />
+            <p className="text-xs text-gray-600 truncate flex items-center gap-1 mt-0.5">
+              <Building className="h-3 w-3 flex-shrink-0" />
               {lead.virksomhed}
             </p>
           )}
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              <MoreVertical className="h-4 w-4" />
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <MoreVertical className="h-3 w-3" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -109,42 +109,42 @@ export const LeadCard = ({ lead, onEdit }: LeadCardProps) => {
         </DropdownMenu>
       </div>
       
-      {/* Contact Information */}
-      <div className="space-y-2 mb-3">
+      {/* Compact Contact Info */}
+      <div className="space-y-1 mb-2">
         {lead.email && (
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <Mail className="h-4 w-4 text-gray-500" />
+          <div className="flex items-center gap-1 text-xs text-gray-600">
+            <Mail className="h-3 w-3 text-gray-400 flex-shrink-0" />
             <span className="truncate">{lead.email}</span>
           </div>
         )}
         {lead.telefon && (
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <Phone className="h-4 w-4 text-gray-500" />
+          <div className="flex items-center gap-1 text-xs text-gray-600">
+            <Phone className="h-3 w-3 text-gray-400 flex-shrink-0" />
             <span>{lead.telefon}</span>
           </div>
         )}
       </div>
       
-      {/* Value and Priority - Clean Design */}
-      <div className="flex items-center justify-between mb-3">
-        <div>
+      {/* Compact Value and Badges */}
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
           {lead.vaerdi && (
-            <span className="text-lg font-semibold text-green-600">
+            <span className="text-sm font-semibold text-green-600">
               {lead.vaerdi.toLocaleString('da-DK')} kr
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {supportTickets.length > 0 && (
-            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-              <MessageSquare className="h-3 w-3 mr-1" />
+            <Badge variant="outline" className="text-xs h-5 bg-blue-50 text-blue-700 border-blue-200 px-1">
+              <MessageSquare className="h-2.5 w-2.5 mr-0.5" />
               {supportTickets.length}
             </Badge>
           )}
           {lead.prioritet && lead.prioritet !== '' && (
             <Badge 
               variant="outline" 
-              className={`text-xs ${getPriorityColor(lead.prioritet)}`}
+              className={`text-xs h-5 px-1 ${getPriorityColor(lead.prioritet)}`}
             >
               {lead.prioritet}
             </Badge>
@@ -152,11 +152,11 @@ export const LeadCard = ({ lead, onEdit }: LeadCardProps) => {
         </div>
       </div>
       
-      {/* Last Contact - Simple */}
+      {/* Compact Last Contact */}
       {lead.sidste_kontakt && (
-        <div className="flex items-center gap-2 text-xs text-gray-500 border-t pt-2">
-          <Calendar className="h-3 w-3" />
-          <span>Sidste kontakt: {new Date(lead.sidste_kontakt).toLocaleDateString('da-DK')}</span>
+        <div className="flex items-center gap-1 text-xs text-gray-500 mt-1 pt-1 border-t border-gray-100">
+          <Calendar className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">Sidste: {new Date(lead.sidste_kontakt).toLocaleDateString('da-DK')}</span>
         </div>
       )}
     </div>

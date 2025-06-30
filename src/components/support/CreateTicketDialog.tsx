@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,7 @@ export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps)
     content: '',
     customer_email: '',
     customer_name: '',
-    priority: '' as 'Høj' | 'Medium' | 'Lav' | ''
+    priority: 'Medium' as 'Høj' | 'Medium' | 'Lav'
   });
 
   const addTicket = useAddTicket();
@@ -31,7 +30,6 @@ export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps)
     
     const ticketData = {
       ...formData,
-      priority: (formData.priority || 'Medium') as 'Høj' | 'Medium' | 'Lav',
       status: 'Åben' as const,
       assignee_id: null
     };
@@ -44,7 +42,7 @@ export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps)
       content: '',
       customer_email: '',
       customer_name: '',
-      priority: ''
+      priority: 'Medium'
     });
     
     setOpen(false);
@@ -108,13 +106,13 @@ export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps)
 
           <div className="space-y-2">
             <Label htmlFor="priority">Prioritet</Label>
-            <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value as 'Høj' | 'Medium' | 'Lav' | '' }))}>
+            <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value as 'Høj' | 'Medium' | 'Lav' }))}>
               <SelectTrigger>
-                <SelectValue placeholder="Vælg prioritet (valgfri)" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Ingen prioritet</SelectItem>
                 <SelectItem value="Lav">Lav</SelectItem>
+                <SelectItem value="Medium">Medium</SelectItem>
                 <SelectItem value="Høj">Høj</SelectItem>
               </SelectContent>
             </Select>
