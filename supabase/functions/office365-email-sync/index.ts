@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -59,6 +60,18 @@ serve(async (req) => {
   try {
     console.log('Starting Office 365 email sync...');
     
+    // Check if pg_cron and pg_net extensions are enabled
+    const { data: extensions, error: extError } = await supabase
+      .from('pg_extension')
+      .select('extname')
+      .in('extname', ['pg_cron', 'pg_net']);
+
+    if (extError) {
+      console.log('Could not check extensions (this is normal):', extError.message);
+    } else {
+      console.log('Available extensions:', extensions);
+    }
+
     // Hent Office 365 credentials fra databasen
     const { data: secrets, error: secretsError } = await supabase
       .from('integration_secrets')
@@ -67,7 +80,10 @@ serve(async (req) => {
 
     if (secretsError || !secrets || secrets.length === 0) {
       console.error('Missing Office 365 credentials:', secretsError);
-      return new Response(JSON.stringify({ error: "Office 365 credentials not configured" }), { 
+      return new Response(JSON.stringify({ 
+        error: "Office 365 credentials not configured",
+        details: "Please configure Office 365 integration in settings"
+      }), { 
         status: 400, 
         headers: corsHeaders 
       });
@@ -81,8 +97,15 @@ serve(async (req) => {
     const { client_id, client_secret, tenant_id } = credentialsMap;
 
     if (!client_id || !client_secret || !tenant_id) {
-      console.error('Incomplete Office 365 credentials');
-      return new Response(JSON.stringify({ error: "Incomplete Office 365 credentials" }), { 
+      console.error('Incomplete Office 365 credentials. Required: client_id, client_secret, tenant_id');
+      return new Response(JSON.stringify({ 
+        error: "Incomplete Office 365 credentials",
+        missing: [
+          !client_id && 'client_id',
+          !client_secret && 'client_secret', 
+          !tenant_id && 'tenant_id'
+        ].filter(Boolean)
+      }), { 
         status: 400, 
         headers: corsHeaders 
       });
@@ -97,7 +120,7 @@ serve(async (req) => {
       grant_type: 'client_credentials'
     });
 
-    console.log('Fetching access token...');
+    console.log('Fetching access token from Microsoft Graph...');
     const tokenResponse = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
@@ -109,7 +132,10 @@ serve(async (req) => {
     if (!tokenResponse.ok) {
       const tokenError = await tokenResponse.text();
       console.error('Token request failed:', tokenError);
-      return new Response(JSON.stringify({ error: "Failed to authenticate with Microsoft Graph" }), { 
+      return new Response(JSON.stringify({ 
+        error: "Failed to authenticate with Microsoft Graph",
+        details: tokenError
+      }), { 
         status: 401, 
         headers: corsHeaders 
       });
@@ -151,10 +177,10 @@ serve(async (req) => {
         .single();
 
       try {
-        // Hent emails fra mailbox - check for emails from last 5 minutes instead of last sync
+        // Hent emails fra mailbox - check for emails from last 15 minutes instead of 5
         const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-        const filter = `?$filter=receivedDateTime gt ${fiveMinutesAgo}&$top=50&$orderby=receivedDateTime desc`;
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+        const filter = `?$filter=receivedDateTime gt ${fifteenMinutesAgo}&$top=50&$orderby=receivedDateTime desc`;
 
         console.log(`Fetching messages from: ${messagesUrl}${filter}`);
         
@@ -168,6 +194,20 @@ serve(async (req) => {
         if (!messagesResponse.ok) {
           const errorText = await messagesResponse.text();
           console.error(`Failed to fetch messages for ${mailbox.email_address}:`, errorText);
+          
+          // Update sync log with error
+          if (syncLog) {
+            await supabase
+              .from('email_sync_log')
+              .update({
+                sync_completed_at: new Date().toISOString(),
+                errors_count: 1,
+                error_details: `Graph API error: ${errorText}`,
+                status: 'failed'
+              })
+              .eq('id', syncLog.id);
+          }
+          
           totalErrors++;
           continue;
         }
@@ -313,7 +353,8 @@ serve(async (req) => {
       processed: totalProcessed,
       errors: totalErrors,
       mailboxes: mailboxes.length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      details: `Checked emails from last 15 minutes`
     }), {
       status: 200,
       headers: corsHeaders
