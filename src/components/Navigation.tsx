@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,16 @@ import {
 
 export const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const location = useLocation();
+
+  // Load logo from localStorage on component mount
+  useEffect(() => {
+    const savedLogo = localStorage.getItem('company-logo');
+    if (savedLogo) {
+      setCompanyLogo(savedLogo);
+    }
+  }, []);
 
   const navigationItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -46,7 +55,15 @@ export const Navigation = () => {
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <LayoutDashboard className="h-5 w-5 text-white" />
+                {companyLogo ? (
+                  <img 
+                    src={companyLogo} 
+                    alt="Company Logo" 
+                    className="w-full h-full object-contain rounded-lg"
+                  />
+                ) : (
+                  <LayoutDashboard className="h-5 w-5 text-white" />
+                )}
               </div>
               <span className="text-xl font-bold text-gray-900">CRM Pro</span>
             </Link>

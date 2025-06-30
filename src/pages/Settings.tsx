@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
+import { LogoUpload } from "@/components/ui/logo-upload";
 import { 
   Settings as SettingsIcon, 
   User, 
@@ -26,10 +27,19 @@ import { WorkScheduleManagement } from '@/components/settings/WorkScheduleManage
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('general');
   const [companyAddress, setCompanyAddress] = useState('');
+  const [companyLogo, setCompanyLogo] = useState<string | null>(
+    localStorage.getItem('company-logo')
+  );
 
   const handleCompanyAddressSelect = (addressData: { address: string; latitude: number; longitude: number; bfe_number?: string }) => {
     console.log('Company address selected');
     // Handle company address selection - could save to settings/database
+  };
+
+  const handleLogoChange = (logoUrl: string | null) => {
+    setCompanyLogo(logoUrl);
+    // Force navigation component to re-render by triggering a storage event
+    window.dispatchEvent(new Event('storage'));
   };
 
   return (
@@ -109,6 +119,10 @@ const Settings = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <LogoUpload 
+                    currentLogo={companyLogo}
+                    onLogoChange={handleLogoChange}
+                  />
                   <div>
                     <Label htmlFor="companyName">Virksomhedsnavn</Label>
                     <Input id="companyName" placeholder="Din virksomhed" />
