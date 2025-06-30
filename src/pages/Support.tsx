@@ -192,7 +192,12 @@ const Support = () => {
               )}
             </h1>
             <p className="text-gray-600">
-              Klokken er nu {formatDanishTime(new Date(), 'HH:mm')}
+              Klokken er nu {new Date().toLocaleString('da-DK', {
+                timeZone: 'Europe/Copenhagen',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+              })}
             </p>
           </div>
           <div className="flex items-center gap-4">

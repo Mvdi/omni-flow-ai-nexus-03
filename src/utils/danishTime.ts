@@ -1,22 +1,41 @@
 
-import { format, formatDistanceToNow, addHours } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { da } from 'date-fns/locale';
 
-// Convert UTC to Danish time (UTC+1 or UTC+2 during DST)
+// Convert UTC to Danish time using the correct Europe/Copenhagen timezone
 export const toDanishTime = (utcDate: string | Date): Date => {
   const date = new Date(utcDate);
-  // Check if we're in daylight saving time (last Sunday in March to last Sunday in October)
-  const year = date.getFullYear();
-  const dstStart = new Date(year, 2, 31 - new Date(year, 2, 31).getDay()); // Last Sunday in March
-  const dstEnd = new Date(year, 9, 31 - new Date(year, 9, 31).getDay()); // Last Sunday in October
   
-  const isDST = date >= dstStart && date < dstEnd;
-  const offset = isDST ? 2 : 1; // UTC+2 during DST, UTC+1 otherwise
+  // Use the browser's Intl API to convert to Copenhagen timezone
+  const danishTime = new Date(date.toLocaleString("en-US", {timeZone: "Europe/Copenhagen"}));
   
-  return addHours(date, offset);
+  return danishTime;
 };
 
 export const formatDanishTime = (utcDate: string | Date, formatString: string = 'dd/MM/yyyy HH:mm'): string => {
+  const date = new Date(utcDate);
+  
+  // Format directly using the Europe/Copenhagen timezone
+  const danishTimeString = date.toLocaleString("da-DK", {
+    timeZone: "Europe/Copenhagen",
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  // Convert to the requested format
+  if (formatString === 'HH:mm') {
+    return danishTimeString.split(' ')[1];
+  } else if (formatString === 'dd/MM/yyyy') {
+    return danishTimeString.split(' ')[0];
+  } else if (formatString === 'dd/MM/yyyy HH:mm') {
+    return danishTimeString;
+  }
+  
+  // For other formats, use date-fns with the correctly converted date
   const danishTime = toDanishTime(utcDate);
   return format(danishTime, formatString, { locale: da });
 };
@@ -32,4 +51,10 @@ export const formatDanishDate = (utcDate: string | Date): string => {
 
 export const formatDanishDateTime = (utcDate: string | Date): string => {
   return formatDanishTime(utcDate, 'dd/MM/yyyy HH:mm');
+};
+
+// Get current Danish time
+export const getCurrentDanishTime = (): Date => {
+  const now = new Date();
+  return new Date(now.toLocaleString("en-US", {timeZone: "Europe/Copenhagen"}));
 };
