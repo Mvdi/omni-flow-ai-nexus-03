@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,30 +6,30 @@ import { TrendingUp, TrendingDown, Users, Ticket, Calendar, DollarSign, Target, 
 import { Link } from 'react-router-dom';
 import { Navigation } from '@/components/Navigation';
 import { useDashboardData } from '@/hooks/useDashboardData';
-
 const Index = () => {
-  const { 
-    stats, 
-    leadsChartData, 
-    supportData, 
-    revenueData, 
-    routeEfficiencyData, 
-    prioritizedTasks, 
+  const {
+    stats,
+    leadsChartData,
+    supportData,
+    revenueData,
+    routeEfficiencyData,
+    prioritizedTasks,
     recentActivity,
     isLoading,
-    error 
+    error
   } = useDashboardData();
-
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    return <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
         <Navigation />
         <div className="container mx-auto px-8 py-12">
           <div className="flex items-center justify-center min-h-[70vh]">
             <div className="text-center space-y-8">
               <div className="relative">
                 <div className="w-20 h-20 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
-                <div className="absolute inset-0 w-20 h-20 border-4 border-transparent border-r-purple-400 rounded-full animate-spin mx-auto" style={{animationDelay: '0.5s', animationDuration: '2s'}}></div>
+                <div className="absolute inset-0 w-20 h-20 border-4 border-transparent border-r-purple-400 rounded-full animate-spin mx-auto" style={{
+                animationDelay: '0.5s',
+                animationDuration: '2s'
+              }}></div>
               </div>
               <div className="space-y-3">
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
@@ -39,20 +38,21 @@ const Index = () => {
                 <p className="text-gray-600 text-lg">Henter real-time business intelligence...</p>
                 <div className="flex justify-center space-x-2 mt-4">
                   <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{
+                  animationDelay: '0.1s'
+                }}></div>
+                  <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{
+                  animationDelay: '0.2s'
+                }}></div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
   if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    return <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
         <Navigation />
         <div className="container mx-auto px-8 py-12">
           <div className="flex items-center justify-center min-h-[70vh]">
@@ -63,10 +63,7 @@ const Index = () => {
                 </div>
                 <h3 className="text-xl font-bold text-red-800 mb-3">System Fejl</h3>
                 <p className="text-red-600 mb-6 leading-relaxed">Vi kunne ikke indlæse dine business data. Dette kan skyldes en midlertidig systemfejl.</p>
-                <Button 
-                  onClick={() => window.location.reload()} 
-                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-                >
+                <Button onClick={() => window.location.reload()} className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
                   <Activity className="h-4 w-4 mr-2" />
                   Genindlæs Dashboard
                 </Button>
@@ -74,10 +71,8 @@ const Index = () => {
             </Card>
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
   const getIcon = (iconName: string) => {
     const icons = {
       CheckCircle2,
@@ -99,33 +94,74 @@ const Index = () => {
   };
 
   // Smart data transformations
-  const smartLeadsData = leadsChartData.length > 0 ? leadsChartData : [
-    { name: 'Jan', leads: 12, converted: 8 },
-    { name: 'Feb', leads: 19, converted: 12 },
-    { name: 'Mar', leads: 15, converted: 9 },
-    { name: 'Apr', leads: 22, converted: 14 },
-    { name: 'Maj', leads: 18, converted: 11 },
-    { name: 'Jun', leads: 25, converted: 16 }
-  ];
-
-  const smartRevenueData = revenueData.length > 0 ? revenueData : [
-    { name: 'Jan', revenue: 125000, forecast: 135000 },
-    { name: 'Feb', revenue: 142000, forecast: 155000 },
-    { name: 'Mar', revenue: 138000, forecast: 148000 },
-    { name: 'Apr', revenue: 165000, forecast: 175000 },
-    { name: 'Maj', revenue: 152000, forecast: 162000 },
-    { name: 'Jun', revenue: 178000, forecast: 188000 }
-  ];
-
-  const smartSupportData = supportData.some(d => d.value > 0) ? supportData : [
-    { name: 'Løst', value: 45, color: '#10b981' },
-    { name: 'I gang', value: 12, color: '#f59e0b' },
-    { name: 'Åbne', value: 8, color: '#ef4444' },
-    { name: 'Afventer', value: 5, color: '#6b7280' }
-  ];
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+  const smartLeadsData = leadsChartData.length > 0 ? leadsChartData : [{
+    name: 'Jan',
+    leads: 12,
+    converted: 8
+  }, {
+    name: 'Feb',
+    leads: 19,
+    converted: 12
+  }, {
+    name: 'Mar',
+    leads: 15,
+    converted: 9
+  }, {
+    name: 'Apr',
+    leads: 22,
+    converted: 14
+  }, {
+    name: 'Maj',
+    leads: 18,
+    converted: 11
+  }, {
+    name: 'Jun',
+    leads: 25,
+    converted: 16
+  }];
+  const smartRevenueData = revenueData.length > 0 ? revenueData : [{
+    name: 'Jan',
+    revenue: 125000,
+    forecast: 135000
+  }, {
+    name: 'Feb',
+    revenue: 142000,
+    forecast: 155000
+  }, {
+    name: 'Mar',
+    revenue: 138000,
+    forecast: 148000
+  }, {
+    name: 'Apr',
+    revenue: 165000,
+    forecast: 175000
+  }, {
+    name: 'Maj',
+    revenue: 152000,
+    forecast: 162000
+  }, {
+    name: 'Jun',
+    revenue: 178000,
+    forecast: 188000
+  }];
+  const smartSupportData = supportData.some(d => d.value > 0) ? supportData : [{
+    name: 'Løst',
+    value: 45,
+    color: '#10b981'
+  }, {
+    name: 'I gang',
+    value: 12,
+    color: '#f59e0b'
+  }, {
+    name: 'Åbne',
+    value: 8,
+    color: '#ef4444'
+  }, {
+    name: 'Afventer',
+    value: 5,
+    color: '#6b7280'
+  }];
+  return <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <Navigation />
       
       <div className="container mx-auto px-8 py-12 space-y-12">
@@ -151,24 +187,19 @@ const Index = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <Badge className="bg-green-100 text-green-800 border-green-200 px-4 py-2 text-sm font-semibold">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
-                    Real-time Data
-                  </Badge>
-                  <Badge className="bg-blue-100 text-blue-800 border-blue-200 px-4 py-2 text-sm font-semibold">
-                    <Sparkles className="h-3 w-3 mr-2" />
-                    AI-Powered
-                  </Badge>
+                  
+                  
                 </div>
               </div>
               <div className="hidden lg:flex items-center gap-6">
                 <div className="text-right">
-                  <div className="text-3xl font-bold text-gray-900">{new Date().toLocaleDateString('da-DK', { day: 'numeric', month: 'long' })}</div>
+                  <div className="text-3xl font-bold text-gray-900">{new Date().toLocaleDateString('da-DK', {
+                    day: 'numeric',
+                    month: 'long'
+                  })}</div>
                   <div className="text-gray-600">Business Overview</div>
                 </div>
-                <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center">
-                  <Eye className="h-8 w-8 text-indigo-600" />
-                </div>
+                
               </div>
             </div>
           </div>
@@ -296,29 +327,32 @@ const Index = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={smartLeadsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={smartLeadsData} margin={{
+                top: 20,
+                right: 30,
+                left: 20,
+                bottom: 5
+              }}>
                   <defs>
                     <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.2} />
                     </linearGradient>
                     <linearGradient id="convertedGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.9}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.2}/>
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.2} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeWidth={1} />
                   <XAxis dataKey="name" stroke="#64748b" fontSize={14} fontWeight={600} />
                   <YAxis stroke="#64748b" fontSize={14} fontWeight={600} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.98)', 
-                      border: 'none', 
-                      borderRadius: '16px', 
-                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                      backdropFilter: 'blur(10px)'
-                    }} 
-                  />
+                  <Tooltip contentStyle={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                  border: 'none',
+                  borderRadius: '16px',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                  backdropFilter: 'blur(10px)'
+                }} />
                   <Bar dataKey="leads" fill="url(#leadsGradient)" radius={[6, 6, 0, 0]} />
                   <Bar dataKey="converted" fill="url(#convertedGradient)" radius={[6, 6, 0, 0]} />
                 </BarChart>
@@ -349,41 +383,29 @@ const Index = () => {
               <div className="flex items-center justify-center">
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie
-                      data={smartSupportData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={90}
-                      outerRadius={140}
-                      paddingAngle={4}
-                      dataKey="value"
-                    >
-                      {smartSupportData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
+                    <Pie data={smartSupportData} cx="50%" cy="50%" innerRadius={90} outerRadius={140} paddingAngle={4} dataKey="value">
+                      {smartSupportData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'rgba(255, 255, 255, 0.98)', 
-                        border: 'none', 
-                        borderRadius: '16px', 
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                        backdropFilter: 'blur(10px)'
-                      }} 
-                    />
+                    <Tooltip contentStyle={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    border: 'none',
+                    borderRadius: '16px',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                    backdropFilter: 'blur(10px)'
+                  }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
               <div className="grid grid-cols-2 gap-4 mt-8">
-                {smartSupportData.map((entry, index) => (
-                  <div key={index} className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                    <div className="w-5 h-5 rounded-full shadow-sm" style={{ backgroundColor: entry.color }} />
+                {smartSupportData.map((entry, index) => <div key={index} className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                    <div className="w-5 h-5 rounded-full shadow-sm" style={{
+                  backgroundColor: entry.color
+                }} />
                     <div className="flex-1">
                       <span className="text-sm font-semibold text-gray-900">{entry.name}</span>
                       <div className="text-xs text-gray-600">{entry.value} tickets</div>
                     </div>
-                  </div>
-                ))}
+                  </div>)}
               </div>
             </CardContent>
           </Card>
@@ -406,30 +428,32 @@ const Index = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={350}>
-                <AreaChart data={smartRevenueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <AreaChart data={smartRevenueData} margin={{
+                top: 20,
+                right: 30,
+                left: 20,
+                bottom: 5
+              }}>
                   <defs>
                     <linearGradient id="revenueGradientNew" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
                     </linearGradient>
                     <linearGradient id="forecastGradientNew" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.1} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeWidth={1} />
                   <XAxis dataKey="name" stroke="#64748b" fontSize={14} fontWeight={600} />
                   <YAxis stroke="#64748b" fontSize={14} fontWeight={600} />
-                  <Tooltip 
-                    formatter={(value) => [`${Number(value).toLocaleString('da-DK')} kr`, '']}
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.98)', 
-                      border: 'none', 
-                      borderRadius: '16px', 
-                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                      backdropFilter: 'blur(10px)'
-                    }} 
-                  />
+                  <Tooltip formatter={value => [`${Number(value).toLocaleString('da-DK')} kr`, '']} contentStyle={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                  border: 'none',
+                  borderRadius: '16px',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                  backdropFilter: 'blur(10px)'
+                }} />
                   <Area type="monotone" dataKey="forecast" stackId="1" stroke="#6366f1" fill="url(#forecastGradientNew)" strokeWidth={2} strokeDasharray="8 4" />
                   <Area type="monotone" dataKey="revenue" stackId="2" stroke="#10b981" fill="url(#revenueGradientNew)" strokeWidth={3} />
                 </AreaChart>
@@ -452,38 +476,38 @@ const Index = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={350}>
-                <LineChart data={routeEfficiencyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <LineChart data={routeEfficiencyData} margin={{
+                top: 20,
+                right: 30,
+                left: 20,
+                bottom: 5
+              }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeWidth={1} />
                   <XAxis dataKey="name" stroke="#64748b" fontSize={14} fontWeight={600} />
                   <YAxis yAxisId="left" stroke="#64748b" fontSize={14} fontWeight={600} />
                   <YAxis yAxisId="right" orientation="right" stroke="#64748b" fontSize={14} fontWeight={600} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.98)', 
-                      border: 'none', 
-                      borderRadius: '16px', 
-                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                      backdropFilter: 'blur(10px)'
-                    }} 
-                  />
-                  <Line 
-                    yAxisId="left" 
-                    type="monotone" 
-                    dataKey="efficiency" 
-                    stroke="#8b5cf6" 
-                    strokeWidth={4} 
-                    dot={{ fill: '#8b5cf6', strokeWidth: 3, r: 8 }} 
-                    activeDot={{ r: 10, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }} 
-                  />
-                  <Line 
-                    yAxisId="right" 
-                    type="monotone" 
-                    dataKey="distance" 
-                    stroke="#ef4444" 
-                    strokeWidth={3} 
-                    strokeDasharray="10 5" 
-                    dot={{ fill: '#ef4444', strokeWidth: 2, r: 6 }} 
-                  />
+                  <Tooltip contentStyle={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                  border: 'none',
+                  borderRadius: '16px',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                  backdropFilter: 'blur(10px)'
+                }} />
+                  <Line yAxisId="left" type="monotone" dataKey="efficiency" stroke="#8b5cf6" strokeWidth={4} dot={{
+                  fill: '#8b5cf6',
+                  strokeWidth: 3,
+                  r: 8
+                }} activeDot={{
+                  r: 10,
+                  fill: '#8b5cf6',
+                  strokeWidth: 2,
+                  stroke: '#fff'
+                }} />
+                  <Line yAxisId="right" type="monotone" dataKey="distance" stroke="#ef4444" strokeWidth={3} strokeDasharray="10 5" dot={{
+                  fill: '#ef4444',
+                  strokeWidth: 2,
+                  r: 6
+                }} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -507,22 +531,18 @@ const Index = () => {
                 </Badge>
               </div>
               <div className="space-y-5">
-                {prioritizedTasks.length > 0 ? prioritizedTasks.map((task, index) => (
-                  <div key={index} className={`p-5 ${task.color} rounded-2xl border border-gray-100 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]`}>
+                {prioritizedTasks.length > 0 ? prioritizedTasks.map((task, index) => <div key={index} className={`p-5 ${task.color} rounded-2xl border border-gray-100 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]`}>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-gray-700">{task.task}</span>
                       <Badge variant={task.badge as any} className="text-xs font-semibold">
                         {task.priority}
                       </Badge>
                     </div>
-                  </div>
-                )) : (
-                  <div className="text-center py-8">
+                  </div>) : <div className="text-center py-8">
                     <CheckCircle2 className="h-16 w-16 text-green-400 mx-auto mb-4" />
                     <p className="text-gray-600 font-medium">Alle prioriterede opgaver er håndteret</p>
                     <p className="text-sm text-gray-500 mt-2">Excellent work! Dit team er on track.</p>
-                  </div>
-                )}
+                  </div>}
               </div>
             </CardContent>
           </Card>
@@ -544,9 +564,8 @@ const Index = () => {
               </div>
               <div className="space-y-5">
                 {recentActivity.length > 0 ? recentActivity.map((activity, index) => {
-                  const IconComponent = getIcon(activity.icon);
-                  return (
-                    <div key={index} className="flex items-start gap-4 p-5 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all duration-300 hover:scale-[1.02]">
+                const IconComponent = getIcon(activity.icon);
+                return <div key={index} className="flex items-start gap-4 p-5 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all duration-300 hover:scale-[1.02]">
                       <div className={`p-3 rounded-xl ${activity.color === 'text-green-500' ? 'bg-green-100' : activity.color === 'text-blue-500' ? 'bg-blue-100' : 'bg-orange-100'}`}>
                         <IconComponent className={`h-5 w-5 ${activity.color}`} />
                       </div>
@@ -554,15 +573,12 @@ const Index = () => {
                         <p className="text-sm font-semibold text-gray-900">{activity.title}</p>
                         <p className="text-xs text-gray-600 mt-1 leading-relaxed">{activity.description}</p>
                       </div>
-                    </div>
-                  );
-                }) : (
-                  <div className="text-center py-8">
+                    </div>;
+              }) : <div className="text-center py-8">
                     <Activity className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-600 font-medium">Ingen aktivitet registreret</p>
                     <p className="text-sm text-gray-500 mt-2">System er klar til nye events</p>
-                  </div>
-                )}
+                  </div>}
               </div>
             </CardContent>
           </Card>
@@ -602,8 +618,6 @@ const Index = () => {
           </Card>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
