@@ -120,28 +120,14 @@ export const SignatureSettings = () => {
   const generateSignatureHtml = () => {
     const { name, title, company, email, phone, website, address, customText, images, fontFamily, extraText } = signatureData;
     
-    // Compact signature layout matching image 2
+    // Updated signature layout with logo below website
     let html = `<div style="font-family: ${fontFamily}, sans-serif; font-size: 14px; line-height: 1.4; color: #333; max-width: 400px;">`;
     
     if (extraText) {
       html += `<div style="margin-bottom: 8px; color: #666; font-size: 13px;">${extraText.replace(/\n/g, '<br>')}</div>`;
     }
     
-    // Main content container with logo and text side by side
-    html += '<div style="display: flex; align-items: flex-start; gap: 12px;">';
-    
-    // Logo section (left side) - only if image exists
-    if (images.length > 0) {
-      html += '<div style="flex-shrink: 0;">';
-      images.forEach(image => {
-        html += `<img src="${image.url}" alt="${image.alt}" style="max-height: 60px; max-width: 100px; object-fit: contain; display: block;" />`;
-      });
-      html += '</div>';
-    }
-    
-    // Text content (right side or full width if no logo)
-    html += '<div style="flex: 1; min-width: 0;">';
-    
+    // Main content - all text first
     if (name) {
       html += `<div style="font-weight: bold; font-size: 16px; margin-bottom: 2px; color: #333;">${name}</div>`;
     }
@@ -152,7 +138,7 @@ export const SignatureSettings = () => {
       html += `<div style="font-weight: 500; color: #444; font-size: 14px; margin-bottom: 6px;">${company}</div>`;
     }
     
-    // Contact info in vertical format (like image 2)
+    // Contact info in vertical format
     if (email) {
       html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 2px;">`;
       html += `📧 <a href="mailto:${email}" style="color: #0066cc; text-decoration: none;">${email}</a>`;
@@ -166,17 +152,23 @@ export const SignatureSettings = () => {
     }
     
     if (website) {
-      html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 6px;">`;
+      html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 8px;">`;
       html += `🌐 <a href="${website}" style="color: #0066cc; text-decoration: none;">${website}</a>`;
       html += '</div>';
     }
     
     if (address) {
-      html += `<div style="color: #666; font-size: 12px; margin-bottom: 4px;">${address}</div>`;
+      html += `<div style="color: #666; font-size: 12px; margin-bottom: 8px;">${address}</div>`;
     }
     
-    html += '</div>'; // Close text content div
-    html += '</div>'; // Close main container
+    // Logo section - now below all text content
+    if (images.length > 0) {
+      html += '<div style="margin-top: 8px; margin-bottom: 8px;">';
+      images.forEach(image => {
+        html += `<img src="${image.url}" alt="${image.alt}" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block;" />`;
+      });
+      html += '</div>';
+    }
     
     if (customText) {
       html += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; color: #666; font-size: 11px;">${customText.replace(/\n/g, '<br>')}</div>`;
