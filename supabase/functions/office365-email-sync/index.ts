@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -153,7 +152,7 @@ async function cleanupDuplicateMessages(supabase: any) {
   }
 }
 
-// FORBEDRET: Function to find duplicate tickets med bedre threading logik
+// FORBEDRET: Function to find duplicate tickets med cross-mailbox detection
 async function findDuplicateTicket(supabase: any, message: GraphMessage) {
   console.log(`Looking for existing ticket for message: ${message.id} with subject: "${message.subject}"`);
   
@@ -217,7 +216,34 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
     }
   }
 
-  // 3. Check for exact message ID match (sikkerhedsnet)
+  // 3. KRITISK: Cross-mailbox duplicate detection - tjek for recent tickets fra samme kunde med samme subject
+  const messageTime = new Date(message.receivedDateTime);
+  const timeWindow = new Date(messageTime.getTime() - 5 * 60 * 1000); // 5 minutter før
+
+  console.log(`Checking for cross-mailbox duplicates from ${message.from.emailAddress.address} with subject "${message.subject}" within 5 minutes`);
+  
+  const { data: recentTickets } = await supabase
+    .from('support_tickets')
+    .select('id, ticket_number, subject, customer_email, email_received_at, mailbox_address')
+    .eq('customer_email', message.from.emailAddress.address)
+    .gte('email_received_at', timeWindow.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (recentTickets && recentTickets.length > 0) {
+    // Find exact eller near-exact subject match
+    for (const ticket of recentTickets) {
+      const cleanSubject = message.subject.replace(/^(Re:|Sv:|Ang\.:|AW:)/i, '').trim();
+      const ticketCleanSubject = ticket.subject.replace(/^(Re:|Sv:|Ang\.:|AW:)/i, '').trim();
+      
+      if (cleanSubject.toLowerCase() === ticketCleanSubject.toLowerCase()) {
+        console.log(`CROSS-MAILBOX DUPLICATE DETECTED: Found ticket ${ticket.ticket_number} from ${ticket.mailbox_address} with same subject from same customer within time window`);
+        return ticket;
+      }
+    }
+  }
+
+  // 4. Check for exact message ID match (sikkerhedsnet)
   const { data: exactTicketMatch } = await supabase
     .from('support_tickets')
     .select('id, ticket_number, subject, customer_email')
@@ -229,7 +255,7 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
     return exactTicketMatch;
   }
 
-  // 4. Check i ticket_messages for exact message ID
+  // 5. Check i ticket_messages for exact message ID
   const { data: messageMatches } = await supabase
     .from('ticket_messages')
     .select('ticket_id, ticket:support_tickets(id, ticket_number, subject, customer_email)')
@@ -242,7 +268,7 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
     return ticket;
   }
 
-  // 5. FORBEDRET: Subject-based matching for "Re:" replies med samme kunde
+  // 6. Subject-based matching for "Re:" replies med samme kunde
   const cleanSubject = message.subject.replace(/^(Re:|Sv:|Ang\.:|AW:)/i, '').trim();
   if (cleanSubject !== message.subject && cleanSubject.length > 3) {
     console.log(`Checking for ticket by cleaned subject: "${cleanSubject}" for customer: ${message.from.emailAddress.address}`);
@@ -271,7 +297,7 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
     }
   }
 
-  // 6. Check by conversation/thread ID
+  // 7. Check by conversation/thread ID
   if (message.conversationId) {
     const { data: threadMatch } = await supabase
       .from('support_tickets')
@@ -530,7 +556,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting Office 365 email sync with FIXED Microsoft Graph API syntax...');
+    console.log('Starting Office 365 email sync with ENHANCED duplicate detection...');
     
     // First run cleanup to remove existing duplicates
     const duplicatesRemoved = await cleanupDuplicateMessages(supabase);
@@ -644,11 +670,11 @@ serve(async (req) => {
         // Use 5 minute window for real-time performance
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
-        // KRITISK FIX: Brug $select i stedet for $expand for internetMessageHeaders
+        // FIXED: Use correct Microsoft Graph API syntax
         const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
         const filter = `?$filter=receivedDateTime gt ${fiveMinutesAgo}&$top=20&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments,internetMessageHeaders`;
 
-        console.log(`Fetching messages with FIXED syntax from: ${messagesUrl}${filter}`);
+        console.log(`Fetching messages with ENHANCED duplicate detection from: ${messagesUrl}${filter}`);
         
         const messagesResponse = await fetch(`${messagesUrl}${filter}`, {
           headers: {
@@ -680,7 +706,7 @@ serve(async (req) => {
         const messagesData = await messagesResponse.json();
         const messages: GraphMessage[] = messagesData.value || [];
         
-        console.log(`Found ${messages.length} messages for ${mailbox.email_address} with FIXED API syntax`);
+        console.log(`Found ${messages.length} messages for ${mailbox.email_address} with ENHANCED duplicate detection`);
 
         for (const message of messages) {
           try {
@@ -742,7 +768,7 @@ serve(async (req) => {
               mailbox_address: mailbox.email_address,
               source: 'office365',
               status: 'Åben',
-              priority: 'Medium'
+              priority: null // FIXED: Fjern hårdkodet Medium prioritet
             };
 
             console.log('Creating NEW ticket with data:', JSON.stringify(ticketData, null, 2));
@@ -840,7 +866,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Email sync completed with FIXED API syntax. Processed: ${totalProcessed}, Merged: ${totalMerged}, Reopened: ${totalReopened}, Skipped: ${totalSkipped}, Errors: ${totalErrors}, Duplicates cleaned: ${duplicatesRemoved}, Attachments: ${totalAttachmentsProcessed}`);
+    console.log(`Email sync completed with ENHANCED duplicate detection. Processed: ${totalProcessed}, Merged: ${totalMerged}, Reopened: ${totalReopened}, Skipped: ${totalSkipped}, Errors: ${totalErrors}, Duplicates cleaned: ${duplicatesRemoved}, Attachments: ${totalAttachmentsProcessed}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -853,7 +879,7 @@ serve(async (req) => {
       attachmentsProcessed: totalAttachmentsProcessed,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `FIXED API syntax - merged ${totalMerged} messages, reopened ${totalReopened} tickets, cleaned ${duplicatesRemoved} duplicates, processed ${totalAttachmentsProcessed} attachments`
+      details: `ENHANCED duplicate detection - merged ${totalMerged} messages, reopened ${totalReopened} tickets, cleaned ${duplicatesRemoved} duplicates, processed ${totalAttachmentsProcessed} attachments`
     }), {
       status: 200,
       headers: corsHeaders
