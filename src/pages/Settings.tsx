@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { LogoUpload } from "@/components/ui/logo-upload";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Settings as SettingsIcon, 
   User, 
@@ -26,14 +28,59 @@ import { WorkScheduleManagement } from '@/components/settings/WorkScheduleManage
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('general');
-  const [companyAddress, setCompanyAddress] = useState('');
+  const { toast } = useToast();
+  
+  // Profile form state
+  const [profileData, setProfileData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: ''
+  });
+
+  // Company form state  
+  const [companyData, setCompanyData] = useState({
+    companyName: '',
+    cvr: '',
+    address: ''
+  });
+
   const [companyLogo, setCompanyLogo] = useState<string | null>(
     localStorage.getItem('company-logo')
   );
 
+  // Load saved data on component mount
+  useEffect(() => {
+    const savedProfile = localStorage.getItem('profile-settings');
+    if (savedProfile) {
+      setProfileData(JSON.parse(savedProfile));
+    }
+
+    const savedCompany = localStorage.getItem('company-settings');
+    if (savedCompany) {
+      setCompanyData(JSON.parse(savedCompany));
+    }
+  }, []);
+
+  const handleProfileSave = () => {
+    localStorage.setItem('profile-settings', JSON.stringify(profileData));
+    toast({
+      title: "Profil gemt",
+      description: "Dine profiloplysninger er blevet gemt",
+    });
+  };
+
+  const handleCompanySave = () => {
+    localStorage.setItem('company-settings', JSON.stringify(companyData));
+    toast({
+      title: "Virksomhedsoplysninger gemt",
+      description: "Dine virksomhedsoplysninger er blevet gemt",
+    });
+  };
+
   const handleCompanyAddressSelect = (addressData: { address: string; latitude: number; longitude: number; bfe_number?: string }) => {
+    setCompanyData(prev => ({ ...prev, address: addressData.address }));
     console.log('Company address selected');
-    // Handle company address selection - could save to settings/database
   };
 
   const handleLogoChange = (logoUrl: string | null) => {
@@ -92,22 +139,43 @@ const Settings = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="firstName">Fornavn</Label>
-                      <Input id="firstName" placeholder="Dit fornavn" />
+                      <Input 
+                        id="firstName" 
+                        placeholder="Dit fornavn" 
+                        value={profileData.firstName}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
+                      />
                     </div>
                     <div>
                       <Label htmlFor="lastName">Efternavn</Label>
-                      <Input id="lastName" placeholder="Dit efternavn" />
+                      <Input 
+                        id="lastName" 
+                        placeholder="Dit efternavn" 
+                        value={profileData.lastName}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
+                      />
                     </div>
                   </div>
                   <div>
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="din@email.dk" />
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      placeholder="din@email.dk" 
+                      value={profileData.email}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="phone">Telefon</Label>
-                    <Input id="phone" placeholder="+45 12 34 56 78" />
+                    <Input 
+                      id="phone" 
+                      placeholder="+45 12 34 56 78" 
+                      value={profileData.phone}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
+                    />
                   </div>
-                  <Button>Gem Ændringer</Button>
+                  <Button onClick={handleProfileSave}>Gem Ændringer</Button>
                 </CardContent>
               </Card>
 
@@ -125,22 +193,32 @@ const Settings = () => {
                   />
                   <div>
                     <Label htmlFor="companyName">Virksomhedsnavn</Label>
-                    <Input id="companyName" placeholder="Din virksomhed" />
+                    <Input 
+                      id="companyName" 
+                      placeholder="Din virksomhed" 
+                      value={companyData.companyName}
+                      onChange={(e) => setCompanyData(prev => ({ ...prev, companyName: e.target.value }))}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="cvr">CVR-nummer</Label>
-                    <Input id="cvr" placeholder="12345678" />
+                    <Input 
+                      id="cvr" 
+                      placeholder="12345678" 
+                      value={companyData.cvr}
+                      onChange={(e) => setCompanyData(prev => ({ ...prev, cvr: e.target.value }))}
+                    />
                   </div>
                   <div>
                     <AddressAutocomplete
                       label="Adresse"
-                      value={companyAddress}
-                      onChange={setCompanyAddress}
+                      value={companyData.address}
+                      onChange={(value) => setCompanyData(prev => ({ ...prev, address: value }))}
                       onAddressSelect={handleCompanyAddressSelect}
                       placeholder="Vælg virksomhedsadresse"
                     />
                   </div>
-                  <Button>Gem Ændringer</Button>
+                  <Button onClick={handleCompanySave}>Gem Ændringer</Button>
                 </CardContent>
               </Card>
             </TabsContent>
