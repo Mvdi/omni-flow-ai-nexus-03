@@ -14,6 +14,7 @@ export const useLeads = () => {
       const { data, error } = await supabase
         .from('leads')
         .select('*')
+        .not('status', 'in', '("closed-won","closed-lost")') // Filter out closed leads
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return data as Lead[];
@@ -121,6 +122,8 @@ export const useUpdateLeadStatus = () => {
 
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: Lead['status'] }) => {
+      console.log('Updating lead status:', id, status);
+      
       const { data, error } = await supabase
         .from('leads')
         .update({ 
@@ -134,12 +137,21 @@ export const useUpdateLeadStatus = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
-      toast({
-        title: "Status opdateret",
-        description: "Lead status er blevet opdateret.",
-      });
+      
+      // If lead is moved to closed-won, show special message
+      if (variables.status === 'closed-won') {
+        toast({
+          title: "Lead vundet!",
+          description: "Lead er markeret som vundet og vil blive konverteret til ordre.",
+        });
+      } else {
+        toast({
+          title: "Status opdateret",
+          description: "Lead status er blevet opdateret.",
+        });
+      }
     },
     onError: (error: any) => {
       toast({
@@ -347,4 +359,4 @@ export const useAISupportTicketAnalysis = (leadId: string) => {
 //     },
 //     staleTime: 10 * 60 * 1000, // 10 minutes
 //   });
-// }; 
+// };

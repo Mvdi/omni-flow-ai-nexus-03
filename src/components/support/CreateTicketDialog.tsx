@@ -1,163 +1,153 @@
-
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
-import { Plus } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useAddTicket } from '@/hooks/useTickets';
 
 interface CreateTicketDialogProps {
-  children?: React.ReactNode;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export const CreateTicketDialog = ({ children }: CreateTicketDialogProps) => {
-  const [open, setOpen] = useState(false);
+export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps) => {
   const [formData, setFormData] = useState({
     subject: '',
     content: '',
     customer_email: '',
     customer_name: '',
-    customer_address: '',
-    priority: 'Medium' as 'Høj' | 'Medium' | 'Lav'
+    priority: '' as string, // Changed from 'Medium' to empty string - no default priority
+    status: 'Åben' as string,
+    assignee_id: ''
   });
 
   const addTicket = useAddTicket();
 
-  const handleAddressSelect = (addressData: { address: string; latitude: number; longitude: number; bfe_number?: string }) => {
-    console.log('Customer address selected for ticket');
-    setFormData(prev => ({ ...prev, customer_address: addressData.address }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.subject.trim() || !formData.customer_email.trim()) {
-      return;
-    }
-
-    const ticketContent = formData.content + (formData.customer_address ? `\n\nKunde adresse: ${formData.customer_address}` : '');
-
-    addTicket.mutate({
+    const ticketData = {
       subject: formData.subject,
-      content: ticketContent || null,
+      content: formData.content || null,
       customer_email: formData.customer_email,
       customer_name: formData.customer_name || null,
-      priority: formData.priority,
+      priority: (formData.priority || null) as 'Høj' | 'Medium' | 'Lav' | null, // Only include if set
+      status: formData.status as 'Åben' | 'I gang' | 'Afventer kunde' | 'Løst' | 'Lukket',
+      assignee_id: formData.assignee_id || null
+    };
+
+    await addTicket.mutateAsync(ticketData);
+    
+    // Reset form
+    setFormData({
+      subject: '',
+      content: '',
+      customer_email: '',
+      customer_name: '',
+      priority: '', // Reset to empty - no default
       status: 'Åben',
-      assignee_id: null
-    }, {
-      onSuccess: () => {
-        setOpen(false);
-        setFormData({
-          subject: '',
-          content: '',
-          customer_email: '',
-          customer_name: '',
-          customer_address: '',
-          priority: 'Medium'
-        });
-      }
+      assignee_id: ''
     });
+    
+    onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children || (
-          <Button className="bg-orange-600 hover:bg-orange-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Ny Ticket
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Opret Ny Ticket</DialogTitle>
+          <DialogTitle>Opret Ny Support Ticket</DialogTitle>
+          <DialogDescription>
+            Opret en ny support ticket for en kunde
+          </DialogDescription>
         </DialogHeader>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="customer_name">Kundens Navn</Label>
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <Label htmlFor="subject">Emne *</Label>
+              <Input
+                id="subject"
+                value={formData.subject}
+                onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="content">Beskrivelse</Label>
+              <Textarea
+                id="content"
+                value={formData.content}
+                onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                rows={4}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="customer_email">Kunde Email *</Label>
+              <Input
+                id="customer_email"
+                type="email"
+                value={formData.customer_email}
+                onChange={(e) => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="customer_name">Kunde Navn</Label>
               <Input
                 id="customer_name"
                 value={formData.customer_name}
                 onChange={(e) => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
-                placeholder="Fx. Jens Hansen"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="customer_email">Kundens Email *</Label>
-              <Input
-                id="customer_email"
-                type="email"
-                required
-                value={formData.customer_email}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
-                placeholder="kunde@example.com"
               />
             </div>
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="subject">Emne *</Label>
-            <Input
-              id="subject"
-              required
-              value={formData.subject}
-              onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
-              placeholder="Beskriv problemet kort"
-            />
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="priority">Prioritet</Label>
+              <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vælg prioritet (valgfri)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Ingen prioritet</SelectItem>
+                  <SelectItem value="Lav">Lav</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Høj">Høj</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Åben">Åben</SelectItem>
+                  <SelectItem value="I gang">I gang</SelectItem>
+                  <SelectItem value="Afventer kunde">Afventer kunde</SelectItem>
+                  <SelectItem value="Løst">Løst</SelectItem>
+                  <SelectItem value="Lukket">Lukket</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <AddressAutocomplete
-              label="Kunde Adresse (valgfrit)"
-              value={formData.customer_address}
-              onChange={(value) => setFormData(prev => ({ ...prev, customer_address: value }))}
-              onAddressSelect={handleAddressSelect}
-              placeholder="Vælg kundens adresse"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="priority">Prioritet</Label>
-            <Select value={formData.priority} onValueChange={(value: 'Høj' | 'Medium' | 'Lav') => setFormData(prev => ({ ...prev, priority: value }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Lav">Lav</SelectItem>
-                <SelectItem value="Medium">Medium</SelectItem>
-                <SelectItem value="Høj">Høj</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="content">Beskrivelse</Label>
-            <Textarea
-              id="content"
-              value={formData.content}
-              onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-              placeholder="Detaljeret beskrivelse af problemet..."
-              className="min-h-[120px]"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <div className="flex justify-end">
+            <Button type="button" variant="outline" onClick={onClose}>
               Annuller
             </Button>
-            <Button 
-              type="submit" 
-              disabled={addTicket.isPending || !formData.subject.trim() || !formData.customer_email.trim()}
-              className="bg-orange-600 hover:bg-orange-700"
-            >
-              {addTicket.isPending ? 'Opretter...' : 'Opret Ticket'}
+            <Button type="submit" disabled={addTicket.isPending}>
+              Opret Ticket
             </Button>
           </div>
         </form>

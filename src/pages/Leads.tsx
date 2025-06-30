@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, Plus, Filter, Search, MoreVertical, Brain, TrendingUp, Clock, Target, ChevronDown } from 'lucide-react';
-import { useLeads, type Lead, useUpdateLeadStatus, useAIFollowUpSuggestions, useAILeadScoring, useAILeadEnrichment } from '@/hooks/useLeads';
+import { useLeads, type Lead, useUpdateLeadStatus, useAIFollowUpSuggestions, useAILeadScoring, useAILeadEnrichment, useLeadToOrderConversion } from '@/hooks/useLeads';
 import { LeadDialog } from '@/components/leads/LeadDialog';
 import { useState, useCallback, useMemo } from 'react';
 import { LeadCard } from '@/components/leads/LeadCard';
@@ -25,6 +25,7 @@ const Leads = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [showAISection, setShowAISection] = useState(false);
   const updateStatus = useUpdateLeadStatus();
+  const convertToOrder = useLeadToOrderConversion();
   
   // AI Automation hooks
   const { data: aiData, isLoading: suggestionsLoading, error: aiError } = useAIFollowUpSuggestions();
@@ -73,12 +74,23 @@ const Leads = () => {
       return;
     }
 
-    // Update status directly without optimistic updates for now
+    const newStatus = destination.droppableId as Lead['status'];
+    
     try {
+      // Update lead status
       await updateStatus.mutateAsync({ 
         id: draggableId, 
-        status: destination.droppableId as Lead['status'] 
+        status: newStatus
       });
+      
+      // If lead is moved to closed-won, automatically convert to order
+      if (newStatus === 'closed-won') {
+        const lead = leads.find(l => l.id === draggableId);
+        if (lead) {
+          console.log('Auto-converting won lead to order:', lead.id);
+          await convertToOrder.mutateAsync(lead);
+        }
+      }
     } catch (error) {
       console.error('Failed to update lead status:', error);
     }
