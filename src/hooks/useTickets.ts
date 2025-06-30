@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -46,25 +45,42 @@ export const useTickets = () => {
     queryKey: ['tickets'],
     queryFn: async () => {
       console.log('Fetching tickets with Danish timezone support...');
-      const { data, error } = await supabase
+      
+      // First get tickets
+      const { data: ticketsData, error: ticketsError } = await supabase
         .from('support_tickets')
-        .select(`
-          *,
-          assignee:profiles!assignee_id(navn)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) {
-        console.error('Error fetching tickets:', error);
-        throw error;
+      if (ticketsError) {
+        console.error('Error fetching tickets:', ticketsError);
+        throw ticketsError;
+      }
+
+      // Then get assignee names separately
+      const assigneeIds = ticketsData?.map(t => t.assignee_id).filter(Boolean) || [];
+      let assigneeMap: Record<string, string> = {};
+      
+      if (assigneeIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, navn')
+          .in('id', assigneeIds);
+        
+        if (!profilesError && profilesData) {
+          assigneeMap = profilesData.reduce((acc, profile) => {
+            acc[profile.id] = profile.navn || '';
+            return acc;
+          }, {} as Record<string, string>);
+        }
       }
       
-      console.log(`Fetched ${data?.length || 0} tickets with enhanced metadata`);
+      console.log(`Fetched ${ticketsData?.length || 0} tickets with enhanced metadata`);
       
       // Process tickets for enhanced features
-      const processedTickets = data?.map(ticket => ({
+      const processedTickets = ticketsData?.map(ticket => ({
         ...ticket,
-        assignee_name: ticket.assignee?.navn || null,
+        assignee_name: ticket.assignee_id ? assigneeMap[ticket.assignee_id] || null : null,
         // Auto-prioritize based on keywords and customer history
         priority: ticket.priority || autoDetectPriority(ticket),
         // Auto-categorize based on subject and content
