@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -48,6 +47,16 @@ interface GraphAttachment {
   contentBytes?: string;
   contentId?: string;
   isInline: boolean;
+}
+
+// Function to sanitize filename for Supabase Storage
+function sanitizeFilename(filename: string): string {
+  // Remove or replace invalid characters
+  return filename
+    .replace(/[^a-zA-Z0-9.-]/g, '_')  // Replace invalid chars with underscore
+    .replace(/_{2,}/g, '_')           // Replace multiple underscores with single
+    .replace(/^_+|_+$/g, '')         // Remove leading/trailing underscores
+    .toLowerCase();                   // Convert to lowercase
 }
 
 // Function to create content fingerprint for duplicate detection
@@ -243,7 +252,7 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
   return null;
 }
 
-// Function to download and store attachments
+// Function to download and store attachments with improved filename handling
 async function processAttachments(supabase: any, accessToken: string, mailboxAddress: string, messageId: string): Promise<any[]> {
   console.log(`Processing attachments for message: ${messageId}`);
   
@@ -306,10 +315,13 @@ async function processAttachments(supabase: any, accessToken: string, mailboxAdd
         // Convert base64 to binary
         const contentBytes = Uint8Array.from(atob(attachmentData.contentBytes), c => c.charCodeAt(0));
         
-        // Generate unique filename
+        // Generate unique filename with sanitization
         const timestamp = new Date().getTime();
-        const fileName = `${messageId}_${timestamp}_${attachment.name}`;
+        const sanitizedOriginalName = sanitizeFilename(attachment.name);
+        const fileName = `${timestamp}_${sanitizedOriginalName}`;
         const filePath = `attachments/${fileName}`;
+
+        console.log(`Uploading attachment: ${attachment.name} -> ${fileName}`);
 
         // Upload to Supabase Storage
         const { data: uploadData, error: uploadError } = await supabase.storage
@@ -324,6 +336,8 @@ async function processAttachments(supabase: any, accessToken: string, mailboxAdd
           continue;
         }
 
+        console.log(`Successfully uploaded attachment: ${fileName}`);
+
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
           .from('ticket-attachments')
@@ -331,7 +345,7 @@ async function processAttachments(supabase: any, accessToken: string, mailboxAdd
 
         const processedAttachment = {
           id: attachment.id,
-          name: attachment.name,
+          name: attachment.name, // Keep original name for display
           size: attachment.size,
           contentType: attachment.contentType,
           url: publicUrl,
@@ -467,7 +481,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting Office 365 email sync with STRICT duplicate prevention and attachment support...');
+    console.log('Starting Office 365 email sync with improved attachment handling...');
     
     // First run cleanup to remove existing duplicates
     const duplicatesRemoved = await cleanupDuplicateMessages(supabase);
@@ -557,7 +571,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Processing ${mailboxes.length} monitored mailboxes with STRICT duplicate prevention and attachment support`);
+    console.log(`Processing ${mailboxes.length} monitored mailboxes with improved attachment handling`);
     let totalProcessed = 0;
     let totalErrors = 0;
     let totalMerged = 0;
@@ -781,7 +795,7 @@ serve(async (req) => {
       attachmentsProcessed: totalAttachmentsProcessed,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `STRICT duplicate prevention with attachments - cleaned ${duplicatesRemoved} duplicates, merged ${totalMerged} messages, processed ${totalAttachmentsProcessed} attachments`
+      details: `Improved attachment handling - cleaned ${duplicatesRemoved} duplicates, merged ${totalMerged} messages, processed ${totalAttachmentsProcessed} attachments`
     }), {
       status: 200,
       headers: corsHeaders
