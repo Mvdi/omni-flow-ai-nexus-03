@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
@@ -193,37 +192,60 @@ export const useDashboardData = () => {
     };
   }, [ticketsQuery.refetch, leadsQuery.refetch, ordersQuery.refetch, stopAutoRefresh]);
 
-  // Process real data med korrekt status mapping
+  // Process real data med forbedret logging
   const leads = leadsQuery.data || [];
   const orders = ordersQuery.data || [];
   const tickets = ticketsQuery.data || [];
   const routes = routesQuery.data || [];
   const employees = employeesQuery.data || [];
 
+  console.log('=== DASHBOARD DATA DEBUG ===');
   console.log('Processing data - Leads:', leads.length, 'Orders:', orders.length, 'Tickets:', tickets.length);
 
-  // KORREKTE DATA BEREGNINGER med logging
+  // FORBEDRET BEREGNING AF AKTIVE LEADS
   const activeLeads = leads.filter(l => {
     const isActive = isActiveStatus(l.status);
-    console.log(`Lead ${l.navn} status: ${l.status}, isActive: ${isActive}`);
+    console.log(`Lead ${l.navn} status: "${l.status}", isActive: ${isActive}`);
     return isActive;
   }).length;
 
   const convertedLeads = leads.filter(l => isConvertedStatus(l.status)).length;
   
-  console.log(`Active leads: ${activeLeads}, Converted leads: ${convertedLeads}`);
+  console.log(`=== LEADS SUMMARY ===`);
+  console.log(`Total leads: ${leads.length}`);
+  console.log(`Active leads: ${activeLeads}`);
+  console.log(`Converted leads: ${convertedLeads}`);
 
-  // Beregn månedlig omsætning fra ordrer
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const monthlyRevenue = orders
-    .filter(order => {
-      const orderDate = new Date(order.created_at);
-      return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
-    })
-    .reduce((sum, order) => sum + (order.price || 0), 0);
+  // FORBEDRET BEREGNING AF MÅNEDLIG OMSÆTNING
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0-11
+  const currentYear = now.getFullYear();
+  
+  console.log(`=== MONTHLY REVENUE DEBUG ===`);
+  console.log(`Current date: ${now.toISOString()}`);
+  console.log(`Looking for month: ${currentMonth} (${now.toLocaleDateString('da-DK', { month: 'long' })}), year: ${currentYear}`);
+  
+  const monthlyOrders = orders.filter(order => {
+    const orderDate = new Date(order.created_at);
+    const orderMonth = orderDate.getMonth();
+    const orderYear = orderDate.getFullYear();
+    
+    const isCurrentMonth = orderMonth === currentMonth && orderYear === currentYear;
+    
+    console.log(`Order: ${order.customer}, Date: ${orderDate.toISOString()}, Month: ${orderMonth}, Year: ${orderYear}, IsCurrentMonth: ${isCurrentMonth}, Price: ${order.price}`);
+    
+    return isCurrentMonth;
+  });
+  
+  const monthlyRevenue = monthlyOrders.reduce((sum, order) => {
+    const price = Number(order.price) || 0;
+    console.log(`Adding order price: ${price}`);
+    return sum + price;
+  }, 0);
 
-  console.log(`Monthly revenue: ${monthlyRevenue} kr`);
+  console.log(`=== MONTHLY REVENUE RESULT ===`);
+  console.log(`Orders in current month: ${monthlyOrders.length}`);
+  console.log(`Total monthly revenue: ${monthlyRevenue} kr`);
 
   // Beregn konverteringsrate
   const conversionRate = leads.length > 0 ? Math.round((convertedLeads / leads.length) * 100) : 0;
@@ -391,7 +413,8 @@ export const useDashboardData = () => {
     };
   }).filter(p => p.name); // Fjern entries uden navn
 
-  console.log('Dashboard data processed successfully');
+  console.log('=== FINAL DASHBOARD STATS ===');
+  console.log('Stats:', stats);
 
   return {
     stats,
