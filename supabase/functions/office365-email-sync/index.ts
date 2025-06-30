@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -58,6 +57,8 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
+    console.log('Starting Office 365 email sync...');
+    
     // Hent Office 365 credentials fra databasen
     const { data: secrets, error: secretsError } = await supabase
       .from('integration_secrets')
@@ -150,11 +151,10 @@ serve(async (req) => {
         .single();
 
       try {
-        // Hent emails fra mailbox
+        // Hent emails fra mailbox - check for emails from last 5 minutes instead of last sync
         const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
-        const filter = mailbox.last_sync_at 
-          ? `?$filter=receivedDateTime gt ${new Date(mailbox.last_sync_at).toISOString()}&$top=50`
-          : '?$top=50';
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        const filter = `?$filter=receivedDateTime gt ${fiveMinutesAgo}&$top=50&$orderby=receivedDateTime desc`;
 
         console.log(`Fetching messages from: ${messagesUrl}${filter}`);
         
@@ -175,7 +175,7 @@ serve(async (req) => {
         const messagesData = await messagesResponse.json();
         const messages: GraphMessage[] = messagesData.value || [];
         
-        console.log(`Found ${messages.length} new messages for ${mailbox.email_address}`);
+        console.log(`Found ${messages.length} recent messages for ${mailbox.email_address}`);
 
         // Process hver email
         for (const message of messages) {
@@ -192,7 +192,22 @@ serve(async (req) => {
               continue;
             }
 
-            // Generate ticket number
+            // Ensure customer exists in customers table
+            const { error: customerError } = await supabase
+              .from('customers')
+              .upsert({
+                email: message.from.emailAddress.address,
+                navn: message.from.emailAddress.name || message.from.emailAddress.address
+              }, { 
+                onConflict: 'email',
+                ignoreDuplicates: false 
+              });
+
+            if (customerError) {
+              console.error('Failed to upsert customer:', customerError);
+            }
+
+            // Generate ticket number using database function
             const { data: ticketNumber } = await supabase.rpc('generate_ticket_number');
 
             // Opret nyt support ticket
@@ -221,6 +236,8 @@ serve(async (req) => {
               continue;
             }
 
+            console.log(`Created new ticket ${newTicket.ticket_number} from email ${message.id}`);
+
             // Opret ticket message
             const { error: messageError } = await supabase
               .from('ticket_messages')
@@ -239,7 +256,7 @@ serve(async (req) => {
               totalErrors++;
             } else {
               totalProcessed++;
-              console.log(`Created ticket ${newTicket.ticket_number} from message ${message.id}`);
+              console.log(`Successfully processed message ${message.id} into ticket ${newTicket.ticket_number}`);
             }
 
           } catch (messageError) {
@@ -295,7 +312,8 @@ serve(async (req) => {
       success: true, 
       processed: totalProcessed,
       errors: totalErrors,
-      mailboxes: mailboxes.length
+      mailboxes: mailboxes.length,
+      timestamp: new Date().toISOString()
     }), {
       status: 200,
       headers: corsHeaders
@@ -303,7 +321,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Email sync error:', error);
-    return new Response(JSON.stringify({ error: String(error) }), { 
+    return new Response(JSON.stringify({ 
+      error: String(error),
+      timestamp: new Date().toISOString()
+    }), { 
       status: 500, 
       headers: corsHeaders 
     });

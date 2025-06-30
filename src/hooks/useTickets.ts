@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAutoRefresh } from './useAutoRefresh';
 
 export interface SupportTicket {
   id: string;
@@ -30,19 +31,42 @@ export interface TicketMessage {
   attachments: any[];
 }
 
-export const useTickets = () => {
-  return useQuery({
+export const useTickets = (autoRefreshEnabled: boolean = true) => {
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
     queryKey: ['tickets'],
     queryFn: async () => {
+      console.log('Fetching tickets...');
       const { data, error } = await supabase
         .from('support_tickets')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching tickets:', error);
+        throw error;
+      }
+      
+      console.log(`Fetched ${data?.length || 0} tickets`);
       return data as SupportTicket[];
     },
+    refetchInterval: autoRefreshEnabled ? 30000 : false, // Refresh every 30 seconds
+    refetchIntervalInBackground: true,
+    staleTime: 10000, // Consider data stale after 10 seconds
   });
+
+  // Auto-refresh using custom hook for additional control
+  useAutoRefresh({
+    enabled: autoRefreshEnabled,
+    interval: 30000, // 30 seconds
+    onRefresh: () => {
+      console.log('Auto-refreshing tickets...');
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+    }
+  });
+
+  return query;
 };
 
 export const useTicketMessages = (ticketId: string) => {
