@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +14,11 @@ import { useTickets, SupportTicket, useTicketAnalytics } from '@/hooks/useTicket
 import { useRouteMemory } from '@/hooks/useRouteMemory';
 import { formatDanishTime, formatDanishDistance } from '@/utils/danishTime';
 import { Ticket, Search, Settings, Zap, Clock, TrendingUp, AlertTriangle, CheckCircle, Bell, Users } from 'lucide-react';
+
+// Helper function to format Danish date
+const formatDanishDate = (dateString: string) => {
+  return formatDanishTime(new Date(dateString), 'dd/MM/yyyy');
+};
 
 const Support = () => {
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
@@ -116,19 +120,6 @@ const Support = () => {
     }
   };
 
-  const getPriorityColor = (priority: string | null) => {
-    switch (priority) {
-      case 'Høj':
-        return 'destructive';
-      case 'Medium':
-        return 'secondary';
-      case 'Lav':
-        return 'outline';
-      default:
-        return 'secondary';
-    }
-  };
-
   const handleTicketSelect = (ticketId: string) => {
     const ticket = tickets.find(t => t.id === ticketId);
     if (ticket) {
@@ -137,18 +128,6 @@ const Support = () => {
       params.set('ticket', ticketId);
       window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
     }
-  };
-
-  const getSLAStatus = (ticket: SupportTicket) => {
-    if (!ticket.sla_deadline) return null;
-    const deadline = new Date(ticket.sla_deadline);
-    const now = new Date();
-    const hoursLeft = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
-    if (hoursLeft < 0) return 'expired';
-    if (hoursLeft < 2) return 'critical';
-    if (hoursLeft < 4) return 'warning';
-    return 'good';
   };
 
   if (showSettings) {
@@ -205,7 +184,7 @@ const Support = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
               <Ticket className="h-7 w-7 text-orange-600" />
-              Autonomt Support System
+              Support System
               {nytSvarCount > 0 && (
                 <Badge className="bg-orange-500 text-white animate-bounce">
                   {nytSvarCount} nye svar
@@ -213,7 +192,7 @@ const Support = () => {
               )}
             </h1>
             <p className="text-gray-600">
-              AI-drevet ticket system med dansk tidszone - Klokken er nu {formatDanishTime(new Date(), 'HH:mm')}
+              Klokken er nu {formatDanishTime(new Date(), 'HH:mm')}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -224,7 +203,7 @@ const Support = () => {
           </div>
         </div>
 
-        {/* Enhanced Analytics Cards */}
+        {/* Analytics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
           <Card className="shadow-sm border-0">
             <CardContent className="p-4">
@@ -311,24 +290,11 @@ const Support = () => {
           </Card>
         </div>
 
-        {/* Real-time status */}
-        <div className="mb-4">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span>Live opdateringer aktiv • Dansk tidszone • Email sync automatisk</span>
-            {analytics && (
-              <span className="ml-4 text-blue-600">
-                • Gns. svartid: {Math.round(analytics.avgResponseTime)} timer
-              </span>
-            )}
-          </div>
-        </div>
-
         {/* Filters */}
         <Card className="shadow-sm border-0 mb-4">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Smart Ticket Oversigt</CardTitle>
+              <CardTitle className="text-lg">Ticket Oversigt</CardTitle>
               <CreateTicketDialog isOpen={false} onClose={() => {}} />
             </div>
           </CardHeader>
@@ -358,7 +324,7 @@ const Support = () => {
           </CardContent>
         </Card>
 
-        {/* Enhanced Ticket Tabs */}
+        {/* Ticket Tabs */}
         <Card className="shadow-sm border-0">
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -389,81 +355,54 @@ const Support = () => {
                     </div>
                   ) : (
                     <div className="divide-y">
-                      {getTicketsByTab(tab).map(ticket => {
-                        const slaStatus = getSLAStatus(ticket);
-                        return (
-                          <div 
-                            key={ticket.id} 
-                            className={`p-3 hover:bg-gray-50 cursor-pointer transition-colors ${
-                              ticket.status === 'Nyt svar' ? 'bg-orange-50 border-l-4 border-orange-400' : ''
-                            } ${
-                              slaStatus === 'expired' ? 'bg-red-50 border-r-4 border-red-500' : 
-                              slaStatus === 'critical' ? 'bg-red-50 border-r-4 border-red-400' :
-                              slaStatus === 'warning' ? 'bg-yellow-50 border-r-4 border-yellow-400' : ''
-                            }`}
-                            onClick={() => handleTicketSelect(ticket.id)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4 flex-1">
-                                <div className="flex items-center gap-3">
-                                  <span className="font-mono text-sm font-medium text-blue-600">
-                                    {ticket.ticket_number}
-                                  </span>
-                                  {ticket.priority && (
-                                    <Badge variant={getPriorityColor(ticket.priority)} className="text-xs">
-                                      {ticket.priority}
-                                    </Badge>
+                      {getTicketsByTab(tab).map(ticket => (
+                        <div 
+                          key={ticket.id} 
+                          className={`p-3 hover:bg-gray-50 cursor-pointer transition-colors ${
+                            ticket.status === 'Nyt svar' ? 'bg-orange-50 border-l-4 border-orange-400' : ''
+                          }`}
+                          onClick={() => handleTicketSelect(ticket.id)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4 flex-1">
+                              <div className="flex items-center gap-3">
+                                <span className="font-mono text-sm font-medium text-blue-600">
+                                  {ticket.ticket_number}
+                                </span>
+                                <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
+                                  {ticket.status}
+                                </Badge>
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="font-medium text-gray-900 mb-1">
+                                  {ticket.subject}
+                                </h3>
+                                <div className="flex items-center gap-4 text-sm text-gray-600">
+                                  <span>{ticket.customer_name || ticket.customer_email}</span>
+                                  <span>•</span>
+                                  <span>{formatDanishDate(ticket.created_at)}</span>
+                                  {ticket.last_response_at && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-green-600">
+                                        Sidst: {formatDanishDistance(ticket.last_response_at)}
+                                      </span>
+                                    </>
                                   )}
-                                  <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
-                                    {ticket.status}
-                                  </Badge>
-                                  {ticket.category && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {ticket.category}
-                                    </Badge>
+                                  {ticket.assignee_name && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-blue-600">
+                                        Tildelt: {ticket.assignee_name}
+                                      </span>
+                                    </>
                                   )}
-                                  {slaStatus === 'expired' && (
-                                    <Badge variant="destructive" className="text-xs">
-                                      SLA BRUDT
-                                    </Badge>
-                                  )}
-                                  {slaStatus === 'critical' && (
-                                    <Badge variant="destructive" className="text-xs">
-                                      KRITISK
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex-1">
-                                  <h3 className="font-medium text-gray-900 mb-1">
-                                    {ticket.subject}
-                                  </h3>
-                                  <div className="flex items-center gap-4 text-sm text-gray-600">
-                                    <span>{ticket.customer_name || ticket.customer_email}</span>
-                                    <span>•</span>
-                                    <span>{formatDanishDate(ticket.created_at)}</span>
-                                    {ticket.last_response_at && (
-                                      <>
-                                        <span>•</span>
-                                        <span className="text-green-600">
-                                          Sidst: {formatDanishDistance(ticket.last_response_at)}
-                                        </span>
-                                      </>
-                                    )}
-                                    {ticket.assignee_name && (
-                                      <>
-                                        <span>•</span>
-                                        <span className="text-blue-600">
-                                          Tildelt: {ticket.assignee_name}
-                                        </span>
-                                      </>
-                                    )}
-                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </TabsContent>

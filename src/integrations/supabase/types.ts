@@ -542,6 +542,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          navn: string | null
           role: string | null
           updated_at: string | null
         }
@@ -551,6 +552,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          navn?: string | null
           role?: string | null
           updated_at?: string | null
         }
@@ -560,6 +562,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          navn?: string | null
           role?: string | null
           updated_at?: string | null
         }
@@ -642,13 +645,17 @@ export type Database = {
       support_tickets: {
         Row: {
           assignee_id: string | null
+          auto_assigned: boolean | null
+          category: string | null
           content: string | null
           created_at: string | null
           customer_email: string
           customer_name: string | null
+          customer_sentiment: string | null
           email_message_id: string | null
           email_received_at: string | null
           email_thread_id: string | null
+          escalated: boolean | null
           id: string
           last_outgoing_message_id: string | null
           last_response_at: string | null
@@ -656,21 +663,27 @@ export type Database = {
           original_message_id: string | null
           priority: string | null
           response_time_hours: number | null
+          sla_deadline: string | null
           source: string | null
           status: string | null
           subject: string
+          tags: string[] | null
           ticket_number: string
           updated_at: string | null
         }
         Insert: {
           assignee_id?: string | null
+          auto_assigned?: boolean | null
+          category?: string | null
           content?: string | null
           created_at?: string | null
           customer_email: string
           customer_name?: string | null
+          customer_sentiment?: string | null
           email_message_id?: string | null
           email_received_at?: string | null
           email_thread_id?: string | null
+          escalated?: boolean | null
           id?: string
           last_outgoing_message_id?: string | null
           last_response_at?: string | null
@@ -678,21 +691,27 @@ export type Database = {
           original_message_id?: string | null
           priority?: string | null
           response_time_hours?: number | null
+          sla_deadline?: string | null
           source?: string | null
           status?: string | null
           subject: string
+          tags?: string[] | null
           ticket_number: string
           updated_at?: string | null
         }
         Update: {
           assignee_id?: string | null
+          auto_assigned?: boolean | null
+          category?: string | null
           content?: string | null
           created_at?: string | null
           customer_email?: string
           customer_name?: string | null
+          customer_sentiment?: string | null
           email_message_id?: string | null
           email_received_at?: string | null
           email_thread_id?: string | null
+          escalated?: boolean | null
           id?: string
           last_outgoing_message_id?: string | null
           last_response_at?: string | null
@@ -700,9 +719,11 @@ export type Database = {
           original_message_id?: string | null
           priority?: string | null
           response_time_hours?: number | null
+          sla_deadline?: string | null
           source?: string | null
           status?: string | null
           subject?: string
+          tags?: string[] | null
           ticket_number?: string
           updated_at?: string | null
         }

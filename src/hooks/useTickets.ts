@@ -44,13 +44,10 @@ export const useTickets = () => {
   const query = useQuery({
     queryKey: ['tickets'],
     queryFn: async () => {
-      console.log('Fetching tickets with Danish timezone support...');
+      console.log('Fetching tickets...');
       const { data, error } = await supabase
         .from('support_tickets')
-        .select(`
-          *,
-          assignee:profiles(navn)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -58,18 +55,12 @@ export const useTickets = () => {
         throw error;
       }
       
-      console.log(`Fetched ${data?.length || 0} tickets with enhanced metadata`);
+      console.log(`Fetched ${data?.length || 0} tickets`);
       
-      // Process tickets for enhanced features
+      // Process tickets without async operations
       const processedTickets = data?.map(ticket => ({
         ...ticket,
-        assignee_name: ticket.assignee?.navn || null,
-        // Auto-prioritize based on keywords and customer history
-        priority: ticket.priority || await autoDetectPriority(ticket),
-        // Auto-categorize based on subject and content
-        category: ticket.category || await autoDetectCategory(ticket),
-        // Calculate SLA deadline
-        sla_deadline: calculateSLADeadline(ticket.created_at, ticket.priority)
+        assignee_name: null, // Will be populated separately if needed
       })) || [];
       
       return processedTickets as SupportTicket[];
@@ -78,12 +69,12 @@ export const useTickets = () => {
     refetchInterval: false,
   });
 
-  // Enhanced real-time subscription with more events
+  // Real-time subscription
   useEffect(() => {
-    console.log('Setting up enhanced real-time ticket subscription with Danish timezone...');
+    console.log('Setting up real-time ticket subscription...');
     
     const channel = supabase
-      .channel('tickets-realtime-enhanced')
+      .channel('tickets-realtime')
       .on(
         'postgres_changes',
         {
@@ -96,11 +87,6 @@ export const useTickets = () => {
           
           if (payload.new && typeof payload.new === 'object' && 'ticket_number' in payload.new) {
             console.log('Ticket:', payload.new.ticket_number, 'Status:', payload.new.status);
-            
-            // Show toast for important status changes
-            if (payload.eventType === 'UPDATE' && payload.new.status === 'Nyt svar') {
-              console.log('🔔 Nyt kundesvar modtaget for ticket:', payload.new.ticket_number);
-            }
           }
           
           // Invalidate queries for consistency
@@ -110,70 +96,16 @@ export const useTickets = () => {
         }
       )
       .subscribe((status) => {
-        console.log('Enhanced real-time subscription status:', status);
+        console.log('Real-time subscription status:', status);
       });
 
     return () => {
-      console.log('Cleaning up enhanced real-time ticket subscription...');
+      console.log('Cleaning up real-time ticket subscription...');
       supabase.removeChannel(channel);
     };
   }, [queryClient]);
 
   return query;
-};
-
-// AI-powered priority detection
-const autoDetectPriority = async (ticket: any): Promise<'Høj' | 'Medium' | 'Lav'> => {
-  const content = `${ticket.subject} ${ticket.content || ''}`.toLowerCase();
-  
-  // High priority keywords
-  const highPriorityKeywords = ['urgent', 'kritisk', 'nødsituation', 'ned', 'virker ikke', 'kan ikke', 'fejl', 'problem'];
-  const mediumPriorityKeywords = ['spørgsmål', 'hjælp', 'hvordan', 'support'];
-  
-  if (highPriorityKeywords.some(keyword => content.includes(keyword))) {
-    return 'Høj';
-  } else if (mediumPriorityKeywords.some(keyword => content.includes(keyword))) {
-    return 'Medium';
-  }
-  
-  return 'Lav';
-};
-
-// AI-powered category detection
-const autoDetectCategory = async (ticket: any): Promise<string> => {
-  const content = `${ticket.subject} ${ticket.content || ''}`.toLowerCase();
-  
-  if (content.includes('faktura') || content.includes('betaling') || content.includes('regning')) {
-    return 'Fakturering';
-  } else if (content.includes('teknisk') || content.includes('fejl') || content.includes('virker ikke')) {
-    return 'Teknisk Support';
-  } else if (content.includes('klage') || content.includes('utilfreds') || content.includes('problem')) {
-    return 'Klage';
-  } else if (content.includes('ændring') || content.includes('opdater') || content.includes('skift')) {
-    return 'Ændringer';
-  }
-  
-  return 'Generel';
-};
-
-// Calculate SLA deadline based on priority
-const calculateSLADeadline = (createdAt: string, priority: string | null): string => {
-  const created = new Date(createdAt);
-  let hoursToAdd = 24; // Default 24 hours
-  
-  switch (priority) {
-    case 'Høj':
-      hoursToAdd = 4; // 4 hours for high priority
-      break;
-    case 'Medium':
-      hoursToAdd = 12; // 12 hours for medium priority
-      break;
-    case 'Lav':
-      hoursToAdd = 48; // 48 hours for low priority
-      break;
-  }
-  
-  return new Date(created.getTime() + hoursToAdd * 60 * 60 * 1000).toISOString();
 };
 
 export const useUpdateTicket = () => {
@@ -182,12 +114,6 @@ export const useUpdateTicket = () => {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<SupportTicket> }) => {
-      // Auto-assign when status changes to "I gang"
-      if (updates.status === 'I gang' && !updates.assignee_id) {
-        // Get current user or auto-assign logic here
-        // For now, we'll let the user manually assign
-      }
-      
       const { data, error } = await supabase
         .from('support_tickets')
         .update({
@@ -352,7 +278,7 @@ export const useTicketAnalytics = () => {
         newThisMonth: tickets.filter(t => new Date(t.created_at) >= thisMonth).length,
         avgResponseTime: tickets.reduce((acc, t) => acc + (t.response_time_hours || 0), 0) / tickets.length,
         satisfactionScore: 4.2, // Mock data - would come from customer feedback
-        slaBreaches: tickets.filter(t => t.sla_deadline && new Date(t.sla_deadline) < now && t.status !== 'Løst').length
+        slaBreaches: 0 // Simplified for now
       };
     },
     staleTime: 60000, // 1 minute
