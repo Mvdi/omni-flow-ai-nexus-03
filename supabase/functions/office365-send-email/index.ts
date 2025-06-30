@@ -19,6 +19,49 @@ interface GraphTokenResponse {
   expires_in: number;
 }
 
+// Function to convert base64 images to CID attachments
+const processSignatureImages = (htmlContent: string) => {
+  const attachments: any[] = [];
+  let processedHtml = htmlContent;
+  
+  // Find all base64 images in the HTML
+  const base64ImageRegex = /<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"[^>]*>/gi;
+  let match;
+  let imageIndex = 0;
+  
+  while ((match = base64ImageRegex.exec(htmlContent)) !== null) {
+    const [fullMatch, imageType, base64Data] = match;
+    const contentId = `logo${imageIndex}`;
+    
+    console.log(`Converting base64 image ${imageIndex} (${imageType}) to CID attachment`);
+    
+    // Create attachment object for Microsoft Graph
+    const attachment = {
+      "@odata.type": "#microsoft.graph.fileAttachment",
+      "name": `logo${imageIndex}.${imageType}`,
+      "contentType": `image/${imageType}`,
+      "contentBytes": base64Data,
+      "contentId": contentId,
+      "isInline": true
+    };
+    
+    attachments.push(attachment);
+    
+    // Replace the base64 src with cid reference
+    const cidImg = fullMatch.replace(/src="data:image\/[^;]+;base64,[^"]+"/i, `src="cid:${contentId}"`);
+    processedHtml = processedHtml.replace(fullMatch, cidImg);
+    
+    imageIndex++;
+  }
+  
+  console.log(`Processed ${attachments.length} base64 images to CID attachments`);
+  
+  return {
+    html: processedHtml,
+    attachments: attachments
+  };
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -162,6 +205,10 @@ serve(async (req) => {
       emailHtmlContent += '<br><br>' + signatureHtml;
     }
 
+    // KRITISK: Process signature images to CID attachments
+    const { html: processedHtml, attachments: imageAttachments } = processSignatureImages(emailHtmlContent);
+    emailHtmlContent = processedHtml;
+
     // FORBEDRET EMAIL THREADING - byg korrekte headers for reply chain
     const fromAddress = ticket.mailbox_address || 'info@mmmultipartner.dk';
     const subject = ticket.subject.startsWith('Re:') ? ticket.subject : `Re: ${ticket.subject}`;
@@ -176,7 +223,7 @@ serve(async (req) => {
     }
 
     // Forbered email med MICROSOFT GRAPH KOMPATIBLE threading headers
-    const emailMessage = {
+    const emailMessage: any = {
       message: {
         subject: subject,
         body: {
@@ -218,11 +265,16 @@ serve(async (req) => {
       saveToSentItems: true
     };
 
+    // Add attachments if any images were processed
+    if (imageAttachments.length > 0) {
+      emailMessage.message.attachments = imageAttachments;
+      console.log(`Added ${imageAttachments.length} image attachments to email`);
+    }
+
     // Send email via Microsoft Graph
     const sendUrl = `https://graph.microsoft.com/v1.0/users/${fromAddress}/sendMail`;
 
-    console.log(`Sending REPLY email from ${fromAddress} to ${ticket.customer_email} with Microsoft Graph compatible headers`);
-    console.log('Threading headers:', emailMessage.message.internetMessageHeaders);
+    console.log(`Sending REPLY email from ${fromAddress} to ${ticket.customer_email} with ${imageAttachments.length} image attachments`);
     
     const sendResponse = await fetch(sendUrl, {
       method: 'POST',
@@ -242,7 +294,7 @@ serve(async (req) => {
       });
     }
 
-    console.log('Email sent successfully via Microsoft Graph with X- prefixed threading headers');
+    console.log('Email sent successfully via Microsoft Graph with CID image attachments');
 
     // Hent det sendte email's Message-ID fra Microsoft Graph for tracking
     let sentMessageId = null;
@@ -317,11 +369,12 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: 'Email sent successfully with Microsoft Graph compatible threading',
+      message: 'Email sent successfully with CID image attachments',
       from: fromAddress,
       to: ticket.customer_email,
       subject: subject,
       messageId: sentMessageId,
+      attachments: imageAttachments.length,
       threadingEnabled: true
     }), {
       status: 200,

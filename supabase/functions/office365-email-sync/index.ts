@@ -66,30 +66,6 @@ const retryWithExponentialBackoff = async <T>(
   }
 };
 
-// FORBEDRET dansk tid konvertering
-const toDanishTime = (utcDate: string | Date): Date => {
-  const date = new Date(utcDate);
-  
-  // Brug Intl.DateTimeFormat til at få korrekt dansk tid med automatisk sommertid/vintertid
-  const danishTimeString = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Europe/Copenhagen',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    fractionalSecondDigits: 3
-  }).format(date);
-  
-  // Konverter fra "YYYY-MM-DD HH:mm:ss.SSS" format til Date objekt
-  const [datePart, timePart] = danishTimeString.split(' ');
-  const [year, month, day] = datePart.split('-').map(Number);
-  const [hour, minute, second] = timePart.split(':').map(Number);
-  
-  return new Date(year, month - 1, day, hour, minute, second);
-};
-
 // Enhanced token management with refresh capability
 const getAccessToken = async (clientId: string, clientSecret: string, tenantId: string): Promise<string> => {
   return retryWithExponentialBackoff(async () => {
@@ -162,7 +138,7 @@ const autoDetectCategory = (subject: string, content: string): string => {
 
 // Calculate SLA deadline based on priority
 const calculateSLADeadline = (createdAt: string, priority: string): string => {
-  const created = toDanishTime(createdAt);
+  const created = new Date(createdAt);
   let hoursToAdd = 24; // Default 24 hours
   
   switch (priority) {
@@ -180,7 +156,7 @@ const calculateSLADeadline = (createdAt: string, priority: string): string => {
   return new Date(created.getTime() + hoursToAdd * 60 * 60 * 1000).toISOString();
 };
 
-// FORBEDRET duplicate detection med internal sender filtering og dansk tid
+// FORBEDRET duplicate detection med internal sender filtering
 const findDuplicateTicket = async (supabase: any, message: GraphMessage) => {
   console.log(`Looking for existing ticket for message: ${message.id} with subject: "${message.subject}" from: ${message.from.emailAddress.address}`);
   
@@ -224,8 +200,8 @@ const findDuplicateTicket = async (supabase: any, message: GraphMessage) => {
     }
   }
   
-  // 2. Cross-mailbox duplicate detection within time window (DANSK TID)
-  const messageTime = toDanishTime(message.receivedDateTime);
+  // 2. Cross-mailbox duplicate detection within time window
+  const messageTime = new Date(message.receivedDateTime);
   const timeWindow = new Date(messageTime.getTime() - 5 * 60 * 1000); // 5 minutes before
 
   const { data: recentTickets } = await supabase
@@ -275,7 +251,7 @@ const findDuplicateTicket = async (supabase: any, message: GraphMessage) => {
   return null;
 };
 
-// FORBEDRET message merging med automatiske status updates TIL DANSK TID og "Nyt svar"
+// FORBEDRET message merging med automatiske status updates TIL "Nyt svar"
 const mergeTicketMessage = async (supabase: any, existingTicket: any, message: GraphMessage, mailboxAddress: string, accessToken: string) => {
   console.log(`Merging message ${message.id} into existing ticket ${existingTicket.ticket_number} (current status: ${existingTicket.status})`);
   
@@ -303,7 +279,7 @@ const mergeTicketMessage = async (supabase: any, existingTicket: any, message: G
   
   const messageContent = message.body?.content || message.bodyPreview || '';
   
-  // Add the message med DANSK TID
+  // Add the message
   const messageData = {
     ticket_id: existingTicket.id,
     sender_email: message.from.emailAddress.address,
@@ -313,7 +289,7 @@ const mergeTicketMessage = async (supabase: any, existingTicket: any, message: G
     email_message_id: message.id,
     is_internal: false,
     attachments: attachments,
-    created_at: toDanishTime(message.receivedDateTime).toISOString()
+    created_at: new Date(message.receivedDateTime).toISOString()
   };
 
   const { error: messageError } = await supabase
@@ -328,8 +304,8 @@ const mergeTicketMessage = async (supabase: any, existingTicket: any, message: G
   // KRITISK: Auto-update ticket status to "Nyt svar" for customer replies
   const updateData: any = {
     status: 'Nyt svar', // Always set to "Nyt svar" when customer replies
-    last_response_at: toDanishTime(message.receivedDateTime).toISOString(),
-    updated_at: toDanishTime(new Date()).toISOString()
+    last_response_at: new Date(message.receivedDateTime).toISOString(),
+    updated_at: new Date().toISOString()
   };
 
   // Reopen closed/solved tickets
@@ -370,7 +346,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting enhanced Office 365 email sync with FORBEDRET Danish timezone and AI features...');
+    console.log('Starting enhanced Office 365 email sync with fixed Danish timezone handling...');
     
     // Fetch Office 365 credentials
     const { data: secrets, error: secretsError } = await supabase
@@ -500,7 +476,7 @@ serve(async (req) => {
               continue;
             }
 
-            // Create new ticket with AI enhancements og DANSK TID
+            // Create new ticket with AI enhancements
             console.log('Creating new AI-enhanced ticket...');
 
             // Upsert customer
@@ -537,7 +513,7 @@ serve(async (req) => {
               customer_name: message.from.emailAddress.name,
               email_message_id: message.id,
               email_thread_id: message.conversationId,
-              email_received_at: toDanishTime(message.receivedDateTime).toISOString(),
+              email_received_at: new Date(message.receivedDateTime).toISOString(),
               mailbox_address: mailbox.email_address,
               source: 'office365',
               status: 'Åben',
@@ -545,8 +521,8 @@ serve(async (req) => {
               category: detectedCategory,
               sla_deadline: slaDeadline,
               auto_assigned: false,
-              created_at: toDanishTime(new Date()).toISOString(),
-              updated_at: toDanishTime(new Date()).toISOString()
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
             };
 
             console.log(`Creating AI-enhanced ticket with priority: ${detectedPriority}, category: ${detectedCategory}`);
@@ -563,7 +539,7 @@ serve(async (req) => {
               continue;
             }
 
-            // Add initial message med DANSK TID
+            // Add initial message
             const messageData = {
               ticket_id: newTicket.id,
               sender_email: message.from.emailAddress.address,
@@ -573,7 +549,7 @@ serve(async (req) => {
               email_message_id: message.id,
               is_internal: false,
               attachments: [],
-              created_at: toDanishTime(message.receivedDateTime).toISOString()
+              created_at: new Date(message.receivedDateTime).toISOString()
             };
 
             const { error: messageError } = await supabase
@@ -594,12 +570,12 @@ serve(async (req) => {
           }
         }
 
-        // Update mailbox sync timestamp MED DANSK TID
+        // Update mailbox sync timestamp
         await supabase
           .from('monitored_mailboxes')
           .update({ 
-            last_sync_at: toDanishTime(new Date()).toISOString(),
-            updated_at: toDanishTime(new Date()).toISOString()
+            last_sync_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           })
           .eq('id', mailbox.id);
 
@@ -618,8 +594,7 @@ serve(async (req) => {
       duplicatesSkipped: totalDuplicatesSkipped,
       errors: totalErrors,
       mailboxes: mailboxes.length,
-      timestamp: toDanishTime(new Date()).toISOString(),
-      danishTime: toDanishTime(new Date()).toLocaleString('da-DK', { timeZone: 'Europe/Copenhagen' }),
+      timestamp: new Date().toISOString(),
       details: `AI-Enhanced sync completed: ${totalProcessed} new tickets, ${totalMerged} merged messages, ${totalReopened} reopened tickets, ${totalInternalSkipped} internal emails skipped, ${totalDuplicatesSkipped} duplicates skipped`
     };
 
@@ -634,8 +609,7 @@ serve(async (req) => {
     console.error('Enhanced email sync error:', error);
     return new Response(JSON.stringify({ 
       error: String(error),
-      timestamp: toDanishTime(new Date()).toISOString(),
-      danishTime: toDanishTime(new Date()).toLocaleString('da-DK', { timeZone: 'Europe/Copenhagen' })
+      timestamp: new Date().toISOString()
     }), { 
       status: 500, 
       headers: corsHeaders 
