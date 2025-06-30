@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, Plus, Filter, Search, MoreVertical, Brain, TrendingUp, Clock, Target, ChevronDown } from 'lucide-react';
-import { useLeads, type Lead, useUpdateLeadStatus, useAIFollowUpSuggestions, useAILeadScoring, useAILeadEnrichment, useLeadToOrderConversion } from '@/hooks/useLeads';
+import { useLeads, type Lead, useUpdateLeadStatus, useAIFollowUpSuggestions, useAILeadScoring, useAILeadEnrichment } from '@/hooks/useLeads';
+import { useLeadToOrderConversion } from '@/hooks/useLeadToOrderConversion';
 import { LeadDialog } from '@/components/leads/LeadDialog';
 import { useState, useCallback, useMemo } from 'react';
 import { LeadCard } from '@/components/leads/LeadCard';

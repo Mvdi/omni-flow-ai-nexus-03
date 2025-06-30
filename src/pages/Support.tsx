@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -272,7 +273,7 @@ const Support = () => {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Ticket Oversigt</CardTitle>
-              <CreateTicketDialog />
+              <CreateTicketDialog isOpen={false} onClose={() => {}} /> {/* Fix: Provide required props */}
             </div>
           </CardHeader>
           <CardContent className="pb-3">

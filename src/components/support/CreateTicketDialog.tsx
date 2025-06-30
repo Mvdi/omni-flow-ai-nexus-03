@@ -1,44 +1,41 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useAddTicket } from '@/hooks/useTickets';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCreateTicket } from '@/hooks/useTickets';
+import { Plus } from 'lucide-react';
 
-interface CreateTicketDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface CreateTicketDialogProps {
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps) => {
+  const [open, setOpen] = useState(isOpen || false);
   const [formData, setFormData] = useState({
     subject: '',
     content: '',
     customer_email: '',
     customer_name: '',
-    priority: '' as string, // Changed from 'Medium' to empty string - no default priority
-    status: 'Åben' as string,
-    assignee_id: ''
+    priority: '' as string // Fix: Default to empty string instead of 'Medium'
   });
 
-  const addTicket = useAddTicket();
+  const createTicket = useCreateTicket();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const ticketData = {
-      subject: formData.subject,
-      content: formData.content || null,
-      customer_email: formData.customer_email,
-      customer_name: formData.customer_name || null,
-      priority: (formData.priority || null) as 'Høj' | 'Medium' | 'Lav' | null, // Only include if set
-      status: formData.status as 'Åben' | 'I gang' | 'Afventer kunde' | 'Løst' | 'Lukket',
-      assignee_id: formData.assignee_id || null
+      ...formData,
+      priority: formData.priority || null, // Convert empty string to null
+      status: 'Åben'
     };
 
-    await addTicket.mutateAsync(ticketData);
+    await createTicket.mutateAsync(ticketData);
     
     // Reset form
     setFormData({
@@ -46,108 +43,110 @@ export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps)
       content: '',
       customer_email: '',
       customer_name: '',
-      priority: '', // Reset to empty - no default
-      status: 'Åben',
-      assignee_id: ''
+      priority: ''
     });
     
-    onClose();
+    setOpen(false);
+    onClose?.();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      setOpen(newOpen);
+      if (!newOpen) onClose?.();
+    }}>
+      <DialogTrigger asChild>
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          Nyt Ticket
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Opret Ny Support Ticket</DialogTitle>
+          <DialogTitle>Opret Support Ticket</DialogTitle>
           <DialogDescription>
-            Opret en ny support ticket for en kunde
+            Opret et nyt support ticket for en kunde
           </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <Label htmlFor="subject">Emne *</Label>
-              <Input
-                id="subject"
-                value={formData.subject}
-                onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="content">Beskrivelse</Label>
-              <Textarea
-                id="content"
-                value={formData.content}
-                onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                rows={4}
-              />
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="customer_email">Kunde Email *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="customer_name">Kunde navn</Label>
+              <Input
+                id="customer_name"
+                value={formData.customer_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
+                placeholder="Indtast kunde navn"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="customer_email">Email *</Label>
               <Input
                 id="customer_email"
                 type="email"
                 value={formData.customer_email}
                 onChange={(e) => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
+                placeholder="kunde@email.dk"
                 required
               />
             </div>
-
-            <div>
-              <Label htmlFor="customer_name">Kunde Navn</Label>
-              <Input
-                id="customer_name"
-                value={formData.customer_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
-              />
-            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="priority">Prioritet</Label>
-              <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Vælg prioritet (valgfri)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Ingen prioritet</SelectItem>
-                  <SelectItem value="Lav">Lav</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="Høj">Høj</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Åben">Åben</SelectItem>
-                  <SelectItem value="I gang">I gang</SelectItem>
-                  <SelectItem value="Afventer kunde">Afventer kunde</SelectItem>
-                  <SelectItem value="Løst">Løst</SelectItem>
-                  <SelectItem value="Lukket">Lukket</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="subject">Emne *</Label>
+            <Input
+              id="subject"
+              value={formData.subject}
+              onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+              placeholder="Beskriv problemet kort"
+              required
+            />
           </div>
 
-          <div className="flex justify-end">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="space-y-2">
+            <Label htmlFor="priority">Prioritet</Label>
+            <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Vælg prioritet (valgfri)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Ingen prioritet</SelectItem>
+                <SelectItem value="Lav">Lav</SelectItem>
+                <SelectItem value="Medium">Medium</SelectItem>
+                <SelectItem value="Høj">Høj</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="content">Beskrivelse</Label>
+            <Textarea
+              id="content"
+              value={formData.content}
+              onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+              placeholder="Detaljeret beskrivelse af problemet..."
+              rows={4}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setOpen(false);
+                onClose?.();
+              }}
+            >
               Annuller
             </Button>
-            <Button type="submit" disabled={addTicket.isPending}>
-              Opret Ticket
+            <Button
+              type="submit"
+              disabled={createTicket.isPending}
+            >
+              {createTicket.isPending ? 'Opretter...' : 'Opret Ticket'}
             </Button>
           </div>
         </form>

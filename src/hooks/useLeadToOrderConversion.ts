@@ -12,6 +12,12 @@ export const useLeadToOrderConversion = () => {
     mutationFn: async (lead: Lead) => {
       console.log('Converting lead to order:', lead.id);
       
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error('User not authenticated');
+      }
+
       // First, create the order from lead data
       const orderData = {
         customer: lead.navn,
@@ -19,16 +25,17 @@ export const useLeadToOrderConversion = () => {
         order_type: 'Konvertering fra Lead', // Default order type for converted leads
         address: lead.adresse || '',
         price: lead.vaerdi || 0,
-        priority: lead.prioritet || '', // Use lead priority or empty
+        priority: lead.prioritet || 'Normal', // Use lead priority or default
         estimated_duration: 120, // Default 2 hours
         comment: `Konverteret fra lead: ${lead.noter || 'Ingen noter'}`,
         status: 'Ikke planlagt',
-        scheduled_date: '',
-        scheduled_time: '',
+        scheduled_date: null,
+        scheduled_time: null,
         scheduled_week: null,
         latitude: null,
         longitude: null,
-        bfe_number: ''
+        bfe_number: '',
+        user_id: user.id // Fix: Add required user_id
       };
 
       // Create the order
