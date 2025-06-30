@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -5,15 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SupportTicket, TicketMessage, useUpdateTicket, useAddTicketMessage } from '@/hooks/useTickets';
 import { useTicketMessages } from '@/hooks/useTicketMessages';
 import { formatDistanceToNow } from 'date-fns';
 import { da } from 'date-fns/locale';
-import { Send, Bot, User, Clock, Mail, Tag, Sparkles, X } from 'lucide-react';
+import { Send, Bot, User, Clock, Mail, Sparkles, X, Paperclip } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { AttachmentViewer } from '../support/AttachmentViewer';
 
 interface TicketPopupProps {
   ticket: SupportTicket;
@@ -34,6 +35,8 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [signatureHtml, setSignatureHtml] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
   
   const { data: messages = [], isLoading } = useTicketMessages(ticket.id);
@@ -67,15 +70,100 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
     });
   };
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const fileArray = Array.from(files);
+      // Limit file size to 10MB per file
+      const validFiles = fileArray.filter(file => {
+        if (file.size > 10 * 1024 * 1024) {
+          toast({
+            title: "Fil for stor",
+            description: `${file.name} er større end 10MB og bliver sprunget over.`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      });
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadAttachments = async (): Promise<any[]> => {
+    if (selectedFiles.length === 0) return [];
+
+    setIsUploading(true);
+    const uploadedAttachments = [];
+
+    try {
+      for (const file of selectedFiles) {
+        const timestamp = new Date().getTime();
+        const fileName = `${timestamp}_${file.name}`;
+        const filePath = `attachments/${fileName}`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('ticket-attachments')
+          .upload(filePath, file, {
+            contentType: file.type,
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error(`Failed to upload ${file.name}:`, uploadError);
+          toast({
+            title: "Upload fejl",
+            description: `Kunne ikke uploade ${file.name}`,
+            variant: "destructive",
+          });
+          continue;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('ticket-attachments')
+          .getPublicUrl(filePath);
+
+        uploadedAttachments.push({
+          id: crypto.randomUUID(),
+          name: file.name,
+          size: file.size,
+          contentType: file.type,
+          url: publicUrl,
+          path: filePath,
+          uploaded_at: new Date().toISOString()
+        });
+      }
+
+      return uploadedAttachments;
+    } catch (error) {
+      console.error('Error uploading attachments:', error);
+      toast({
+        title: "Upload fejl",
+        description: "Der opstod en fejl under upload af vedhæftninger.",
+        variant: "destructive",
+      });
+      return [];
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() && selectedFiles.length === 0) return;
     
     let messageWithSignature = newMessage;
     
     // Always add signature if it exists
-    if (signatureHtml) {
+    if (signatureHtml && newMessage.trim()) {
       messageWithSignature = `${newMessage}\n\n${signatureHtml}`;
     }
+
+    // Upload attachments if any
+    const attachments = await uploadAttachments();
     
     addMessage.mutate({
       ticket_id: ticket.id,
@@ -84,10 +172,11 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
       message_content: messageWithSignature,
       is_internal: false,
       is_ai_generated: false,
-      attachments: []
+      attachments: attachments
     });
     
     setNewMessage('');
+    setSelectedFiles([]);
   };
 
   const generateAiResponse = async () => {
@@ -316,6 +405,12 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
                         __html: formatTextForDisplay(message.message_content) 
                       }}
                     />
+                    {/* Show attachments if present */}
+                    {message.attachments && message.attachments.length > 0 && (
+                      <div className="mt-3">
+                        <AttachmentViewer attachments={message.attachments} />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -366,10 +461,57 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
                   rows={4}
                   className="resize-none"
                 />
+                
+                {/* File attachments section */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      id="file-upload"
+                      multiple
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      accept="*/*"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('file-upload')?.click()}
+                      disabled={isUploading}
+                    >
+                      <Paperclip className="h-4 w-4 mr-2" />
+                      Vedhæft filer
+                    </Button>
+                  </div>
+                  
+                  {/* Show selected files */}
+                  {selectedFiles.length > 0 && (
+                    <div className="space-y-1">
+                      {selectedFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <span className="text-sm text-gray-700">{file.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFile(index)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
                 <div className="flex justify-end">
-                  <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                  <Button 
+                    onClick={handleSendMessage} 
+                    disabled={(!newMessage.trim() && selectedFiles.length === 0) || isUploading}
+                  >
                     <Send className="h-4 w-4 mr-2" />
-                    Send svar
+                    {isUploading ? 'Uploader...' : 'Send svar'}
                   </Button>
                 </div>
               </div>

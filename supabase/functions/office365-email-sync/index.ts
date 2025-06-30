@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -36,6 +37,17 @@ interface GraphMessage {
   internetMessageId: string;
   conversationId: string;
   parentFolderId: string;
+  hasAttachments: boolean;
+}
+
+interface GraphAttachment {
+  id: string;
+  name: string;
+  contentType: string;
+  size: number;
+  contentBytes?: string;
+  contentId?: string;
+  isInline: boolean;
 }
 
 // Function to create content fingerprint for duplicate detection
@@ -156,7 +168,7 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
     return ticket;
   }
 
-  // Check by email thread ID
+  // Check by email thread ID with improved matching
   const { data: threadMatch } = await supabase
     .from('support_tickets')
     .select('id, ticket_number, email_thread_id, subject')
@@ -166,6 +178,39 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
   if (threadMatch) {
     console.log(`Found duplicate by thread ID: ${threadMatch.ticket_number}`);
     return threadMatch;
+  }
+
+  // IMPROVED: Check for thread variations (remove last part after underscore/dot)
+  if (message.conversationId) {
+    const baseThreadId = message.conversationId.split(/[._]/).slice(0, -1).join('.');
+    if (baseThreadId && baseThreadId !== message.conversationId) {
+      const { data: baseThreadMatch } = await supabase
+        .from('support_tickets')
+        .select('id, ticket_number, email_thread_id, subject')
+        .like('email_thread_id', `${baseThreadId}%`)
+        .single();
+
+      if (baseThreadMatch) {
+        console.log(`Found duplicate by base thread ID: ${baseThreadMatch.ticket_number}`);
+        return baseThreadMatch;
+      }
+    }
+  }
+
+  // IMPROVED: Subject-based matching for "Re:" replies
+  const cleanSubject = message.subject.replace(/^(Re:|Sv:|Ang\.:|AW:)/i, '').trim();
+  if (cleanSubject !== message.subject) {
+    const { data: subjectMatch } = await supabase
+      .from('support_tickets')
+      .select('id, ticket_number, subject, customer_email')
+      .eq('customer_email', message.from.emailAddress.address)
+      .eq('subject', cleanSubject)
+      .single();
+
+    if (subjectMatch) {
+      console.log(`Found duplicate by subject matching: ${subjectMatch.ticket_number}`);
+      return subjectMatch;
+    }
   }
 
   // Content-based duplicate detection with time proximity
@@ -198,8 +243,121 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
   return null;
 }
 
+// Function to download and store attachments
+async function processAttachments(supabase: any, accessToken: string, mailboxAddress: string, messageId: string): Promise<any[]> {
+  console.log(`Processing attachments for message: ${messageId}`);
+  
+  try {
+    // Get attachments list from Microsoft Graph
+    const attachmentsUrl = `https://graph.microsoft.com/v1.0/users/${mailboxAddress}/messages/${messageId}/attachments`;
+    const attachmentsResponse = await fetch(attachmentsUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!attachmentsResponse.ok) {
+      console.error(`Failed to fetch attachments for message ${messageId}:`, await attachmentsResponse.text());
+      return [];
+    }
+
+    const attachmentsData = await attachmentsResponse.json();
+    const attachments: GraphAttachment[] = attachmentsData.value || [];
+    
+    if (attachments.length === 0) {
+      console.log(`No attachments found for message: ${messageId}`);
+      return [];
+    }
+
+    console.log(`Found ${attachments.length} attachments for message: ${messageId}`);
+    
+    const processedAttachments = [];
+
+    for (const attachment of attachments) {
+      try {
+        // Skip inline attachments (embedded images)
+        if (attachment.isInline) {
+          console.log(`Skipping inline attachment: ${attachment.name}`);
+          continue;
+        }
+
+        // Get attachment content
+        const attachmentUrl = `https://graph.microsoft.com/v1.0/users/${mailboxAddress}/messages/${messageId}/attachments/${attachment.id}`;
+        const attachmentResponse = await fetch(attachmentUrl, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!attachmentResponse.ok) {
+          console.error(`Failed to fetch attachment ${attachment.name}:`, await attachmentResponse.text());
+          continue;
+        }
+
+        const attachmentData = await attachmentResponse.json();
+        
+        if (!attachmentData.contentBytes) {
+          console.error(`No content bytes for attachment: ${attachment.name}`);
+          continue;
+        }
+
+        // Convert base64 to binary
+        const contentBytes = Uint8Array.from(atob(attachmentData.contentBytes), c => c.charCodeAt(0));
+        
+        // Generate unique filename
+        const timestamp = new Date().getTime();
+        const fileName = `${messageId}_${timestamp}_${attachment.name}`;
+        const filePath = `attachments/${fileName}`;
+
+        // Upload to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('ticket-attachments')
+          .upload(filePath, contentBytes, {
+            contentType: attachment.contentType,
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error(`Failed to upload attachment ${attachment.name}:`, uploadError);
+          continue;
+        }
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('ticket-attachments')
+          .getPublicUrl(filePath);
+
+        const processedAttachment = {
+          id: attachment.id,
+          name: attachment.name,
+          size: attachment.size,
+          contentType: attachment.contentType,
+          url: publicUrl,
+          path: filePath,
+          uploaded_at: new Date().toISOString()
+        };
+
+        processedAttachments.push(processedAttachment);
+        console.log(`Successfully processed attachment: ${attachment.name}`);
+
+      } catch (attachmentError) {
+        console.error(`Error processing attachment ${attachment.name}:`, attachmentError);
+      }
+    }
+
+    console.log(`Successfully processed ${processedAttachments.length} attachments for message: ${messageId}`);
+    return processedAttachments;
+
+  } catch (error) {
+    console.error(`Error processing attachments for message ${messageId}:`, error);
+    return [];
+  }
+}
+
 // Function to merge ticket messages with STRICT duplicate check
-async function mergeTicketMessage(supabase: any, existingTicket: any, message: GraphMessage, mailboxAddress: string) {
+async function mergeTicketMessage(supabase: any, existingTicket: any, message: GraphMessage, mailboxAddress: string, accessToken: string) {
   console.log(`Attempting to merge message ${message.id} into existing ticket ${existingTicket.ticket_number}`);
   
   // CRITICAL: Check if this exact email_message_id already exists in this ticket
@@ -237,6 +395,13 @@ async function mergeTicketMessage(supabase: any, existingTicket: any, message: G
     }
   }
 
+  // Process attachments if present
+  let attachments = [];
+  if (message.hasAttachments) {
+    console.log(`Message has attachments, processing...`);
+    attachments = await processAttachments(supabase, accessToken, mailboxAddress, message.id);
+  }
+
   // If we get here, the message is not a duplicate - add it
   const messageData = {
     ticket_id: existingTicket.id,
@@ -245,10 +410,11 @@ async function mergeTicketMessage(supabase: any, existingTicket: any, message: G
     message_content: messageContent,
     message_type: 'inbound_email',
     email_message_id: message.id,
-    is_internal: false
+    is_internal: false,
+    attachments: attachments
   };
 
-  console.log(`Adding NEW message to ticket ${existingTicket.ticket_number}`);
+  console.log(`Adding NEW message to ticket ${existingTicket.ticket_number} with ${attachments.length} attachments`);
 
   const { error: messageError } = await supabase
     .from('ticket_messages')
@@ -278,7 +444,7 @@ async function mergeTicketMessage(supabase: any, existingTicket: any, message: G
     console.error('Failed to update existing ticket:', updateError);
   }
 
-  console.log(`Successfully merged NEW message into ticket ${existingTicket.ticket_number}`);
+  console.log(`Successfully merged NEW message into ticket ${existingTicket.ticket_number} with ${attachments.length} attachments`);
   return existingTicket;
 }
 
@@ -301,7 +467,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting Office 365 email sync with STRICT duplicate prevention...');
+    console.log('Starting Office 365 email sync with STRICT duplicate prevention and attachment support...');
     
     // First run cleanup to remove existing duplicates
     const duplicatesRemoved = await cleanupDuplicateMessages(supabase);
@@ -391,11 +557,12 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Processing ${mailboxes.length} monitored mailboxes with STRICT duplicate prevention`);
+    console.log(`Processing ${mailboxes.length} monitored mailboxes with STRICT duplicate prevention and attachment support`);
     let totalProcessed = 0;
     let totalErrors = 0;
     let totalMerged = 0;
     let totalSkipped = 0;
+    let totalAttachmentsProcessed = 0;
 
     for (const mailbox of mailboxes) {
       console.log(`Processing mailbox: ${mailbox.email_address}`);
@@ -414,7 +581,7 @@ serve(async (req) => {
         const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 
         const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
-        const filter = `?$filter=receivedDateTime gt ${fifteenMinutesAgo}&$top=20&$orderby=receivedDateTime desc`;
+        const filter = `?$filter=receivedDateTime gt ${fifteenMinutesAgo}&$top=20&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments`;
 
         console.log(`Fetching messages from: ${messagesUrl}${filter}`);
         
@@ -452,13 +619,13 @@ serve(async (req) => {
 
         for (const message of messages) {
           try {
-            console.log(`Processing message ${message.id} with subject: "${message.subject}"`);
+            console.log(`Processing message ${message.id} with subject: "${message.subject}" (hasAttachments: ${message.hasAttachments})`);
             
             const duplicateTicket = await findDuplicateTicket(supabase, message);
             
             if (duplicateTicket) {
               console.log(`Found duplicate ticket ${duplicateTicket.ticket_number}, attempting to merge message...`);
-              await mergeTicketMessage(supabase, duplicateTicket, message, mailbox.email_address);
+              await mergeTicketMessage(supabase, duplicateTicket, message, mailbox.email_address, tokenData.access_token);
               totalMerged++;
               continue;
             }
@@ -524,6 +691,14 @@ serve(async (req) => {
 
             console.log(`Created new ticket ${newTicket.ticket_number} from email ${message.id}`);
 
+            // Process attachments for new ticket
+            let attachments = [];
+            if (message.hasAttachments) {
+              console.log(`Processing attachments for new ticket...`);
+              attachments = await processAttachments(supabase, tokenData.access_token, mailbox.email_address, message.id);
+              totalAttachmentsProcessed += attachments.length;
+            }
+
             const messageData = {
               ticket_id: newTicket.id,
               sender_email: message.from.emailAddress.address,
@@ -531,7 +706,8 @@ serve(async (req) => {
               message_content: message.body?.content || message.bodyPreview || '',
               message_type: 'inbound_email',
               email_message_id: message.id,
-              is_internal: false
+              is_internal: false,
+              attachments: attachments
             };
 
             console.log('Creating ticket message with data:', JSON.stringify(messageData, null, 2));
@@ -546,7 +722,7 @@ serve(async (req) => {
               totalErrors++;
             } else {
               totalProcessed++;
-              console.log(`Successfully processed message ${message.id} into ticket ${newTicket.ticket_number}`);
+              console.log(`Successfully processed message ${message.id} into ticket ${newTicket.ticket_number} with ${attachments.length} attachments`);
             }
 
           } catch (messageError) {
@@ -593,7 +769,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Email sync completed. Processed: ${totalProcessed}, Merged: ${totalMerged}, Skipped: ${totalSkipped}, Errors: ${totalErrors}, Duplicates cleaned: ${duplicatesRemoved}`);
+    console.log(`Email sync completed. Processed: ${totalProcessed}, Merged: ${totalMerged}, Skipped: ${totalSkipped}, Errors: ${totalErrors}, Duplicates cleaned: ${duplicatesRemoved}, Attachments: ${totalAttachmentsProcessed}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -602,9 +778,10 @@ serve(async (req) => {
       skipped: totalSkipped,
       errors: totalErrors,
       duplicatesRemoved: duplicatesRemoved,
+      attachmentsProcessed: totalAttachmentsProcessed,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `STRICT duplicate prevention - cleaned ${duplicatesRemoved} duplicates, merged ${totalMerged} messages, skipped ${totalSkipped} duplicates`
+      details: `STRICT duplicate prevention with attachments - cleaned ${duplicatesRemoved} duplicates, merged ${totalMerged} messages, processed ${totalAttachmentsProcessed} attachments`
     }), {
       status: 200,
       headers: corsHeaders
