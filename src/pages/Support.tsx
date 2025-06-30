@@ -13,7 +13,7 @@ import { CreateTicketDialog } from '@/components/support/CreateTicketDialog';
 import { SignatureSettings } from '@/components/support/SignatureSettings';
 import { useTickets, SupportTicket, useTicketAnalytics } from '@/hooks/useTickets';
 import { useRouteMemory } from '@/hooks/useRouteMemory';
-import { formatDanishTime, formatDanishDistance } from '@/utils/danishTime';
+import { formatDanishTime, formatDanishDistance, formatDanishDate, formatDanishDateTime } from '@/utils/danishTime';
 import { Ticket, Search, Settings, Zap, Clock, TrendingUp, AlertTriangle, CheckCircle, Bell, Users } from 'lucide-react';
 
 const Support = () => {

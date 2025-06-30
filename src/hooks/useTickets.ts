@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -49,7 +50,7 @@ export const useTickets = () => {
         .from('support_tickets')
         .select(`
           *,
-          assignee:profiles(navn)
+          assignee:profiles!assignee_id(navn)
         `)
         .order('created_at', { ascending: false });
       
@@ -65,11 +66,11 @@ export const useTickets = () => {
         ...ticket,
         assignee_name: ticket.assignee?.navn || null,
         // Auto-prioritize based on keywords and customer history
-        priority: ticket.priority || await autoDetectPriority(ticket),
+        priority: ticket.priority || autoDetectPriority(ticket),
         // Auto-categorize based on subject and content
-        category: ticket.category || await autoDetectCategory(ticket),
-        // Calculate SLA deadline
-        sla_deadline: calculateSLADeadline(ticket.created_at, ticket.priority)
+        category: ticket.category || autoDetectCategory(ticket),
+        // Calculate SLA deadline if not set
+        sla_deadline: ticket.sla_deadline || calculateSLADeadline(ticket.created_at, ticket.priority)
       })) || [];
       
       return processedTickets as SupportTicket[];
@@ -122,8 +123,8 @@ export const useTickets = () => {
   return query;
 };
 
-// AI-powered priority detection
-const autoDetectPriority = async (ticket: any): Promise<'Høj' | 'Medium' | 'Lav'> => {
+// AI-powered priority detection (synchronous version)
+const autoDetectPriority = (ticket: any): 'Høj' | 'Medium' | 'Lav' => {
   const content = `${ticket.subject} ${ticket.content || ''}`.toLowerCase();
   
   // High priority keywords
@@ -139,8 +140,8 @@ const autoDetectPriority = async (ticket: any): Promise<'Høj' | 'Medium' | 'Lav
   return 'Lav';
 };
 
-// AI-powered category detection
-const autoDetectCategory = async (ticket: any): Promise<string> => {
+// AI-powered category detection (synchronous version)
+const autoDetectCategory = (ticket: any): string => {
   const content = `${ticket.subject} ${ticket.content || ''}`.toLowerCase();
   
   if (content.includes('faktura') || content.includes('betaling') || content.includes('regning')) {
