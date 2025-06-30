@@ -11,7 +11,7 @@ import { SupportTicket, useUpdateTicket } from '@/hooks/useTickets';
 import { useTicketMessages } from '@/hooks/useTicketMessages';
 import { useOffice365EmailSender } from '@/hooks/useOffice365EmailSender';
 import { AttachmentViewer } from './AttachmentViewer';
-import { formatDanishDistance } from '@/utils/danishTime';
+import { formatDanishDistance, formatDanishDateTime } from '@/utils/danishTime';
 import { Send, Bot, User, Clock, Mail, Tag, Sparkles, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -172,6 +172,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
       case 'Afventer kunde': return 'bg-blue-100 text-blue-800';
       case 'Løst': return 'bg-green-100 text-green-800';
       case 'Lukket': return 'bg-gray-100 text-gray-800';
+      case 'Nyt svar': return 'bg-orange-100 text-orange-800 animate-pulse';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -247,7 +248,21 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                     <Mail className="h-4 w-4" />
                     <span>{ticket.customer_email}</span>
                   </div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-4 w-4" />
+                    <span>{formatDanishDistance(ticket.created_at)}</span>
+                  </div>
+                  {ticket.assignee_name && (
+                    <span className="text-blue-600 font-medium">
+                      Tildelt: {ticket.assignee_name}
+                    </span>
+                  )}
                 </div>
+                {ticket.sla_deadline && (
+                  <div className="text-sm text-gray-600 mt-1">
+                    SLA deadline: {formatDanishDateTime(ticket.sla_deadline)}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex gap-2">
@@ -262,13 +277,14 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                 </SelectContent>
               </Select>
               <Select value={ticket.status} onValueChange={handleStatusChange}>
-                <SelectTrigger className="w-24">
+                <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Åben">Åben</SelectItem>
                   <SelectItem value="I gang">I gang</SelectItem>
                   <SelectItem value="Afventer kunde">Afventer kunde</SelectItem>
+                  <SelectItem value="Nyt svar">Nyt svar</SelectItem>
                   <SelectItem value="Løst">Løst</SelectItem>
                   <SelectItem value="Lukket">Lukket</SelectItem>
                 </SelectContent>

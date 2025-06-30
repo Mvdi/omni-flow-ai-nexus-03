@@ -208,6 +208,7 @@ export const useAddTicket = () => {
   });
 };
 
+// KRITISK FIX: Forbedret addTicketMessage med korrekt "Nyt svar" logik
 export const useAddTicketMessage = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -222,31 +223,43 @@ export const useAddTicketMessage = () => {
       
       if (error) throw error;
       
-      // KRITISK FIX: Kun kundesvar skal sætte status til "Nyt svar"
-      // Support svar skal IKKE automatisk ændre status
+      // KRITISK: Kun kundesvar skal sætte status til "Nyt svar"
+      // Tjek om det er en kunde der sender beskeden
       const isCustomerMessage = !message.sender_email.includes('@mmmultipartner.dk');
+      
+      console.log('Message sender:', message.sender_email, 'Is customer:', isCustomerMessage);
       
       if (isCustomerMessage) {
         // Dette er et kundesvar - sæt status til "Nyt svar"
-        await supabase
+        const { error: updateError } = await supabase
           .from('support_tickets')
           .update({ 
             status: 'Nyt svar',
-            last_response_at: new Date().toISOString()
+            last_response_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           })
           .eq('id', message.ticket_id);
         
-        console.log('Customer reply received - ticket status set to "Nyt svar"');
+        if (updateError) {
+          console.error('Failed to update ticket status to "Nyt svar":', updateError);
+        } else {
+          console.log('Customer reply received - ticket status set to "Nyt svar"');
+        }
       } else {
         // Dette er et support svar - opdater kun last_response_at, IKKE status
-        await supabase
+        const { error: updateError } = await supabase
           .from('support_tickets')
           .update({ 
-            last_response_at: new Date().toISOString()
+            last_response_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           })
           .eq('id', message.ticket_id);
         
-        console.log('Support reply sent - only updated last_response_at');
+        if (updateError) {
+          console.error('Failed to update last_response_at:', updateError);
+        } else {
+          console.log('Support reply sent - only updated last_response_at');
+        }
       }
       
       return data;

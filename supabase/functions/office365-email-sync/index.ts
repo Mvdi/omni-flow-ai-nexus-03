@@ -66,14 +66,28 @@ const retryWithExponentialBackoff = async <T>(
   }
 };
 
-// KRITISK FIX: Korrekt dansk tid konvertering
+// FORBEDRET dansk tid konvertering
 const toDanishTime = (utcDate: string | Date): Date => {
   const date = new Date(utcDate);
   
-  // Brug browser's Intl API til at konvertere til Copenhagen timezone
-  const danishTime = new Date(date.toLocaleString("en-US", {timeZone: "Europe/Copenhagen"}));
+  // Brug Intl.DateTimeFormat til at få korrekt dansk tid med automatisk sommertid/vintertid
+  const danishTimeString = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Copenhagen',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    fractionalSecondDigits: 3
+  }).format(date);
   
-  return danishTime;
+  // Konverter fra "YYYY-MM-DD HH:mm:ss.SSS" format til Date objekt
+  const [datePart, timePart] = danishTimeString.split(' ');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hour, minute, second] = timePart.split(':').map(Number);
+  
+  return new Date(year, month - 1, day, hour, minute, second);
 };
 
 // Enhanced token management with refresh capability
@@ -166,7 +180,7 @@ const calculateSLADeadline = (createdAt: string, priority: string): string => {
   return new Date(created.getTime() + hoursToAdd * 60 * 60 * 1000).toISOString();
 };
 
-// FORBEDRET duplicate detection med internal sender filtering
+// FORBEDRET duplicate detection med internal sender filtering og dansk tid
 const findDuplicateTicket = async (supabase: any, message: GraphMessage) => {
   console.log(`Looking for existing ticket for message: ${message.id} with subject: "${message.subject}" from: ${message.from.emailAddress.address}`);
   
@@ -179,7 +193,7 @@ const findDuplicateTicket = async (supabase: any, message: GraphMessage) => {
     return null;
   }
   
-  // FORBEDRET: Tjek for eksisterende beskeder med samme email_message_id
+  // KRITISK: Tjek for eksisterende beskeder med samme email_message_id FØRST
   const { data: existingMessage } = await supabase
     .from('ticket_messages')
     .select('ticket_id, id')
@@ -261,7 +275,7 @@ const findDuplicateTicket = async (supabase: any, message: GraphMessage) => {
   return null;
 };
 
-// FORBEDRET message merging med automatiske status updates TIL DANSK TID
+// FORBEDRET message merging med automatiske status updates TIL DANSK TID og "Nyt svar"
 const mergeTicketMessage = async (supabase: any, existingTicket: any, message: GraphMessage, mailboxAddress: string, accessToken: string) => {
   console.log(`Merging message ${message.id} into existing ticket ${existingTicket.ticket_number} (current status: ${existingTicket.status})`);
   
@@ -356,7 +370,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting enhanced Office 365 email sync with Danish timezone and AI features...');
+    console.log('Starting enhanced Office 365 email sync with FORBEDRET Danish timezone and AI features...');
     
     // Fetch Office 365 credentials
     const { data: secrets, error: secretsError } = await supabase
@@ -605,7 +619,7 @@ serve(async (req) => {
       errors: totalErrors,
       mailboxes: mailboxes.length,
       timestamp: toDanishTime(new Date()).toISOString(),
-      danishTime: toDanishTime(new Date()).toLocaleString('da-DK'),
+      danishTime: toDanishTime(new Date()).toLocaleString('da-DK', { timeZone: 'Europe/Copenhagen' }),
       details: `AI-Enhanced sync completed: ${totalProcessed} new tickets, ${totalMerged} merged messages, ${totalReopened} reopened tickets, ${totalInternalSkipped} internal emails skipped, ${totalDuplicatesSkipped} duplicates skipped`
     };
 
@@ -621,7 +635,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       error: String(error),
       timestamp: toDanishTime(new Date()).toISOString(),
-      danishTime: toDanishTime(new Date()).toLocaleString('da-DK')
+      danishTime: toDanishTime(new Date()).toLocaleString('da-DK', { timeZone: 'Europe/Copenhagen' })
     }), { 
       status: 500, 
       headers: corsHeaders 
