@@ -58,8 +58,16 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting Office 365 email sync...');
+    console.log('Starting Office 365 email sync - EXTENDED DEBUG MODE...');
     
+    // Extended logging for debugging
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      currentTime: new Date(),
+    };
+    console.log('Debug info:', JSON.stringify(debugInfo, null, 2));
+
     // Check if pg_cron and pg_net extensions are enabled
     const { data: extensions, error: extError } = await supabase
       .from('pg_extension')
@@ -161,6 +169,7 @@ serve(async (req) => {
     console.log(`Processing ${mailboxes.length} monitored mailboxes`);
     let totalProcessed = 0;
     let totalErrors = 0;
+    let debugResults: any[] = [];
 
     // Process hver mailbox
     for (const mailbox of mailboxes) {
@@ -177,10 +186,62 @@ serve(async (req) => {
         .single();
 
       try {
-        // Hent emails fra mailbox - check for emails from last 15 minutes instead of 5
-        const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
+        // EXTENDED SYNC WINDOW: Check for emails from last 24 hours instead of 15 minutes
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
         const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-        const filter = `?$filter=receivedDateTime gt ${fifteenMinutesAgo}&$top=50&$orderby=receivedDateTime desc`;
+
+        console.log(`Time windows for ${mailbox.email_address}:`, {
+          twentyFourHoursAgo,
+          fourHoursAgo,
+          oneHourAgo,
+          fifteenMinutesAgo
+        });
+
+        // Try different time windows to debug
+        const timeWindows = [
+          { name: '15 minutes', time: fifteenMinutesAgo },
+          { name: '1 hour', time: oneHourAgo },
+          { name: '4 hours', time: fourHoursAgo },
+          { name: '24 hours', time: twentyFourHoursAgo }
+        ];
+
+        let messagesFound = false;
+        let selectedTimeWindow = twentyFourHoursAgo; // Default to 24 hours
+        
+        for (const window of timeWindows) {
+          const testUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
+          const testFilter = `?$filter=receivedDateTime gt ${window.time}&$top=5&$orderby=receivedDateTime desc`;
+          
+          console.log(`Testing ${window.name} window for ${mailbox.email_address}: ${testUrl}${testFilter}`);
+          
+          const testResponse = await fetch(`${testUrl}${testFilter}`, {
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (testResponse.ok) {
+            const testData = await testResponse.json();
+            const testMessages: GraphMessage[] = testData.value || [];
+            console.log(`${window.name} window found ${testMessages.length} messages`);
+            
+            if (testMessages.length > 0) {
+              messagesFound = true;
+              selectedTimeWindow = window.time;
+              console.log(`Using ${window.name} window for processing`);
+              break;
+            }
+          } else {
+            console.error(`Failed to test ${window.name} window:`, await testResponse.text());
+          }
+        }
+
+        // Hent emails fra mailbox med selected time window
+        const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
+        const filter = `?$filter=receivedDateTime gt ${selectedTimeWindow}&$top=50&$orderby=receivedDateTime desc`;
 
         console.log(`Fetching messages from: ${messagesUrl}${filter}`);
         
@@ -215,25 +276,47 @@ serve(async (req) => {
         const messagesData = await messagesResponse.json();
         const messages: GraphMessage[] = messagesData.value || [];
         
-        console.log(`Found ${messages.length} recent messages for ${mailbox.email_address}`);
+        console.log(`Found ${messages.length} messages for ${mailbox.email_address} in selected time window`);
+
+        // Debug: Log first few message details
+        if (messages.length > 0) {
+          console.log('Sample messages found:', messages.slice(0, 3).map(m => ({
+            id: m.id,
+            subject: m.subject,
+            from: m.from?.emailAddress?.address,
+            receivedDateTime: m.receivedDateTime
+          })));
+        }
+
+        // Test database functions
+        console.log('Testing generate_ticket_number function...');
+        const { data: testTicketNumber, error: ticketNumberError } = await supabase.rpc('generate_ticket_number');
+        if (ticketNumberError) {
+          console.error('Error testing generate_ticket_number:', ticketNumberError);
+        } else {
+          console.log('Generated test ticket number:', testTicketNumber);
+        }
 
         // Process hver email
         for (const message of messages) {
           try {
+            console.log(`Processing message ${message.id} with subject: "${message.subject}"`);
+            
             // Check hvis ticket allerede eksisterer
             const { data: existingTicket } = await supabase
               .from('support_tickets')
-              .select('id')
+              .select('id, ticket_number, source')
               .eq('email_message_id', message.id)
               .single();
 
             if (existingTicket) {
-              console.log(`Ticket already exists for message ${message.id}`);
+              console.log(`Ticket already exists for message ${message.id}: ${existingTicket.ticket_number} (source: ${existingTicket.source})`);
               continue;
             }
 
+            console.log('Creating new customer record...');
             // Ensure customer exists in customers table
-            const { error: customerError } = await supabase
+            const { data: customerResult, error: customerError } = await supabase
               .from('customers')
               .upsert({
                 email: message.from.emailAddress.address,
@@ -241,37 +324,53 @@ serve(async (req) => {
               }, { 
                 onConflict: 'email',
                 ignoreDuplicates: false 
-              });
+              })
+              .select();
 
             if (customerError) {
               console.error('Failed to upsert customer:', customerError);
+            } else {
+              console.log('Customer upserted successfully:', customerResult);
             }
 
             // Generate ticket number using database function
-            const { data: ticketNumber } = await supabase.rpc('generate_ticket_number');
+            const { data: ticketNumber, error: ticketNumError } = await supabase.rpc('generate_ticket_number');
+            
+            if (ticketNumError) {
+              console.error('Failed to generate ticket number:', ticketNumError);
+              totalErrors++;
+              continue;
+            }
+
+            console.log(`Generated ticket number: ${ticketNumber}`);
 
             // Opret nyt support ticket
+            const ticketData = {
+              ticket_number: ticketNumber,
+              subject: message.subject || 'Ingen emne',
+              content: message.body?.content || message.bodyPreview || '',
+              customer_email: message.from.emailAddress.address,
+              customer_name: message.from.emailAddress.name,
+              email_message_id: message.id,
+              email_thread_id: message.conversationId,
+              email_received_at: message.receivedDateTime,
+              mailbox_address: mailbox.email_address,
+              source: 'office365',
+              status: 'Åben',
+              priority: 'Medium'
+            };
+
+            console.log('Creating ticket with data:', JSON.stringify(ticketData, null, 2));
+
             const { data: newTicket, error: ticketError } = await supabase
               .from('support_tickets')
-              .insert({
-                ticket_number: ticketNumber,
-                subject: message.subject || 'Ingen emne',
-                content: message.body?.content || message.bodyPreview || '',
-                customer_email: message.from.emailAddress.address,
-                customer_name: message.from.emailAddress.name,
-                email_message_id: message.id,
-                email_thread_id: message.conversationId,
-                email_received_at: message.receivedDateTime,
-                mailbox_address: mailbox.email_address,
-                source: 'office365',
-                status: 'Åben',
-                priority: 'Medium'
-              })
+              .insert(ticketData)
               .select()
               .single();
 
             if (ticketError) {
               console.error('Failed to create ticket:', ticketError);
+              console.error('Ticket data that failed:', JSON.stringify(ticketData, null, 2));
               totalErrors++;
               continue;
             }
@@ -279,20 +378,25 @@ serve(async (req) => {
             console.log(`Created new ticket ${newTicket.ticket_number} from email ${message.id}`);
 
             // Opret ticket message
+            const messageData = {
+              ticket_id: newTicket.id,
+              sender_email: message.from.emailAddress.address,
+              sender_name: message.from.emailAddress.name,
+              message_content: message.body?.content || message.bodyPreview || '',
+              message_type: 'incoming',
+              email_message_id: message.id,
+              is_internal: false
+            };
+
+            console.log('Creating ticket message with data:', JSON.stringify(messageData, null, 2));
+
             const { error: messageError } = await supabase
               .from('ticket_messages')
-              .insert({
-                ticket_id: newTicket.id,
-                sender_email: message.from.emailAddress.address,
-                sender_name: message.from.emailAddress.name,
-                message_content: message.body?.content || message.bodyPreview || '',
-                message_type: 'incoming',
-                email_message_id: message.id,
-                is_internal: false
-              });
+              .insert(messageData);
 
             if (messageError) {
               console.error('Failed to create ticket message:', messageError);
+              console.error('Message data that failed:', JSON.stringify(messageData, null, 2));
               totalErrors++;
             } else {
               totalProcessed++;
@@ -304,6 +408,14 @@ serve(async (req) => {
             totalErrors++;
           }
         }
+
+        // Store debug results
+        debugResults.push({
+          mailbox: mailbox.email_address,
+          messagesFound: messages.length,
+          timeWindowUsed: selectedTimeWindow,
+          processed: totalProcessed
+        });
 
         // Opdater last_sync_at for mailbox
         await supabase
@@ -347,6 +459,7 @@ serve(async (req) => {
     }
 
     console.log(`Email sync completed. Processed: ${totalProcessed}, Errors: ${totalErrors}`);
+    console.log('Debug results per mailbox:', JSON.stringify(debugResults, null, 2));
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -354,7 +467,12 @@ serve(async (req) => {
       errors: totalErrors,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `Checked emails from last 15 minutes`
+      details: `Extended debug mode - checked up to 24 hours back`,
+      debugResults: debugResults,
+      diagnostics: {
+        timeChecked: debugInfo,
+        mailboxResults: debugResults
+      }
     }), {
       status: 200,
       headers: corsHeaders
@@ -364,7 +482,8 @@ serve(async (req) => {
     console.error('Email sync error:', error);
     return new Response(JSON.stringify({ 
       error: String(error),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      stack: error instanceof Error ? error.stack : 'No stack trace available'
     }), { 
       status: 500, 
       headers: corsHeaders 
