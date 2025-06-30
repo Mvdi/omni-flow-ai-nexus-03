@@ -162,10 +162,23 @@ serve(async (req) => {
       emailHtmlContent += '<br><br>' + signatureHtml;
     }
 
-    // Forbered email med HTML formatering
+    // FORBEDRET EMAIL THREADING - byg korrekte headers for reply chain
+    const fromAddress = ticket.mailbox_address || 'info@mmmultipartner.dk';
+    const subject = ticket.subject.startsWith('Re:') ? ticket.subject : `Re: ${ticket.subject}`;
+    
+    // Byg References header for korrekt thread handling
+    let referencesHeader = '';
+    if (ticket.email_message_id) {
+      referencesHeader = ticket.email_message_id;
+      if (ticket.last_outgoing_message_id) {
+        referencesHeader = `${ticket.email_message_id} ${ticket.last_outgoing_message_id}`;
+      }
+    }
+
+    // Forbered email med FORBEDRET threading headers
     const emailMessage = {
       message: {
-        subject: ticket.subject.startsWith('Re:') ? ticket.subject : `Re: ${ticket.subject}`,
+        subject: subject,
         body: {
           contentType: 'HTML',
           content: emailHtmlContent
@@ -178,25 +191,38 @@ serve(async (req) => {
             }
           }
         ],
+        // KRITISK: Tilføj korrekte threading headers
         internetMessageHeaders: [
+          // In-Reply-To header for at indikere at dette er et svar
           ...(ticket.email_message_id ? [{
-            name: 'X-In-Reply-To',
+            name: 'In-Reply-To',
             value: ticket.email_message_id
           }] : []),
+          // References header for hele email tråden
+          ...(referencesHeader ? [{
+            name: 'References',
+            value: referencesHeader
+          }] : []),
+          // Thread-Index for Exchange/Outlook kompatibilitet
           ...(ticket.email_thread_id ? [{
-            name: 'X-References',
+            name: 'Thread-Index',
             value: ticket.email_thread_id
-          }] : [])
+          }] : []),
+          // Custom header for ticket tracking
+          {
+            name: 'X-Ticket-Number',
+            value: ticket.ticket_number
+          }
         ]
       },
       saveToSentItems: true
     };
 
     // Send email via Microsoft Graph
-    const fromAddress = ticket.mailbox_address || 'info@mmmultipartner.dk';
     const sendUrl = `https://graph.microsoft.com/v1.0/users/${fromAddress}/sendMail`;
 
-    console.log(`Sending email from ${fromAddress} to ${ticket.customer_email}`);
+    console.log(`Sending REPLY email from ${fromAddress} to ${ticket.customer_email} with threading headers`);
+    console.log('Threading headers:', emailMessage.message.internetMessageHeaders);
     
     const sendResponse = await fetch(sendUrl, {
       method: 'POST',
@@ -216,7 +242,32 @@ serve(async (req) => {
       });
     }
 
-    console.log('Email sent successfully via Microsoft Graph');
+    console.log('Email sent successfully via Microsoft Graph with threading');
+
+    // Hent det sendte email's Message-ID fra Microsoft Graph for tracking
+    let sentMessageId = null;
+    try {
+      // Vent kort og hent den sendte email for at få Message-ID
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const sentItemsUrl = `https://graph.microsoft.com/v1.0/users/${fromAddress}/mailFolders/SentItems/messages?$top=1&$orderby=sentDateTime desc&$select=id,internetMessageId`;
+      const sentItemsResponse = await fetch(sentItemsUrl, {
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (sentItemsResponse.ok) {
+        const sentItemsData = await sentItemsResponse.json();
+        if (sentItemsData.value && sentItemsData.value.length > 0) {
+          sentMessageId = sentItemsData.value[0].internetMessageId;
+          console.log('Retrieved sent message ID:', sentMessageId);
+        }
+      }
+    } catch (error) {
+      console.error('Could not retrieve sent message ID:', error);
+    }
 
     // GEM DEN KOMPLETTE BESKED MED SIGNATUR I DATABASEN så den vises i samtalen
     const messageContentWithSignature = signatureHtml ? 
@@ -230,7 +281,8 @@ serve(async (req) => {
         sender_email: fromAddress,
         sender_name: sender_name || 'Support Agent',
         message_content: messageContentWithSignature,
-        message_type: 'internal',
+        message_type: 'outbound_email',
+        email_message_id: sentMessageId,
         is_internal: false
       });
 
@@ -240,27 +292,37 @@ serve(async (req) => {
       console.log('Saved complete outgoing message WITH SIGNATURE to database');
     }
 
-    // Opdater ticket status og response time
+    // KRITISK: Opdater ticket med sendte message ID for bedre threading
+    const ticketUpdateData: any = {
+      status: 'I gang',
+      last_response_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Gem den sendte message ID for fremtidig threading
+    if (sentMessageId) {
+      ticketUpdateData.last_outgoing_message_id = sentMessageId;
+    }
+
     const { error: ticketUpdateError } = await supabase
       .from('support_tickets')
-      .update({
-        status: 'I gang',
-        last_response_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .update(ticketUpdateData)
       .eq('id', ticket_id);
 
     if (ticketUpdateError) {
       console.error('Failed to update ticket:', ticketUpdateError);
     } else {
-      console.log('Updated ticket status');
+      console.log('Updated ticket with sent message ID for threading');
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: 'Email sent successfully with signature',
+      message: 'Email sent successfully with improved threading',
       from: fromAddress,
-      to: ticket.customer_email
+      to: ticket.customer_email,
+      subject: subject,
+      messageId: sentMessageId,
+      threadingEnabled: true
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

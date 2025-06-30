@@ -37,6 +37,10 @@ interface GraphMessage {
   conversationId: string;
   parentFolderId: string;
   hasAttachments: boolean;
+  internetMessageHeaders?: Array<{
+    name: string;
+    value: string;
+  }>;
 }
 
 interface GraphAttachment {
@@ -148,14 +152,74 @@ async function cleanupDuplicateMessages(supabase: any) {
   }
 }
 
-// Function to find duplicate tickets with improved algorithm
+// FORBEDRET: Function to find duplicate tickets med bedre threading logik
 async function findDuplicateTicket(supabase: any, message: GraphMessage) {
-  console.log(`Looking for duplicates for message: ${message.id}`);
+  console.log(`Looking for existing ticket for message: ${message.id} with subject: "${message.subject}"`);
   
-  // First check by exact email_message_id in support_tickets
+  // Extract headers for better matching
+  const inReplyTo = message.internetMessageHeaders?.find(h => h.name.toLowerCase() === 'in-reply-to')?.value;
+  const references = message.internetMessageHeaders?.find(h => h.name.toLowerCase() === 'references')?.value;
+  const ticketNumber = message.internetMessageHeaders?.find(h => h.name.toLowerCase() === 'x-ticket-number')?.value;
+  
+  console.log('Message headers:', { inReplyTo, references, ticketNumber });
+
+  // 1. Check hvis dette er et svar baseret på In-Reply-To header
+  if (inReplyTo) {
+    console.log('Checking for ticket by In-Reply-To header:', inReplyTo);
+    
+    // Søg i både support_tickets og ticket_messages for In-Reply-To
+    const { data: ticketByInReplyTo } = await supabase
+      .from('support_tickets')
+      .select('id, ticket_number, subject, customer_email')
+      .or(`email_message_id.eq.${inReplyTo},last_outgoing_message_id.eq.${inReplyTo}`)
+      .eq('customer_email', message.from.emailAddress.address)
+      .single();
+
+    if (ticketByInReplyTo) {
+      console.log(`Found ticket by In-Reply-To: ${ticketByInReplyTo.ticket_number}`);
+      return ticketByInReplyTo;
+    }
+
+    // Søg også i ticket_messages for In-Reply-To
+    const { data: messagesByInReplyTo } = await supabase
+      .from('ticket_messages')
+      .select('ticket_id, ticket:support_tickets(id, ticket_number, subject, customer_email)')
+      .eq('email_message_id', inReplyTo)
+      .limit(1);
+
+    if (messagesByInReplyTo && messagesByInReplyTo.length > 0) {
+      const ticket = messagesByInReplyTo[0].ticket;
+      if (ticket && ticket.customer_email === message.from.emailAddress.address) {
+        console.log(`Found ticket by In-Reply-To in messages: ${ticket.ticket_number}`);
+        return ticket;
+      }
+    }
+  }
+
+  // 2. Check hvis dette er et svar baseret på References header
+  if (references) {
+    console.log('Checking for ticket by References header:', references);
+    const referenceIds = references.split(' ').filter(id => id.trim());
+    
+    for (const refId of referenceIds) {
+      const { data: ticketByRef } = await supabase
+        .from('support_tickets')
+        .select('id, ticket_number, subject, customer_email')
+        .or(`email_message_id.eq.${refId.trim()},last_outgoing_message_id.eq.${refId.trim()}`)
+        .eq('customer_email', message.from.emailAddress.address)
+        .single();
+
+      if (ticketByRef) {
+        console.log(`Found ticket by References: ${ticketByRef.ticket_number}`);
+        return ticketByRef;
+      }
+    }
+  }
+
+  // 3. Check for exact message ID match (sikkerhedsnet)
   const { data: exactTicketMatch } = await supabase
     .from('support_tickets')
-    .select('id, ticket_number, email_message_id, subject')
+    .select('id, ticket_number, subject, customer_email')
     .eq('email_message_id', message.id)
     .single();
 
@@ -164,10 +228,10 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
     return exactTicketMatch;
   }
 
-  // Check by email_message_id in ticket_messages
+  // 4. Check i ticket_messages for exact message ID
   const { data: messageMatches } = await supabase
     .from('ticket_messages')
-    .select('ticket_id, ticket:support_tickets(id, ticket_number, subject)')
+    .select('ticket_id, ticket:support_tickets(id, ticket_number, subject, customer_email)')
     .eq('email_message_id', message.id)
     .limit(1);
 
@@ -177,78 +241,51 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
     return ticket;
   }
 
-  // Check by email thread ID with improved matching
-  const { data: threadMatch } = await supabase
-    .from('support_tickets')
-    .select('id, ticket_number, email_thread_id, subject')
-    .eq('email_thread_id', message.conversationId)
-    .single();
+  // 5. FORBEDRET: Subject-based matching for "Re:" replies med samme kunde
+  const cleanSubject = message.subject.replace(/^(Re:|Sv:|Ang\.:|AW:)/i, '').trim();
+  if (cleanSubject !== message.subject && cleanSubject.length > 3) {
+    console.log(`Checking for ticket by cleaned subject: "${cleanSubject}" for customer: ${message.from.emailAddress.address}`);
+    
+    const { data: subjectMatches } = await supabase
+      .from('support_tickets')
+      .select('id, ticket_number, subject, customer_email, created_at, status')
+      .eq('customer_email', message.from.emailAddress.address)
+      .ilike('subject', `%${cleanSubject}%`)
+      .order('created_at', { ascending: false })
+      .limit(5);
 
-  if (threadMatch) {
-    console.log(`Found duplicate by thread ID: ${threadMatch.ticket_number}`);
-    return threadMatch;
-  }
-
-  // IMPROVED: Check for thread variations (remove last part after underscore/dot)
-  if (message.conversationId) {
-    const baseThreadId = message.conversationId.split(/[._]/).slice(0, -1).join('.');
-    if (baseThreadId && baseThreadId !== message.conversationId) {
-      const { data: baseThreadMatch } = await supabase
-        .from('support_tickets')
-        .select('id, ticket_number, email_thread_id, subject')
-        .like('email_thread_id', `${baseThreadId}%`)
-        .single();
-
-      if (baseThreadMatch) {
-        console.log(`Found duplicate by base thread ID: ${baseThreadMatch.ticket_number}`);
-        return baseThreadMatch;
+    if (subjectMatches && subjectMatches.length > 0) {
+      // Find det bedste match baseret på subject lighed
+      for (const ticket of subjectMatches) {
+        const ticketCleanSubject = ticket.subject.replace(/^(Re:|Sv:|Ang\.:|AW:)/i, '').trim();
+        if (ticketCleanSubject.toLowerCase() === cleanSubject.toLowerCase()) {
+          console.log(`Found ticket by exact subject match: ${ticket.ticket_number} (status: ${ticket.status})`);
+          return ticket;
+        }
       }
+      
+      // Hvis intet eksakt match, tag det første (nyeste)
+      console.log(`Found ticket by partial subject match: ${subjectMatches[0].ticket_number} (status: ${subjectMatches[0].status})`);
+      return subjectMatches[0];
     }
   }
 
-  // IMPROVED: Subject-based matching for "Re:" replies
-  const cleanSubject = message.subject.replace(/^(Re:|Sv:|Ang\.:|AW:)/i, '').trim();
-  if (cleanSubject !== message.subject) {
-    const { data: subjectMatch } = await supabase
+  // 6. Check by conversation/thread ID
+  if (message.conversationId) {
+    const { data: threadMatch } = await supabase
       .from('support_tickets')
-      .select('id, ticket_number, subject, customer_email')
+      .select('id, ticket_number, email_thread_id, subject, customer_email')
+      .eq('email_thread_id', message.conversationId)
       .eq('customer_email', message.from.emailAddress.address)
-      .eq('subject', cleanSubject)
       .single();
 
-    if (subjectMatch) {
-      console.log(`Found duplicate by subject matching: ${subjectMatch.ticket_number}`);
-      return subjectMatch;
+    if (threadMatch) {
+      console.log(`Found ticket by thread ID: ${threadMatch.ticket_number}`);
+      return threadMatch;
     }
   }
 
-  // Content-based duplicate detection with time proximity
-  const contentFingerprint = createContentFingerprint(message.subject, message.body?.content || message.bodyPreview || '');
-  const messageTime = new Date(message.receivedDateTime);
-  const fiveMinutesAgo = new Date(messageTime.getTime() - 5 * 60 * 1000).toISOString();
-  const fiveMinutesLater = new Date(messageTime.getTime() + 5 * 60 * 1000).toISOString();
-
-  console.log(`Checking content-based duplicates with fingerprint: ${contentFingerprint.substring(0, 50)}...`);
-
-  const { data: contentMatches } = await supabase
-    .from('support_tickets')
-    .select('id, ticket_number, subject, content, created_at, customer_email')
-    .eq('customer_email', message.from.emailAddress.address)
-    .gte('created_at', fiveMinutesAgo)
-    .lte('created_at', fiveMinutesLater)
-    .limit(10);
-
-  if (contentMatches && contentMatches.length > 0) {
-    for (const ticket of contentMatches) {
-      const ticketFingerprint = createContentFingerprint(ticket.subject, ticket.content || '');
-      if (ticketFingerprint === contentFingerprint) {
-        console.log(`Found content-based duplicate: ${ticket.ticket_number}`);
-        return ticket;
-      }
-    }
-  }
-
-  console.log(`No duplicates found for message: ${message.id}`);
+  console.log(`No existing ticket found for message: ${message.id} with subject: "${message.subject}"`);
   return null;
 }
 
@@ -370,11 +407,11 @@ async function processAttachments(supabase: any, accessToken: string, mailboxAdd
   }
 }
 
-// Function to merge ticket messages with STRICT duplicate check
+// FORBEDRET: Function to merge ticket messages med LUKKET ticket genåbning
 async function mergeTicketMessage(supabase: any, existingTicket: any, message: GraphMessage, mailboxAddress: string, accessToken: string) {
-  console.log(`Attempting to merge message ${message.id} into existing ticket ${existingTicket.ticket_number}`);
+  console.log(`Merging message ${message.id} into existing ticket ${existingTicket.ticket_number} (status: ${existingTicket.status})`);
   
-  // CRITICAL: Check if this exact email_message_id already exists in this ticket
+  // KRITISK: Check if this exact email_message_id already exists in this ticket
   if (message.id) {
     const { data: existingMessage } = await supabase
       .from('ticket_messages')
@@ -439,11 +476,20 @@ async function mergeTicketMessage(supabase: any, existingTicket: any, message: G
     throw messageError;
   }
 
-  // Update the existing ticket with latest info
+  // KRITISK: Opdater ticket status - genåbn lukket ticket hvis nødvendigt
   const updateData: any = {
     last_response_at: message.receivedDateTime,
     updated_at: new Date().toISOString()
   };
+
+  // Genåbn ticket hvis det er lukket og kunden svarer
+  if (existingTicket.status === 'Lukket') {
+    updateData.status = 'Åben';
+    console.log(`REOPENING closed ticket ${existingTicket.ticket_number} due to customer reply`);
+  } else if (existingTicket.status === 'Løst') {
+    updateData.status = 'Åben';
+    console.log(`REOPENING solved ticket ${existingTicket.ticket_number} due to customer reply`);
+  }
 
   if (!existingTicket.email_thread_id) {
     updateData.email_thread_id = message.conversationId;
@@ -456,10 +502,12 @@ async function mergeTicketMessage(supabase: any, existingTicket: any, message: G
 
   if (updateError) {
     console.error('Failed to update existing ticket:', updateError);
+  } else {
+    console.log(`Successfully updated ticket ${existingTicket.ticket_number} with new message and status`);
   }
 
   console.log(`Successfully merged NEW message into ticket ${existingTicket.ticket_number} with ${attachments.length} attachments`);
-  return existingTicket;
+  return { ...existingTicket, ...updateData };
 }
 
 serve(async (req) => {
@@ -481,7 +529,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting Office 365 email sync with improved real-time performance...');
+    console.log('Starting Office 365 email sync with IMPROVED conversation threading...');
     
     // First run cleanup to remove existing duplicates
     const duplicatesRemoved = await cleanupDuplicateMessages(supabase);
@@ -571,12 +619,13 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Processing ${mailboxes.length} monitored mailboxes with real-time performance optimization`);
+    console.log(`Processing ${mailboxes.length} monitored mailboxes with IMPROVED threading...`);
     let totalProcessed = 0;
     let totalErrors = 0;
     let totalMerged = 0;
     let totalSkipped = 0;
     let totalAttachmentsProcessed = 0;
+    let totalReopened = 0;
 
     for (const mailbox of mailboxes) {
       console.log(`Processing mailbox: ${mailbox.email_address}`);
@@ -591,13 +640,14 @@ serve(async (req) => {
         .single();
 
       try {
-        // REDUCED: Use 5 minute window instead of 15 for faster real-time performance
+        // Use 5 minute window for real-time performance
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
+        // FORBEDRET: Hent flere headers for bedre threading
         const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
-        const filter = `?$filter=receivedDateTime gt ${fiveMinutesAgo}&$top=20&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments`;
+        const filter = `?$filter=receivedDateTime gt ${fiveMinutesAgo}&$top=20&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments&$expand=internetMessageHeaders`;
 
-        console.log(`Fetching messages from: ${messagesUrl}${filter}`);
+        console.log(`Fetching messages with headers from: ${messagesUrl}${filter}`);
         
         const messagesResponse = await fetch(`${messagesUrl}${filter}`, {
           headers: {
@@ -629,7 +679,7 @@ serve(async (req) => {
         const messagesData = await messagesResponse.json();
         const messages: GraphMessage[] = messagesData.value || [];
         
-        console.log(`Found ${messages.length} messages for ${mailbox.email_address} (scanning last 5 minutes for real-time performance)`);
+        console.log(`Found ${messages.length} messages for ${mailbox.email_address} with improved threading detection`);
 
         for (const message of messages) {
           try {
@@ -638,13 +688,19 @@ serve(async (req) => {
             const duplicateTicket = await findDuplicateTicket(supabase, message);
             
             if (duplicateTicket) {
-              console.log(`Found duplicate ticket ${duplicateTicket.ticket_number}, attempting to merge message...`);
-              await mergeTicketMessage(supabase, duplicateTicket, message, mailbox.email_address, tokenData.access_token);
+              console.log(`Found existing ticket ${duplicateTicket.ticket_number} for message, merging...`);
+              const updatedTicket = await mergeTicketMessage(supabase, duplicateTicket, message, mailbox.email_address, tokenData.access_token);
+              
+              // Track if we reopened a ticket
+              if (duplicateTicket.status === 'Lukket' || duplicateTicket.status === 'Løst') {
+                totalReopened++;
+              }
+              
               totalMerged++;
               continue;
             }
 
-            console.log('No duplicate found, creating new ticket...');
+            console.log('No existing ticket found, creating new ticket...');
 
             const { data: customerResult, error: customerError } = await supabase
               .from('customers')
@@ -688,7 +744,7 @@ serve(async (req) => {
               priority: 'Medium'
             };
 
-            console.log('Creating ticket with data:', JSON.stringify(ticketData, null, 2));
+            console.log('Creating NEW ticket with data:', JSON.stringify(ticketData, null, 2));
 
             const { data: newTicket, error: ticketError } = await supabase
               .from('support_tickets')
@@ -736,7 +792,7 @@ serve(async (req) => {
               totalErrors++;
             } else {
               totalProcessed++;
-              console.log(`Successfully processed message ${message.id} into ticket ${newTicket.ticket_number} with ${attachments.length} attachments`);
+              console.log(`Successfully processed message ${message.id} into NEW ticket ${newTicket.ticket_number} with ${attachments.length} attachments`);
             }
 
           } catch (messageError) {
@@ -783,19 +839,20 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Email sync completed with real-time optimization. Processed: ${totalProcessed}, Merged: ${totalMerged}, Skipped: ${totalSkipped}, Errors: ${totalErrors}, Duplicates cleaned: ${duplicatesRemoved}, Attachments: ${totalAttachmentsProcessed}`);
+    console.log(`Email sync completed with IMPROVED threading. Processed: ${totalProcessed}, Merged: ${totalMerged}, Reopened: ${totalReopened}, Skipped: ${totalSkipped}, Errors: ${totalErrors}, Duplicates cleaned: ${duplicatesRemoved}, Attachments: ${totalAttachmentsProcessed}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
       processed: totalProcessed,
       merged: totalMerged,
+      reopened: totalReopened,
       skipped: totalSkipped,
       errors: totalErrors,
       duplicatesRemoved: duplicatesRemoved,
       attachmentsProcessed: totalAttachmentsProcessed,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `Real-time optimization - 5 minute scanning window, cleaned ${duplicatesRemoved} duplicates, merged ${totalMerged} messages, processed ${totalAttachmentsProcessed} attachments`
+      details: `IMPROVED threading - merged ${totalMerged} messages, reopened ${totalReopened} tickets, cleaned ${duplicatesRemoved} duplicates, processed ${totalAttachmentsProcessed} attachments`
     }), {
       status: 200,
       headers: corsHeaders
