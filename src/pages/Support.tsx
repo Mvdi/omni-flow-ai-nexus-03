@@ -6,14 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
 import { TicketConversation } from '@/components/support/TicketConversation';
 import { CustomerInfo } from '@/components/support/CustomerInfo';
 import { TicketOverview } from '@/components/support/TicketOverview';
 import { CreateTicketDialog } from '@/components/support/CreateTicketDialog';
 import { SignatureSettings } from '@/components/support/SignatureSettings';
 import { useTickets, SupportTicket } from '@/hooks/useTickets';
-import { Ticket, Plus, Filter, Search, Mail, Clock, User, AlertTriangle, Bot, Inbox, Settings, RefreshCw } from 'lucide-react';
+import { Ticket, Plus, Filter, Search, Mail, Clock, User, AlertTriangle, Bot, Inbox, Settings, Zap } from 'lucide-react';
 
 const Support = () => {
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
@@ -23,9 +22,9 @@ const Support = () => {
   const [showOverview, setShowOverview] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState('alle');
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
 
-  const { data: tickets = [], isLoading, dataUpdatedAt } = useTickets(autoRefreshEnabled);
+  // Use the new real-time enabled useTickets hook
+  const { data: tickets = [], isLoading, dataUpdatedAt } = useTickets();
 
   useEffect(() => {
     // Ved load: hvis ?ticket=... i URL, vælg det ticket
@@ -183,12 +182,8 @@ const Support = () => {
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <RefreshCw className={`h-4 w-4 ${autoRefreshEnabled ? 'text-green-600' : 'text-gray-400'}`} />
-              <span className="text-sm text-gray-600">Auto-opdater</span>
-              <Switch 
-                checked={autoRefreshEnabled}
-                onCheckedChange={setAutoRefreshEnabled}
-              />
+              <Zap className="h-4 w-4 text-green-600" />
+              <span className="text-sm text-green-600 font-medium">Real-time opdateringer</span>
             </div>
             <Button 
               variant="outline" 
@@ -201,17 +196,15 @@ const Support = () => {
           </div>
         </div>
 
-        {/* Auto-refresh status */}
-        {autoRefreshEnabled && (
-          <div className="mb-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span>
-                Automatisk opdatering aktiv - Sidst opdateret: {new Date(dataUpdatedAt).toLocaleTimeString('da-DK')}
-              </span>
-            </div>
+        {/* Real-time status */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span>
+              Live opdateringer aktiv - Nye tickets vises øjeblikkeligt
+            </span>
           </div>
-        )}
+        </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

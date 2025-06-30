@@ -481,7 +481,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting Office 365 email sync with improved attachment handling...');
+    console.log('Starting Office 365 email sync with improved real-time performance...');
     
     // First run cleanup to remove existing duplicates
     const duplicatesRemoved = await cleanupDuplicateMessages(supabase);
@@ -571,7 +571,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Processing ${mailboxes.length} monitored mailboxes with improved attachment handling`);
+    console.log(`Processing ${mailboxes.length} monitored mailboxes with real-time performance optimization`);
     let totalProcessed = 0;
     let totalErrors = 0;
     let totalMerged = 0;
@@ -591,11 +591,11 @@ serve(async (req) => {
         .single();
 
       try {
-        // Use 15 minute window to avoid processing too much
-        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+        // REDUCED: Use 5 minute window instead of 15 for faster real-time performance
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
         const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
-        const filter = `?$filter=receivedDateTime gt ${fifteenMinutesAgo}&$top=20&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments`;
+        const filter = `?$filter=receivedDateTime gt ${fiveMinutesAgo}&$top=20&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments`;
 
         console.log(`Fetching messages from: ${messagesUrl}${filter}`);
         
@@ -629,7 +629,7 @@ serve(async (req) => {
         const messagesData = await messagesResponse.json();
         const messages: GraphMessage[] = messagesData.value || [];
         
-        console.log(`Found ${messages.length} messages for ${mailbox.email_address}`);
+        console.log(`Found ${messages.length} messages for ${mailbox.email_address} (scanning last 5 minutes for real-time performance)`);
 
         for (const message of messages) {
           try {
@@ -783,7 +783,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Email sync completed. Processed: ${totalProcessed}, Merged: ${totalMerged}, Skipped: ${totalSkipped}, Errors: ${totalErrors}, Duplicates cleaned: ${duplicatesRemoved}, Attachments: ${totalAttachmentsProcessed}`);
+    console.log(`Email sync completed with real-time optimization. Processed: ${totalProcessed}, Merged: ${totalMerged}, Skipped: ${totalSkipped}, Errors: ${totalErrors}, Duplicates cleaned: ${duplicatesRemoved}, Attachments: ${totalAttachmentsProcessed}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -795,7 +795,7 @@ serve(async (req) => {
       attachmentsProcessed: totalAttachmentsProcessed,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `Improved attachment handling - cleaned ${duplicatesRemoved} duplicates, merged ${totalMerged} messages, processed ${totalAttachmentsProcessed} attachments`
+      details: `Real-time optimization - 5 minute scanning window, cleaned ${duplicatesRemoved} duplicates, merged ${totalMerged} messages, processed ${totalAttachmentsProcessed} attachments`
     }), {
       status: 200,
       headers: corsHeaders
