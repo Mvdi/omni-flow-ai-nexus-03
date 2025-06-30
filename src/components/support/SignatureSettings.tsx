@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,45 +49,73 @@ export const SignatureSettings = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    (async () => {
+    const loadSignature = async () => {
       setLoading(true);
-      const user = (await supabase.auth.getUser()).data.user;
-      if (user) {
-        const { data, error } = await supabase
-          .from('user_signatures')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-        if (data) {
-          // Parse images from plain text if stored as JSON string
-          let images = [];
-          try {
-            if (data.plain && data.plain.includes('[{')) {
-              images = JSON.parse(data.plain.split('IMAGES:')[1] || '[]');
+      try {
+        const user = (await supabase.auth.getUser()).data.user;
+        if (user) {
+          console.log('Loading signature for user:', user.id);
+          const { data: userSignature, error } = await supabase
+            .from('user_signatures')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (userSignature) {
+            console.log('Found signature in database:', userSignature);
+            // Parse images from stored data
+            let images = [];
+            try {
+              if (userSignature.plain && userSignature.plain.includes('IMAGES:')) {
+                const imagesPart = userSignature.plain.split('IMAGES:')[1];
+                images = JSON.parse(imagesPart || '[]');
+                console.log('Parsed images from signature:', images);
+              }
+            } catch (e) {
+              console.error('Error parsing images:', e);
             }
-          } catch {}
-          setSignatureData({ 
-            ...signatureData, 
-            ...data, 
-            images: images,
-            fontFamily: data.font_family || 'Arial',
-            extraText: data.extra_text || ''
-          });
-        } else if (error && error.code !== 'PGRST116') {
-          toast({ title: 'Fejl', description: 'Kunne ikke hente signatur fra cloud.', variant: 'destructive' });
+            
+            setSignatureData({ 
+              name: userSignature.plain?.split('\n')[0] || '',
+              title: userSignature.plain?.split('\n')[1] || '',
+              company: userSignature.plain?.split('\n')[2] || '',
+              email: userSignature.plain?.split('\n')[3] || '',
+              phone: userSignature.plain?.split('\n')[4] || '',
+              website: userSignature.plain?.split('\n')[5] || '',
+              address: userSignature.plain?.split('\n')[6] || '',
+              customText: userSignature.plain?.split('\n')[7] || '',
+              images: images,
+              fontFamily: userSignature.font_family || 'Arial',
+              extraText: userSignature.extra_text || ''
+            });
+          } else {
+            console.log('No signature found in database, checking localStorage');
+            // Fallback til localStorage
+            const savedDetailedSignature = localStorage.getItem('detailed-signature');
+            if (savedDetailedSignature) {
+              try {
+                const parsedData = JSON.parse(savedDetailedSignature);
+                console.log('Found signature in localStorage:', parsedData);
+                setSignatureData(prev => ({ ...prev, ...parsedData }));
+              } catch (e) {
+                console.error('Error parsing localStorage signature:', e);
+              }
+            }
+          }
         }
-      }
-      // Fallback til localStorage
-      const savedDetailedSignature = localStorage.getItem('detailed-signature');
-      if (savedDetailedSignature) {
-        try {
-          const parsedData = JSON.parse(savedDetailedSignature);
-          setSignatureData(prev => ({ ...prev, ...parsedData }));
-        } catch {}
+      } catch (error) {
+        console.error('Error loading signature:', error);
+        toast({ 
+          title: 'Fejl',
+          description: 'Kunne ikke hente signatur.',
+          variant: 'destructive' 
+        });
       }
       setLoading(false);
-    })();
-  }, []);
+    };
+    
+    loadSignature();
+  }, [toast]);
 
   const handleInputChange = (field: keyof SignatureData, value: string) => {
     setSignatureData(prev => ({ ...prev, [field]: value }));
@@ -97,6 +124,7 @@ export const SignatureSettings = () => {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
+    
     Array.from(files).forEach(file => {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
@@ -107,6 +135,7 @@ export const SignatureSettings = () => {
             url: imageUrl,
             alt: file.name
           };
+          console.log('Adding new image to signature:', newImage.alt);
           setSignatureData(prev => ({ ...prev, images: [...prev.images, newImage] }));
         };
         reader.readAsDataURL(file);
@@ -115,11 +144,14 @@ export const SignatureSettings = () => {
   };
 
   const removeImage = (imageId: string) => {
+    console.log('Removing image:', imageId);
     setSignatureData(prev => ({ ...prev, images: prev.images.filter(img => img.id !== imageId) }));
   };
 
   const generateSignatureHtml = () => {
     const { name, title, company, email, phone, website, address, customText, images, fontFamily, extraText } = signatureData;
+    
+    console.log('Generating signature HTML with images:', images.length);
     
     // Clean signature layout with logo BELOW website
     let html = `<div style="font-family: ${fontFamily}, sans-serif; font-size: 14px; line-height: 1.4; color: #333; max-width: 400px;">`;
@@ -161,15 +193,16 @@ export const SignatureSettings = () => {
     // Website with icon
     if (website) {
       html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 12px;">`;
-      html += `🌐 <a href="${website}" style="color: #0066cc; text-decoration: none;">${website}</a>`;
+      html += `🌐 <a href="${website.startsWith('http') ? website : 'https://' + website}" style="color: #0066cc; text-decoration: none;">${website}</a>`;
       html += '</div>';
     }
     
-    // NOW LOGO/IMAGE SECTION - AFTER website, with proper spacing
+    // LOGO/IMAGE SECTION - AFTER website, with proper spacing
     if (images.length > 0) {
+      console.log('Adding images to signature HTML:', images.length);
       html += '<div style="margin-top: 12px; margin-bottom: 12px;">';
       images.forEach(image => {
-        html += `<img src="${image.url}" alt="${image.alt}" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block;" />`;
+        html += `<img src="${image.url}" alt="${image.alt}" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 4px;" />`;
       });
       html += '</div>';
     }
@@ -190,9 +223,15 @@ export const SignatureSettings = () => {
 
   const handleSaveSignature = async () => {
     setLoading(true);
-    // Save to Supabase
-    const user = (await supabase.auth.getUser()).data.user;
-    if (user) {
+    console.log('Saving signature with images:', signatureData.images.length);
+    
+    try {
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) {
+        throw new Error('Ikke logget ind');
+      }
+
+      // Gem til Supabase database
       const plainTextSignature = [
         signatureData.name,
         signatureData.title,
@@ -205,37 +244,50 @@ export const SignatureSettings = () => {
         signatureData.images.length > 0 ? `IMAGES:${JSON.stringify(signatureData.images)}` : ''
       ].filter(Boolean).join('\n');
 
-      const { error } = await supabase.from('user_signatures').upsert({
-        user_id: user.id,
-        html: generateSignatureHtml(),
-        plain: plainTextSignature,
-        font_family: signatureData.fontFamily,
-        extra_text: signatureData.extraText
-      }, { onConflict: 'user_id' });
+      const signatureHtml = generateSignatureHtml();
       
-      if (error) {
-        console.error('Supabase signature save error:', error);
-        toast({ title: 'Fejl', description: 'Kunne ikke gemme signatur i cloud.', variant: 'destructive' });
+      console.log('Saving to database - plain text length:', plainTextSignature.length);
+      console.log('Saving to database - HTML length:', signatureHtml.length);
+      console.log('Images to save:', signatureData.images.map(img => ({ id: img.id, alt: img.alt, urlLength: img.url.length })));
+
+      const { error: upsertError } = await supabase
+        .from('user_signatures')
+        .upsert({
+          user_id: user.id,
+          html: signatureHtml,
+          plain: plainTextSignature,
+          font_family: signatureData.fontFamily,
+          extra_text: signatureData.extraText
+        }, { 
+          onConflict: 'user_id' 
+        });
+      
+      if (upsertError) {
+        console.error('Database upsert error:', upsertError);
+        throw upsertError;
       }
+
+      // Gem også til localStorage som backup
+      localStorage.setItem('detailed-signature', JSON.stringify(signatureData));
+      localStorage.setItem('signature-html', signatureHtml);
+      localStorage.setItem('support-signature', plainTextSignature);
+      
+      console.log('Signature saved successfully to both database and localStorage');
+      
+      toast({
+        title: 'Signatur gemt',
+        description: `Din signatur er gemt med ${signatureData.images.length} billede(r).`,
+      });
+    } catch (error: any) {
+      console.error('Error saving signature:', error);
+      toast({ 
+        title: 'Fejl ved gemning',
+        description: `Kunne ikke gemme signatur: ${error.message}`,
+        variant: 'destructive' 
+      });
+    } finally {
+      setLoading(false);
     }
-    // Save to localStorage as backup
-    localStorage.setItem('detailed-signature', JSON.stringify(signatureData));
-    localStorage.setItem('signature-html', generateSignatureHtml());
-    localStorage.setItem('support-signature', [
-      signatureData.name,
-      signatureData.title,
-      signatureData.company,
-      signatureData.email,
-      signatureData.phone,
-      signatureData.website,
-      signatureData.address,
-      signatureData.customText
-    ].filter(Boolean).join('\n'));
-    setLoading(false);
-    toast({
-      title: 'Signatur gemt',
-      description: 'Din detaljerede signatur er nu gemt i cloud og som backup i browseren.',
-    });
   };
 
   return (
@@ -245,6 +297,11 @@ export const SignatureSettings = () => {
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
             Detaljeret Signatur
+            {signatureData.images.length > 0 && (
+              <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                {signatureData.images.length} billede(r)
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
