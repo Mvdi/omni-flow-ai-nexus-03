@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -69,14 +70,19 @@ export const useTickets = () => {
           table: 'support_tickets'
         },
         (payload) => {
-          console.log('Real-time ticket update received:', payload.eventType, payload.new?.ticket_number);
+          console.log('Real-time ticket update received:', payload.eventType);
+          
+          // Safe type checking for payload.new
+          if (payload.new && typeof payload.new === 'object' && 'ticket_number' in payload.new) {
+            console.log('Ticket:', payload.new.ticket_number);
+          }
           
           // Invalidate både tickets og dashboard queries for at sikre konsistens
           queryClient.invalidateQueries({ queryKey: ['tickets'] });
           queryClient.invalidateQueries({ queryKey: ['dashboard-tickets'] });
           
           // Hvis det er en ny ticket, vis toast
-          if (payload.eventType === 'INSERT' && payload.new) {
+          if (payload.eventType === 'INSERT' && payload.new && typeof payload.new === 'object' && 'ticket_number' in payload.new) {
             console.log('Ny ticket oprettet:', payload.new.ticket_number);
           }
         }
