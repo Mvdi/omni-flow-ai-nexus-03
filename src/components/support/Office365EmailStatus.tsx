@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Mail, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { RefreshCw, Mail, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 interface EmailSyncLog {
   id: string;
@@ -30,6 +30,7 @@ export const Office365EmailStatus = () => {
   const [mailboxes, setMailboxes] = useState<MonitoredMailbox[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [lastSyncResult, setLastSyncResult] = useState<any>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -68,16 +69,17 @@ export const Office365EmailStatus = () => {
 
   const triggerSync = async () => {
     setSyncing(true);
+    setLastSyncResult(null);
     try {
       const session = (await supabase.auth.getSession()).data.session;
       if (!session) {
         throw new Error('Du skal være logget ind');
       }
 
-      console.log('Triggering manual email sync...');
+      console.log('Triggering manual email sync after database fix...');
       
       const { data, error } = await supabase.functions.invoke('office365-email-sync', {
-        body: { source: 'manual' },
+        body: { source: 'manual', debug: true },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
@@ -87,13 +89,16 @@ export const Office365EmailStatus = () => {
         throw error;
       }
 
+      setLastSyncResult(data);
+      
       toast({
-        title: 'Email sync startet',
-        description: `Processing ${data.mailboxes} mailboxes...`,
+        title: 'Email sync completed',
+        description: `Processed ${data.processed} emails from ${data.mailboxes} mailboxes. ${data.errors} errors.`,
+        variant: data.errors > 0 ? 'destructive' : 'default',
       });
 
-      // Opdater data efter 2 sekunder
-      setTimeout(fetchData, 2000);
+      // Opdater data efter 3 sekunder for at se nye tickets
+      setTimeout(fetchData, 3000);
     } catch (error: any) {
       console.error('Failed to trigger sync:', error);
       toast({
@@ -141,6 +146,58 @@ export const Office365EmailStatus = () => {
 
   return (
     <div className="space-y-6">
+      {/* Database Fix Status */}
+      <Card className="border-green-200 bg-green-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-green-800">
+            <CheckCircle className="h-5 w-5" />
+            Database Constraint Fixed
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-green-700">
+            Database constraint er nu opdateret til at tillade 'office365' som source. 
+            Email sync burde nu fungere korrekt og oprette support tickets.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Last Sync Result */}
+      {lastSyncResult && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              Seneste Sync Resultat
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="font-medium">Processed:</span> {lastSyncResult.processed}
+              </div>
+              <div>
+                <span className="font-medium">Errors:</span> {lastSyncResult.errors}
+              </div>
+              <div>
+                <span className="font-medium">Mailboxes:</span> {lastSyncResult.mailboxes}
+              </div>
+              <div>
+                <span className="font-medium">Time:</span> {new Date(lastSyncResult.timestamp).toLocaleTimeString('da-DK')}
+              </div>
+            </div>
+            {lastSyncResult.debugResults && (
+              <details className="mt-4">
+                <summary className="cursor-pointer font-medium text-blue-600">Debug Information</summary>
+                <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto">
+                  {JSON.stringify(lastSyncResult.debugResults, null, 2)}
+                </pre>
+              </details>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Monitored Mailboxes */}
       <Card>
         <CardHeader>
@@ -172,7 +229,7 @@ export const Office365EmailStatus = () => {
           <div className="flex gap-2">
             <Button onClick={triggerSync} disabled={syncing || loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Manuel Sync'}
+              {syncing ? 'Syncing...' : 'Test Email Sync (Manual)'}
             </Button>
             <Button variant="outline" onClick={fetchData} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
