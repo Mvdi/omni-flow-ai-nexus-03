@@ -70,6 +70,17 @@ function createContentFingerprint(subject: string, content: string): string {
   return `${cleanSubject}|${cleanContent}`.toLowerCase();
 }
 
+// KRITISK: Check if sender is from our own domain
+function isInternalSender(emailAddress: string): boolean {
+  const internalDomains = [
+    '@mmmultipartner.dk',
+    'mmmultipartner.dk'
+  ];
+  
+  const normalizedEmail = emailAddress.toLowerCase();
+  return internalDomains.some(domain => normalizedEmail.includes(domain));
+}
+
 // Function to clean up duplicate messages in existing tickets
 async function cleanupDuplicateMessages(supabase: any) {
   console.log('Starting cleanup of duplicate messages...');
@@ -152,9 +163,15 @@ async function cleanupDuplicateMessages(supabase: any) {
   }
 }
 
-// FORBEDRET: Function to find duplicate tickets med cross-mailbox detection
+// FORBEDRET: Function to find duplicate ticket med INTERNAL SENDER FILTERING og bedre threading
 async function findDuplicateTicket(supabase: any, message: GraphMessage) {
-  console.log(`Looking for existing ticket for message: ${message.id} with subject: "${message.subject}"`);
+  console.log(`Looking for existing ticket for message: ${message.id} with subject: "${message.subject}" from: ${message.from.emailAddress.address}`);
+  
+  // KRITISK: Skip processing hvis afsender er fra vores egne domæner
+  if (isInternalSender(message.from.emailAddress.address)) {
+    console.log(`SKIPPING internal sender: ${message.from.emailAddress.address} - this is an outgoing email from our system`);
+    return null; // Return null så email bliver sprunget over
+  }
   
   // Extract headers for better matching
   const inReplyTo = message.internetMessageHeaders?.find(h => h.name.toLowerCase() === 'in-reply-to')?.value;
@@ -503,19 +520,20 @@ async function mergeTicketMessage(supabase: any, existingTicket: any, message: G
     throw messageError;
   }
 
-  // KRITISK: Opdater ticket status - genåbn lukket ticket hvis nødvendigt
+  // KRITISK: Opdater ticket status - genåbn lukket ticket hvis nødvendigt og set status til "Nyt svar"
   const updateData: any = {
     last_response_at: message.receivedDateTime,
     updated_at: new Date().toISOString()
   };
 
-  // Genåbn ticket hvis det er lukket og kunden svarer
-  if (existingTicket.status === 'Lukket') {
-    updateData.status = 'Åben';
-    console.log(`REOPENING closed ticket ${existingTicket.ticket_number} due to customer reply`);
-  } else if (existingTicket.status === 'Løst') {
-    updateData.status = 'Åben';
-    console.log(`REOPENING solved ticket ${existingTicket.ticket_number} due to customer reply`);
+  // Genåbn ticket hvis det er lukket og kunden svarer - sæt status til "Nyt svar"
+  if (existingTicket.status === 'Lukket' || existingTicket.status === 'Løst') {
+    updateData.status = 'Nyt svar';
+    console.log(`REOPENING closed ticket ${existingTicket.ticket_number} due to customer reply - setting status to "Nyt svar"`);
+  } else {
+    // Hvis ticket ikke er lukket, sæt det stadig til "Nyt svar" når kunden svarer
+    updateData.status = 'Nyt svar';
+    console.log(`Setting ticket ${existingTicket.ticket_number} status to "Nyt svar" due to customer reply`);
   }
 
   if (!existingTicket.email_thread_id) {
@@ -530,7 +548,7 @@ async function mergeTicketMessage(supabase: any, existingTicket: any, message: G
   if (updateError) {
     console.error('Failed to update existing ticket:', updateError);
   } else {
-    console.log(`Successfully updated ticket ${existingTicket.ticket_number} with new message and status`);
+    console.log(`Successfully updated ticket ${existingTicket.ticket_number} with new message and status: ${updateData.status}`);
   }
 
   console.log(`Successfully merged NEW message into ticket ${existingTicket.ticket_number} with ${attachments.length} attachments`);
@@ -556,7 +574,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting Office 365 email sync with ENHANCED duplicate detection...');
+    console.log('Starting Office 365 email sync with INTERNAL SENDER FILTERING and enhanced duplicate detection...');
     
     // First run cleanup to remove existing duplicates
     const duplicatesRemoved = await cleanupDuplicateMessages(supabase);
@@ -646,13 +664,14 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Processing ${mailboxes.length} monitored mailboxes with FIXED API syntax...`);
+    console.log(`Processing ${mailboxes.length} monitored mailboxes with INTERNAL SENDER FILTERING...`);
     let totalProcessed = 0;
     let totalErrors = 0;
     let totalMerged = 0;
     let totalSkipped = 0;
     let totalAttachmentsProcessed = 0;
     let totalReopened = 0;
+    let totalInternalSkipped = 0;
 
     for (const mailbox of mailboxes) {
       console.log(`Processing mailbox: ${mailbox.email_address}`);
@@ -674,7 +693,7 @@ serve(async (req) => {
         const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
         const filter = `?$filter=receivedDateTime gt ${fiveMinutesAgo}&$top=20&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments,internetMessageHeaders`;
 
-        console.log(`Fetching messages with ENHANCED duplicate detection from: ${messagesUrl}${filter}`);
+        console.log(`Fetching messages with INTERNAL SENDER FILTERING from: ${messagesUrl}${filter}`);
         
         const messagesResponse = await fetch(`${messagesUrl}${filter}`, {
           headers: {
@@ -706,13 +725,20 @@ serve(async (req) => {
         const messagesData = await messagesResponse.json();
         const messages: GraphMessage[] = messagesData.value || [];
         
-        console.log(`Found ${messages.length} messages for ${mailbox.email_address} with ENHANCED duplicate detection`);
+        console.log(`Found ${messages.length} messages for ${mailbox.email_address} with INTERNAL SENDER FILTERING`);
 
         for (const message of messages) {
           try {
-            console.log(`Processing message ${message.id} with subject: "${message.subject}" (hasAttachments: ${message.hasAttachments})`);
+            console.log(`Processing message ${message.id} with subject: "${message.subject}" from: ${message.from.emailAddress.address} (hasAttachments: ${message.hasAttachments})`);
             
             const duplicateTicket = await findDuplicateTicket(supabase, message);
+            
+            // KRITISK: Hvis findDuplicateTicket returnerer null for internal sender, skip helt
+            if (duplicateTicket === null && isInternalSender(message.from.emailAddress.address)) {
+              console.log(`SKIPPED internal sender email from ${message.from.emailAddress.address}`);
+              totalInternalSkipped++;
+              continue;
+            }
             
             if (duplicateTicket) {
               console.log(`Found existing ticket ${duplicateTicket.ticket_number} for message, merging...`);
@@ -866,20 +892,20 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Email sync completed with ENHANCED duplicate detection. Processed: ${totalProcessed}, Merged: ${totalMerged}, Reopened: ${totalReopened}, Skipped: ${totalSkipped}, Errors: ${totalErrors}, Duplicates cleaned: ${duplicatesRemoved}, Attachments: ${totalAttachmentsProcessed}`);
+    console.log(`Email sync completed with INTERNAL SENDER FILTERING. Processed: ${totalProcessed}, Merged: ${totalMerged}, Reopened: ${totalReopened}, Internal Skipped: ${totalInternalSkipped}, Errors: ${totalErrors}, Duplicates cleaned: ${duplicatesRemoved}, Attachments: ${totalAttachmentsProcessed}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
       processed: totalProcessed,
       merged: totalMerged,
       reopened: totalReopened,
-      skipped: totalSkipped,
+      internalSkipped: totalInternalSkipped,
       errors: totalErrors,
       duplicatesRemoved: duplicatesRemoved,
       attachmentsProcessed: totalAttachmentsProcessed,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `ENHANCED duplicate detection - merged ${totalMerged} messages, reopened ${totalReopened} tickets, cleaned ${duplicatesRemoved} duplicates, processed ${totalAttachmentsProcessed} attachments`
+      details: `INTERNAL SENDER FILTERING - processed ${totalProcessed} new tickets, merged ${totalMerged} messages, reopened ${totalReopened} tickets, skipped ${totalInternalSkipped} internal emails, cleaned ${duplicatesRemoved} duplicates, processed ${totalAttachmentsProcessed} attachments`
     }), {
       status: 200,
       headers: corsHeaders
