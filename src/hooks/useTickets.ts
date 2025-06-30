@@ -69,23 +69,6 @@ export const useTickets = (autoRefreshEnabled: boolean = true) => {
   return query;
 };
 
-export const useTicketMessages = (ticketId: string) => {
-  return useQuery({
-    queryKey: ['ticket-messages', ticketId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('ticket_messages')
-        .select('*')
-        .eq('ticket_id', ticketId)
-        .order('created_at', { ascending: true });
-      
-      if (error) throw error;
-      return data as TicketMessage[];
-    },
-    enabled: !!ticketId,
-  });
-};
-
 export const useUpdateTicket = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
