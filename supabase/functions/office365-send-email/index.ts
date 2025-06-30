@@ -175,7 +175,7 @@ serve(async (req) => {
       }
     }
 
-    // Forbered email med FORBEDRET threading headers
+    // Forbered email med MICROSOFT GRAPH KOMPATIBLE threading headers
     const emailMessage = {
       message: {
         subject: subject,
@@ -191,21 +191,21 @@ serve(async (req) => {
             }
           }
         ],
-        // KRITISK: Tilføj korrekte threading headers
+        // KRITISK: Brug kun X- prefixed headers som Microsoft Graph accepterer
         internetMessageHeaders: [
-          // In-Reply-To header for at indikere at dette er et svar
+          // X-In-Reply-To header for at indikere at dette er et svar
           ...(ticket.email_message_id ? [{
-            name: 'In-Reply-To',
+            name: 'X-In-Reply-To',
             value: ticket.email_message_id
           }] : []),
-          // References header for hele email tråden
+          // X-References header for hele email tråden
           ...(referencesHeader ? [{
-            name: 'References',
+            name: 'X-References',
             value: referencesHeader
           }] : []),
           // Thread-Index for Exchange/Outlook kompatibilitet
           ...(ticket.email_thread_id ? [{
-            name: 'Thread-Index',
+            name: 'X-Thread-Index',
             value: ticket.email_thread_id
           }] : []),
           // Custom header for ticket tracking
@@ -221,7 +221,7 @@ serve(async (req) => {
     // Send email via Microsoft Graph
     const sendUrl = `https://graph.microsoft.com/v1.0/users/${fromAddress}/sendMail`;
 
-    console.log(`Sending REPLY email from ${fromAddress} to ${ticket.customer_email} with threading headers`);
+    console.log(`Sending REPLY email from ${fromAddress} to ${ticket.customer_email} with Microsoft Graph compatible headers`);
     console.log('Threading headers:', emailMessage.message.internetMessageHeaders);
     
     const sendResponse = await fetch(sendUrl, {
@@ -242,7 +242,7 @@ serve(async (req) => {
       });
     }
 
-    console.log('Email sent successfully via Microsoft Graph with threading');
+    console.log('Email sent successfully via Microsoft Graph with X- prefixed threading headers');
 
     // Hent det sendte email's Message-ID fra Microsoft Graph for tracking
     let sentMessageId = null;
@@ -317,7 +317,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: 'Email sent successfully with improved threading',
+      message: 'Email sent successfully with Microsoft Graph compatible threading',
       from: fromAddress,
       to: ticket.customer_email,
       subject: subject,
