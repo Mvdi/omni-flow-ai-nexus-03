@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SupportTicket, TicketMessage, useTicketMessages, useUpdateTicket, useAddTicketMessage } from '@/hooks/useTickets';
+import { SupportTicket, TicketMessage, useUpdateTicket, useAddTicketMessage } from '@/hooks/useTickets';
+import { useTicketMessages } from '@/hooks/useTicketMessages';
 import { formatDistanceToNow } from 'date-fns';
 import { da } from 'date-fns/locale';
 import { Send, Bot, User, Clock, Mail, Tag, Sparkles, X } from 'lucide-react';
@@ -378,4 +379,4 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
       </DialogContent>
     </Dialog>
   );
-}; 
+};
