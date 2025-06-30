@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -120,58 +121,67 @@ export const SignatureSettings = () => {
   const generateSignatureHtml = () => {
     const { name, title, company, email, phone, website, address, customText, images, fontFamily, extraText } = signatureData;
     
-    // Updated signature layout with logo below website
+    // Clean signature layout with logo BELOW website
     let html = `<div style="font-family: ${fontFamily}, sans-serif; font-size: 14px; line-height: 1.4; color: #333; max-width: 400px;">`;
     
+    // Extra text at top if present
     if (extraText) {
       html += `<div style="margin-bottom: 8px; color: #666; font-size: 13px;">${extraText.replace(/\n/g, '<br>')}</div>`;
     }
     
-    // Main content - all text first
+    // Name (largest, bold)
     if (name) {
       html += `<div style="font-weight: bold; font-size: 16px; margin-bottom: 2px; color: #333;">${name}</div>`;
     }
+    
+    // Title (smaller, gray)
     if (title) {
       html += `<div style="color: #666; font-size: 13px; margin-bottom: 2px;">${title}</div>`;
     }
+    
+    // Company (medium, semi-bold)
     if (company) {
       html += `<div style="font-weight: 500; color: #444; font-size: 14px; margin-bottom: 6px;">${company}</div>`;
     }
     
-    // Contact info in vertical format
+    // Email with icon
     if (email) {
       html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 2px;">`;
       html += `📧 <a href="mailto:${email}" style="color: #0066cc; text-decoration: none;">${email}</a>`;
       html += '</div>';
     }
     
+    // Phone with icon
     if (phone) {
       html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 2px;">`;
       html += `📞 <a href="tel:${phone}" style="color: #0066cc; text-decoration: none;">${phone}</a>`;
       html += '</div>';
     }
     
+    // Website with icon
     if (website) {
-      html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 8px;">`;
+      html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 12px;">`;
       html += `🌐 <a href="${website}" style="color: #0066cc; text-decoration: none;">${website}</a>`;
       html += '</div>';
     }
     
-    if (address) {
-      html += `<div style="color: #666; font-size: 12px; margin-bottom: 8px;">${address}</div>`;
-    }
-    
-    // Logo section - now below all text content
+    // NOW LOGO/IMAGE SECTION - AFTER website, with proper spacing
     if (images.length > 0) {
-      html += '<div style="margin-top: 8px; margin-bottom: 8px;">';
+      html += '<div style="margin-top: 12px; margin-bottom: 12px;">';
       images.forEach(image => {
         html += `<img src="${image.url}" alt="${image.alt}" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block;" />`;
       });
       html += '</div>';
     }
     
+    // Address after logo
+    if (address) {
+      html += `<div style="color: #666; font-size: 12px; margin-bottom: 8px;">${address}</div>`;
+    }
+    
+    // Custom text at bottom with separator line
     if (customText) {
-      html += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; color: #666; font-size: 11px;">${customText.replace(/\n/g, '<br>')}</div>`;
+      html += `<div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #eee; color: #666; font-size: 11px;">${customText.replace(/\n/g, '<br>')}</div>`;
     }
     
     html += '</div>'; // Close main wrapper
