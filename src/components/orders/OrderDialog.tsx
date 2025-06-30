@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -36,7 +35,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
     longitude: null as number | null,
     bfe_number: '',
     price: 0,
-    priority: 'Normal',
+    priority: '', // Changed from 'Normal' to empty string - no default
     estimated_duration: 0,
     comment: '',
     scheduled_date: '',
@@ -90,7 +89,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         longitude: order.longitude,
         bfe_number: order.bfe_number || '',
         price: order.price || 0,
-        priority: order.priority || 'Normal',
+        priority: order.priority || '', // Keep existing priority or empty
         estimated_duration: order.estimated_duration || 0,
         comment: order.comment || '',
         scheduled_date: order.scheduled_date || '',
@@ -119,7 +118,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         longitude: null,
         bfe_number: '',
         price: 0,
-        priority: 'Normal',
+        priority: '', // No default priority for new orders
         estimated_duration: 0,
         comment: '',
         scheduled_date: '',
@@ -290,9 +289,10 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
               <Label htmlFor="priority">Prioritet</Label>
               <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Vælg prioritet (valgfri)" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">Ingen prioritet</SelectItem>
                   {priorities.map(priority => (
                     <SelectItem key={priority} value={priority}>{priority}</SelectItem>
                   ))}

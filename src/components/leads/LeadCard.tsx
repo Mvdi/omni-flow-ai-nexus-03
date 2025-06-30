@@ -141,7 +141,7 @@ export const LeadCard = ({ lead, onEdit }: LeadCardProps) => {
               {supportTickets.length}
             </Badge>
           )}
-          {lead.prioritet && (
+          {lead.prioritet && lead.prioritet !== '' && (
             <Badge 
               variant="outline" 
               className={`text-xs ${getPriorityColor(lead.prioritet)}`}

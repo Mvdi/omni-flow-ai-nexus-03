@@ -34,7 +34,7 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
     by: '',
     virksomhed: '',
     vaerdi: '',
-    prioritet: 'Medium' as string,
+    prioritet: '' as string, // Changed from 'Medium' to empty string
     status: 'new' as string,
     noter: '',
     uploads: [] as any[]
@@ -55,10 +55,26 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
         by: lead.by || '',
         virksomhed: lead.virksomhed || '',
         vaerdi: lead.vaerdi?.toString() || '',
-        prioritet: lead.prioritet || 'Medium',
+        prioritet: lead.prioritet || '', // Keep existing priority or empty
         status: lead.status || 'new',
         noter: lead.noter || '',
         uploads: (lead.uploads as any[]) || []
+      });
+    } else {
+      // Reset form for new lead - no default priority
+      setFormData({
+        navn: '',
+        telefon: '',
+        email: '',
+        adresse: '',
+        postnummer: '',
+        by: '',
+        virksomhed: '',
+        vaerdi: '',
+        prioritet: '', // No default priority
+        status: 'new',
+        noter: '',
+        uploads: []
       });
     }
   }, [lead]);
@@ -73,7 +89,9 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
     const leadData = {
       ...(lead?.id && { id: lead.id }),
       ...formData,
-      vaerdi: formData.vaerdi ? parseInt(formData.vaerdi) : null
+      vaerdi: formData.vaerdi ? parseInt(formData.vaerdi) : null,
+      // Only include priority if it's actually set
+      prioritet: formData.prioritet || null
     };
 
     await createOrUpdateLead.mutateAsync(leadData);
@@ -251,9 +269,10 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
                 <Label htmlFor="prioritet">Prioritet</Label>
                 <Select value={formData.prioritet} onValueChange={(value: any) => setFormData(prev => ({ ...prev, prioritet: value }))}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Vælg prioritet (valgfri)" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="">Ingen prioritet</SelectItem>
                     <SelectItem value="Lav">Lav</SelectItem>
                     <SelectItem value="Medium">Medium</SelectItem>
                     <SelectItem value="Høj">Høj</SelectItem>
