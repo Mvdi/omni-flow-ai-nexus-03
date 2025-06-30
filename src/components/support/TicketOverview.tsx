@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SupportTicket } from '@/hooks/useTickets';
@@ -8,12 +7,10 @@ import { da } from 'date-fns/locale';
 
 interface TicketOverviewProps {
   tickets: SupportTicket[];
-  isLoading: boolean;
   onTicketSelect: (ticket: SupportTicket) => void;
-  selectedTicket: SupportTicket | null;
 }
 
-export const TicketOverview = ({ tickets, isLoading, onTicketSelect, selectedTicket }: TicketOverviewProps) => {
+export const TicketOverview = ({ tickets, onTicketSelect }: TicketOverviewProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Åben': return 'bg-red-100 text-red-800 border-red-200';
@@ -44,19 +41,6 @@ export const TicketOverview = ({ tickets, isLoading, onTicketSelect, selectedTic
   // Only show tickets that are not closed
   const visibleTickets = tickets.filter(ticket => ticket.status !== 'Lukket');
 
-  if (isLoading) {
-    return (
-      <Card className="shadow-lg border-0">
-        <CardHeader>
-          <CardTitle>Alle Tickets</CardTitle>
-        </CardHeader>
-        <CardContent className="p-8 text-center">
-          <p className="text-gray-500">Indlæser tickets...</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card className="shadow-lg border-0">
       <CardHeader>
@@ -68,9 +52,7 @@ export const TicketOverview = ({ tickets, isLoading, onTicketSelect, selectedTic
             {visibleTickets.map((ticket) => (
               <div
                 key={ticket.id}
-                className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                  selectedTicket?.id === ticket.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-                }`}
+                className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
                 onClick={() => onTicketSelect(ticket)}
               >
                 <div className="flex items-start justify-between">
