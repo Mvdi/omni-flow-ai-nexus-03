@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -221,18 +222,31 @@ export const useAddTicketMessage = () => {
       
       if (error) throw error;
       
-      // Auto-change status from "Nyt svar" to "I gang" when support responds
-      if (!message.is_internal && message.sender_email !== 'support@company.com') {
-        // This is a customer message, keep as is
-      } else {
-        // This is a support response, update ticket status
+      // KRITISK FIX: Kun kundesvar skal sætte status til "Nyt svar"
+      // Support svar skal IKKE automatisk ændre status
+      const isCustomerMessage = !message.sender_email.includes('@mmmultipartner.dk');
+      
+      if (isCustomerMessage) {
+        // Dette er et kundesvar - sæt status til "Nyt svar"
         await supabase
           .from('support_tickets')
           .update({ 
-            status: 'I gang',
+            status: 'Nyt svar',
             last_response_at: new Date().toISOString()
           })
           .eq('id', message.ticket_id);
+        
+        console.log('Customer reply received - ticket status set to "Nyt svar"');
+      } else {
+        // Dette er et support svar - opdater kun last_response_at, IKKE status
+        await supabase
+          .from('support_tickets')
+          .update({ 
+            last_response_at: new Date().toISOString()
+          })
+          .eq('id', message.ticket_id);
+        
+        console.log('Support reply sent - only updated last_response_at');
       }
       
       return data;

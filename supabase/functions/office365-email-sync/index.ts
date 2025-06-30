@@ -66,22 +66,14 @@ const retryWithExponentialBackoff = async <T>(
   }
 };
 
-// Convert UTC to Danish time with proper DST handling
+// KRITISK FIX: Korrekt dansk tid konvertering
 const toDanishTime = (utcDate: string | Date): Date => {
   const date = new Date(utcDate);
-  const year = date.getFullYear();
   
-  // Calculate DST boundaries for Denmark (last Sunday in March to last Sunday in October)
-  const lastSundayMarch = new Date(year, 2, 31);
-  lastSundayMarch.setDate(31 - lastSundayMarch.getDay());
+  // Brug browser's Intl API til at konvertere til Copenhagen timezone
+  const danishTime = new Date(date.toLocaleString("en-US", {timeZone: "Europe/Copenhagen"}));
   
-  const lastSundayOctober = new Date(year, 9, 31);
-  lastSundayOctober.setDate(31 - lastSundayOctober.getDay());
-  
-  const isDST = date >= lastSundayMarch && date < lastSundayOctober;
-  const offset = isDST ? 2 : 1; // UTC+2 during DST, UTC+1 otherwise
-  
-  return new Date(date.getTime() + offset * 60 * 60 * 1000);
+  return danishTime;
 };
 
 // Enhanced token management with refresh capability
@@ -174,17 +166,29 @@ const calculateSLADeadline = (createdAt: string, priority: string): string => {
   return new Date(created.getTime() + hoursToAdd * 60 * 60 * 1000).toISOString();
 };
 
-// Enhanced duplicate detection with internal sender filtering
+// FORBEDRET duplicate detection med internal sender filtering
 const findDuplicateTicket = async (supabase: any, message: GraphMessage) => {
   console.log(`Looking for existing ticket for message: ${message.id} with subject: "${message.subject}" from: ${message.from.emailAddress.address}`);
   
-  // CRITICAL: Skip processing if sender is from internal domains
+  // KRITISK: Skip processing if sender is from internal domains
   const internalDomains = ['@mmmultipartner.dk', 'mmmultipartner.dk'];
   const senderEmail = message.from.emailAddress.address.toLowerCase();
   
   if (internalDomains.some(domain => senderEmail.includes(domain))) {
     console.log(`SKIPPING internal sender: ${senderEmail} - this is an outgoing email from our system`);
     return null;
+  }
+  
+  // FORBEDRET: Tjek for eksisterende beskeder med samme email_message_id
+  const { data: existingMessage } = await supabase
+    .from('ticket_messages')
+    .select('ticket_id, id')
+    .eq('email_message_id', message.id)
+    .single();
+
+  if (existingMessage) {
+    console.log(`DUPLICATE MESSAGE: Message ${message.id} already exists in database`);
+    return { isDuplicate: true, ticketId: existingMessage.ticket_id };
   }
   
   // Enhanced header-based matching
@@ -206,7 +210,7 @@ const findDuplicateTicket = async (supabase: any, message: GraphMessage) => {
     }
   }
   
-  // 2. Cross-mailbox duplicate detection within time window
+  // 2. Cross-mailbox duplicate detection within time window (DANSK TID)
   const messageTime = toDanishTime(message.receivedDateTime);
   const timeWindow = new Date(messageTime.getTime() - 5 * 60 * 1000); // 5 minutes before
 
@@ -257,11 +261,11 @@ const findDuplicateTicket = async (supabase: any, message: GraphMessage) => {
   return null;
 };
 
-// Enhanced message merging with automatic status updates
+// FORBEDRET message merging med automatiske status updates TIL DANSK TID
 const mergeTicketMessage = async (supabase: any, existingTicket: any, message: GraphMessage, mailboxAddress: string, accessToken: string) => {
   console.log(`Merging message ${message.id} into existing ticket ${existingTicket.ticket_number} (current status: ${existingTicket.status})`);
   
-  // Check for exact duplicate
+  // Check for exact duplicate again to prevent race conditions
   if (message.id) {
     const { data: existingMessage } = await supabase
       .from('ticket_messages')
@@ -285,7 +289,7 @@ const mergeTicketMessage = async (supabase: any, existingTicket: any, message: G
   
   const messageContent = message.body?.content || message.bodyPreview || '';
   
-  // Add the message
+  // Add the message med DANSK TID
   const messageData = {
     ticket_id: existingTicket.id,
     sender_email: message.from.emailAddress.address,
@@ -294,7 +298,8 @@ const mergeTicketMessage = async (supabase: any, existingTicket: any, message: G
     message_type: 'inbound_email',
     email_message_id: message.id,
     is_internal: false,
-    attachments: attachments
+    attachments: attachments,
+    created_at: toDanishTime(message.receivedDateTime).toISOString()
   };
 
   const { error: messageError } = await supabase
@@ -306,7 +311,7 @@ const mergeTicketMessage = async (supabase: any, existingTicket: any, message: G
     throw messageError;
   }
   
-  // CRITICAL: Auto-update ticket status to "Nyt svar" for customer replies
+  // KRITISK: Auto-update ticket status to "Nyt svar" for customer replies
   const updateData: any = {
     status: 'Nyt svar', // Always set to "Nyt svar" when customer replies
     last_response_at: toDanishTime(message.receivedDateTime).toISOString(),
@@ -409,7 +414,7 @@ serve(async (req) => {
     let totalMerged = 0;
     let totalInternalSkipped = 0;
     let totalReopened = 0;
-    let totalAttachmentsProcessed = 0;
+    let totalDuplicatesSkipped = 0;
 
     for (const mailbox of mailboxes) {
       console.log(`Processing mailbox: ${mailbox.email_address}`);
@@ -446,10 +451,10 @@ serve(async (req) => {
           try {
             console.log(`Processing message ${message.id} from: ${message.from.emailAddress.address}`);
             
-            const duplicateTicket = await findDuplicateTicket(supabase, message);
+            const duplicateResult = await findDuplicateTicket(supabase, message);
             
             // Skip internal emails
-            if (duplicateTicket === null) {
+            if (duplicateResult === null) {
               const internalDomains = ['@mmmultipartner.dk', 'mmmultipartner.dk'];
               const senderEmail = message.from.emailAddress.address.toLowerCase();
               
@@ -460,11 +465,18 @@ serve(async (req) => {
               }
             }
             
-            if (duplicateTicket) {
-              console.log(`Merging into existing ticket ${duplicateTicket.ticket_number}...`);
-              const wasClosedOrSolved = duplicateTicket.status === 'Lukket' || duplicateTicket.status === 'Løst';
+            // Handle duplicate messages
+            if (duplicateResult && duplicateResult.isDuplicate) {
+              console.log(`SKIPPED duplicate message ${message.id}`);
+              totalDuplicatesSkipped++;
+              continue;
+            }
+            
+            if (duplicateResult && !duplicateResult.isDuplicate) {
+              console.log(`Merging into existing ticket ${duplicateResult.ticket_number}...`);
+              const wasClosedOrSolved = duplicateResult.status === 'Lukket' || duplicateResult.status === 'Løst';
               
-              await mergeTicketMessage(supabase, duplicateTicket, message, mailbox.email_address, accessToken);
+              await mergeTicketMessage(supabase, duplicateResult, message, mailbox.email_address, accessToken);
               
               if (wasClosedOrSolved) {
                 totalReopened++;
@@ -474,7 +486,7 @@ serve(async (req) => {
               continue;
             }
 
-            // Create new ticket with AI enhancements
+            // Create new ticket with AI enhancements og DANSK TID
             console.log('Creating new AI-enhanced ticket...');
 
             // Upsert customer
@@ -537,7 +549,7 @@ serve(async (req) => {
               continue;
             }
 
-            // Add initial message
+            // Add initial message med DANSK TID
             const messageData = {
               ticket_id: newTicket.id,
               sender_email: message.from.emailAddress.address,
@@ -546,7 +558,8 @@ serve(async (req) => {
               message_type: 'inbound_email',
               email_message_id: message.id,
               is_internal: false,
-              attachments: []
+              attachments: [],
+              created_at: toDanishTime(message.receivedDateTime).toISOString()
             };
 
             const { error: messageError } = await supabase
@@ -567,7 +580,7 @@ serve(async (req) => {
           }
         }
 
-        // Update mailbox sync timestamp
+        // Update mailbox sync timestamp MED DANSK TID
         await supabase
           .from('monitored_mailboxes')
           .update({ 
@@ -588,12 +601,12 @@ serve(async (req) => {
       merged: totalMerged,
       reopened: totalReopened,
       internalSkipped: totalInternalSkipped,
+      duplicatesSkipped: totalDuplicatesSkipped,
       errors: totalErrors,
-      attachmentsProcessed: totalAttachmentsProcessed,
       mailboxes: mailboxes.length,
       timestamp: toDanishTime(new Date()).toISOString(),
       danishTime: toDanishTime(new Date()).toLocaleString('da-DK'),
-      details: `AI-Enhanced sync completed: ${totalProcessed} new tickets, ${totalMerged} merged messages, ${totalReopened} reopened tickets, ${totalInternalSkipped} internal emails skipped`
+      details: `AI-Enhanced sync completed: ${totalProcessed} new tickets, ${totalMerged} merged messages, ${totalReopened} reopened tickets, ${totalInternalSkipped} internal emails skipped, ${totalDuplicatesSkipped} duplicates skipped`
     };
 
     console.log('Enhanced email sync completed:', summary.details);

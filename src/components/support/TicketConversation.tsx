@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,8 +11,7 @@ import { SupportTicket, useUpdateTicket } from '@/hooks/useTickets';
 import { useTicketMessages } from '@/hooks/useTicketMessages';
 import { useOffice365EmailSender } from '@/hooks/useOffice365EmailSender';
 import { AttachmentViewer } from './AttachmentViewer';
-import { formatDistanceToNow } from 'date-fns';
-import { da } from 'date-fns/locale';
+import { formatDanishDistance } from '@/utils/danishTime';
 import { Send, Bot, User, Clock, Mail, Tag, Sparkles, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -300,10 +300,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                         {ticket.customer_name || ticket.customer_email}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {formatDistanceToNow(new Date(ticket.created_at), { 
-                          addSuffix: true, 
-                          locale: da 
-                        })}
+                        {formatDanishDistance(ticket.created_at)}
                       </span>
                     </div>
                     <div className="text-sm text-gray-700 whitespace-pre-wrap">
@@ -314,7 +311,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
               </div>
             )}
 
-            {/* Messages - NU MED KORREKT SIGNATUR VISNING */}
+            {/* Messages - NU MED KORREKT DANSK TID */}
             {messages.map((message) => {
               const isFromSupport = message.sender_email.includes('@mmmultipartner.dk');
               
@@ -358,10 +355,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                           </Badge>
                         )}
                         <span className="text-xs text-gray-500">
-                          {formatDistanceToNow(new Date(message.created_at), { 
-                            addSuffix: true, 
-                            locale: da 
-                          })}
+                          {formatDanishDistance(message.created_at)}
                         </span>
                       </div>
                       <div 
