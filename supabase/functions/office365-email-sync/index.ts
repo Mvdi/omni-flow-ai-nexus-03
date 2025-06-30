@@ -377,13 +377,13 @@ serve(async (req) => {
 
             console.log(`Created new ticket ${newTicket.ticket_number} from email ${message.id}`);
 
-            // Opret ticket message
+            // Opret ticket message - FIXED: Use 'inbound_email' instead of 'incoming'
             const messageData = {
               ticket_id: newTicket.id,
               sender_email: message.from.emailAddress.address,
               sender_name: message.from.emailAddress.name,
               message_content: message.body?.content || message.bodyPreview || '',
-              message_type: 'incoming',
+              message_type: 'inbound_email', // FIXED: Changed from 'incoming' to 'inbound_email'
               email_message_id: message.id,
               is_internal: false
             };
@@ -467,7 +467,7 @@ serve(async (req) => {
       errors: totalErrors,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `Extended debug mode - checked up to 24 hours back`,
+      details: `Fixed message_type constraint - now using 'inbound_email'`,
       debugResults: debugResults,
       diagnostics: {
         timeChecked: debugInfo,
