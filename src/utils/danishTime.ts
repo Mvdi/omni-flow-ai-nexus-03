@@ -1,6 +1,6 @@
 
 import { format, formatDistanceToNow } from 'date-fns';
-import { formatInTimeZone, zonedTimeToUtc } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { da } from 'date-fns/locale';
 
 const DANISH_TIMEZONE = 'Europe/Copenhagen';
@@ -9,7 +9,7 @@ const DANISH_TIMEZONE = 'Europe/Copenhagen';
 export const toDanishTime = (utcDate: string | Date): Date => {
   const date = new Date(utcDate);
   // Konverter UTC tid til dansk timezone
-  return zonedTimeToUtc(date, DANISH_TIMEZONE);
+  return fromZonedTime(date, DANISH_TIMEZONE);
 };
 
 export const formatDanishTime = (utcDate: string | Date, formatString: string = 'dd/MM/yyyy HH:mm'): string => {
@@ -40,5 +40,5 @@ export const getCurrentDanishTime = (): Date => {
 
 // Konverter dansk tid til UTC for database storage
 export const fromDanishTimeToUTC = (danishTime: Date): Date => {
-  return zonedTimeToUtc(danishTime, DANISH_TIMEZONE);
+  return fromZonedTime(danishTime, DANISH_TIMEZONE);
 };
