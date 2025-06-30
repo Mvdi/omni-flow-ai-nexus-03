@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +13,6 @@ import { SignatureSettings } from '@/components/support/SignatureSettings';
 import { useTickets, SupportTicket } from '@/hooks/useTickets';
 import { useRouteMemory } from '@/hooks/useRouteMemory';
 import { Ticket, Search, Settings, Zap } from 'lucide-react';
-
 const Support = () => {
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -24,11 +22,13 @@ const Support = () => {
   const [activeTab, setActiveTab] = useState('alle');
 
   // Brug optimeret real-time hook (fjernet lokale polling)
-  const { data: tickets = [], isLoading } = useTickets();
+  const {
+    data: tickets = [],
+    isLoading
+  } = useTickets();
 
   // Gem sidste besøgte route
   useRouteMemory();
-
   useEffect(() => {
     // Ved load: hvis ?ticket=... i URL, vælg det ticket
     const params = new URLSearchParams(window.location.search);
@@ -38,16 +38,10 @@ const Support = () => {
       if (ticket) setSelectedTicket(ticket);
     }
   }, [tickets]);
-
   const filteredTickets = tickets.filter(ticket => {
     const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
-    const matchesSearch = !searchQuery || 
-      ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.customer_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.ticket_number.toLowerCase().includes(searchQuery.toLowerCase());
-    
+    const matchesSearch = !searchQuery || ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) || ticket.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) || ticket.customer_email.toLowerCase().includes(searchQuery.toLowerCase()) || ticket.ticket_number.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesPriority && matchesSearch;
   });
 
@@ -80,27 +74,34 @@ const Support = () => {
     return t.status === 'Løst' && new Date(t.updated_at).toDateString() === today;
   }).length;
   const closedTickets = filteredTickets.filter(t => t.status === 'Lukket').length;
-
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Åben': return 'bg-red-100 text-red-800 border-red-200';
-      case 'I gang': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Afventer kunde': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Løst': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Lukket': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'Åben':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'I gang':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'Afventer kunde':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Løst':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'Lukket':
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
-
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'Høj': return 'destructive';
-      case 'Medium': return 'secondary';
-      case 'Lav': return 'outline';
-      default: return 'secondary';
+      case 'Høj':
+        return 'destructive';
+      case 'Medium':
+        return 'secondary';
+      case 'Lav':
+        return 'outline';
+      default:
+        return 'secondary';
     }
   };
-
   const handleTicketSelect = (ticketId: string) => {
     const ticket = tickets.find(t => t.id === ticketId);
     if (ticket) {
@@ -111,66 +112,46 @@ const Support = () => {
       window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
     }
   };
-
   if (showSettings) {
-    return (
-      <div className="min-h-screen bg-gray-50">
+    return <div className="min-h-screen bg-gray-50">
         <Navigation />
         <div className="p-2">
           <div className="flex items-center justify-between mb-4">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowSettings(false)}
-              className="flex items-center gap-2"
-            >
+            <Button variant="outline" onClick={() => setShowSettings(false)} className="flex items-center gap-2">
               ← Tilbage til tickets
             </Button>
           </div>
           <SignatureSettings />
         </div>
-      </div>
-    );
+      </div>;
   }
-
   if (selectedTicket) {
-    return (
-      <div className="min-h-screen bg-gray-50">
+    return <div className="min-h-screen bg-gray-50">
         <Navigation />
         <div className="p-2">
           <div className="flex items-center justify-between mb-4">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setSelectedTicket(null);
-                // Fjern ticket-param fra URL
-                const params = new URLSearchParams(window.location.search);
-                params.delete('ticket');
-                window.history.pushState({}, '', `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`);
-              }}
-              className="flex items-center gap-2"
-            >
+            <Button variant="outline" onClick={() => {
+            setSelectedTicket(null);
+            // Fjern ticket-param fra URL
+            const params = new URLSearchParams(window.location.search);
+            params.delete('ticket');
+            window.history.pushState({}, '', `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`);
+          }} className="flex items-center gap-2">
               ← Tilbage til oversigt
             </Button>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
-              <CustomerInfo 
-                ticket={selectedTicket} 
-                onTicketSelect={handleTicketSelect}
-                currentTicketId={selectedTicket.id}
-              />
+              <CustomerInfo ticket={selectedTicket} onTicketSelect={handleTicketSelect} currentTicketId={selectedTicket.id} />
             </div>
             <div className="lg:col-span-2">
               <TicketConversation ticket={selectedTicket} />
             </div>
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
+  return <div className="min-h-screen bg-gray-50">
       <Navigation />
       
       <div className="p-2">
@@ -184,15 +165,8 @@ const Support = () => {
             <p className="text-gray-600">Administrer og løs kundesupport tickets effektivt</p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-green-600" />
-              <span className="text-sm text-green-600 font-medium">Real-time opdateringer</span>
-            </div>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowSettings(true)}
-              className="flex items-center gap-2"
-            >
+            
+            <Button variant="outline" onClick={() => setShowSettings(true)} className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Indstillinger
             </Button>
@@ -280,12 +254,7 @@ const Support = () => {
             <div className="flex gap-4 items-center">
               <div className="relative flex-1">
                 <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-                <Input
-                  placeholder="Søg tickets..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+                <Input placeholder="Søg tickets..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
               </div>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                 <SelectTrigger className="w-48">
@@ -315,24 +284,13 @@ const Support = () => {
                 <TabsTrigger value="lukket">Lukket</TabsTrigger>
               </TabsList>
 
-              {['alle', 'aabne', 'i-gang', 'afventer', 'loest', 'lukket'].map((tab) => (
-                <TabsContent key={tab} value={tab} className="mt-0">
-                  {isLoading ? (
-                    <div className="text-center py-6 text-gray-500">
+              {['alle', 'aabne', 'i-gang', 'afventer', 'loest', 'lukket'].map(tab => <TabsContent key={tab} value={tab} className="mt-0">
+                  {isLoading ? <div className="text-center py-6 text-gray-500">
                       Indlæser tickets...
-                    </div>
-                  ) : getTicketsByTab(tab).length === 0 ? (
-                    <div className="text-center py-6 text-gray-500">
+                    </div> : getTicketsByTab(tab).length === 0 ? <div className="text-center py-6 text-gray-500">
                       Ingen tickets fundet
-                    </div>
-                  ) : (
-                    <div className="divide-y">
-                      {getTicketsByTab(tab).map((ticket) => (
-                        <div
-                          key={ticket.id}
-                          className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
-                          onClick={() => handleTicketSelect(ticket.id)}
-                        >
+                    </div> : <div className="divide-y">
+                      {getTicketsByTab(tab).map(ticket => <div key={ticket.id} className="p-3 hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => handleTicketSelect(ticket.id)}>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4 flex-1">
                               <div className="flex items-center gap-3">
@@ -358,18 +316,13 @@ const Support = () => {
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-              ))}
+                        </div>)}
+                    </div>}
+                </TabsContent>)}
             </Tabs>
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Support;
