@@ -3,17 +3,19 @@ import { useQuery } from '@tanstack/react-query';
 import { useTickets } from './useTickets';
 import { useOrders } from './useOrders';
 import { useLeads } from './useLeads';
+import { useEmployees } from './useEmployees';
 
 export const useDashboardData = () => {
   const { data: tickets = [] } = useTickets();
   const { orders } = useOrders();
   const { data: leads = [] } = useLeads();
+  const { data: employees = [] } = useEmployees();
 
   const dashboardQuery = useQuery({
-    queryKey: ['dashboard-data', tickets, orders, leads],
+    queryKey: ['dashboard-data', tickets, orders, leads, employees],
     queryFn: async () => {
       console.log('=== DASHBOARD DATA DEBUG ===');
-      console.log('Processing data - Leads:', leads.length, 'Orders:', orders.length, 'Tickets:', tickets.length);
+      console.log('Processing data - Leads:', leads.length, 'Orders:', orders.length, 'Tickets:', tickets.length, 'Employees:', employees.length);
 
       const currentDate = new Date();
       const currentMonth = currentDate.getMonth();
@@ -170,12 +172,68 @@ export const useDashboardData = () => {
         });
       }
 
-      // Dynamic top performers (simplified for now)
-      const topPerformers = [
-        { name: 'System', metric: 'Aktive leads', value: activeLeads.length.toString(), change: `${activeLeads.length > 0 ? '+' : ''}${activeLeads.length}` },
-        { name: 'System', metric: 'Månedlig omsætning', value: `${monthlyRevenue.toLocaleString()} kr`, change: monthlyRevenue > 0 ? '+100%' : '0%' },
-        { name: 'System', metric: 'Ordre færdige', value: `${completedOrders}`, change: completedOrders > 0 ? '+100%' : '0%' }
-      ];
+      // Calculate top performers based on real employee data
+      const topPerformers = [];
+      
+      if (employees.length > 0) {
+        // Calculate performance metrics for each employee
+        const employeePerformance = employees.map(employee => {
+          const employeeOrders = orders.filter(order => order.assigned_employee_id === employee.id);
+          const completedEmployeeOrders = employeeOrders.filter(order => order.status === 'Færdig');
+          const totalRevenue = employeeOrders.reduce((sum, order) => sum + (order.price || 0), 0);
+          
+          return {
+            employee,
+            ordersCompleted: completedEmployeeOrders.length,
+            totalRevenue,
+            totalOrders: employeeOrders.length,
+            completionRate: employeeOrders.length > 0 ? Math.round((completedEmployeeOrders.length / employeeOrders.length) * 100) : 0
+          };
+        });
+
+        // Sort by completion rate and take top 3
+        const topByCompletion = [...employeePerformance]
+          .sort((a, b) => b.completionRate - a.completionRate)
+          .slice(0, 3);
+
+        topByCompletion.forEach((perf, index) => {
+          if (perf.totalOrders > 0) {
+            topPerformers.push({
+              name: perf.employee.name,
+              metric: 'Færdighedsrate',
+              value: `${perf.completionRate}%`,
+              change: perf.completionRate > 80 ? '+Fremragende' : perf.completionRate > 60 ? '+God' : 'Forbedring nødvendig'
+            });
+          }
+        });
+
+        // If we don't have enough performers with orders, add revenue performers
+        if (topPerformers.length < 3) {
+          const topByRevenue = [...employeePerformance]
+            .filter(perf => perf.totalRevenue > 0)
+            .sort((a, b) => b.totalRevenue - a.totalRevenue)
+            .slice(0, 3 - topPerformers.length);
+
+          topByRevenue.forEach(perf => {
+            topPerformers.push({
+              name: perf.employee.name,
+              metric: 'Omsætning',
+              value: `${perf.totalRevenue.toLocaleString()} kr`,
+              change: perf.totalRevenue > 10000 ? '+Høj' : '+Moderat'
+            });
+          });
+        }
+      }
+
+      // If still no performers (no employees or no activity), show a helpful message
+      if (topPerformers.length === 0) {
+        topPerformers.push({
+          name: 'Ingen data',
+          metric: 'Medarbejdere',
+          value: 'Opret medarbejdere',
+          change: 'Start her'
+        });
+      }
 
       return {
         stats,
