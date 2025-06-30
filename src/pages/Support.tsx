@@ -8,23 +8,25 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketConversation } from '@/components/support/TicketConversation';
 import { CustomerInfo } from '@/components/support/CustomerInfo';
-import { TicketOverview } from '@/components/support/TicketOverview';
 import { CreateTicketDialog } from '@/components/support/CreateTicketDialog';
 import { SignatureSettings } from '@/components/support/SignatureSettings';
 import { useTickets, SupportTicket } from '@/hooks/useTickets';
-import { Ticket, Plus, Filter, Search, Mail, Clock, User, AlertTriangle, Bot, Inbox, Settings, Zap } from 'lucide-react';
+import { useRouteMemory } from '@/hooks/useRouteMemory';
+import { Ticket, Search, Settings, Zap } from 'lucide-react';
 
 const Support = () => {
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showOverview, setShowOverview] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState('alle');
 
-  // Use the new real-time enabled useTickets hook
-  const { data: tickets = [], isLoading, dataUpdatedAt } = useTickets();
+  // Brug optimeret real-time hook (fjernet lokale polling)
+  const { data: tickets = [], isLoading } = useTickets();
+
+  // Gem sidste besøgte route
+  useRouteMemory();
 
   useEffect(() => {
     // Ved load: hvis ?ticket=... i URL, vælg det ticket
@@ -216,7 +218,7 @@ const Support = () => {
                   <p className="text-xl font-bold text-gray-900">{openTickets}</p>
                 </div>
                 <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                  <Ticket className="h-5 w-5 text-red-600" />
                 </div>
               </div>
             </CardContent>
@@ -230,7 +232,7 @@ const Support = () => {
                   <p className="text-xl font-bold text-gray-900">{inProgressTickets}</p>
                 </div>
                 <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-yellow-600" />
+                  <Ticket className="h-5 w-5 text-yellow-600" />
                 </div>
               </div>
             </CardContent>
@@ -244,7 +246,7 @@ const Support = () => {
                   <p className="text-xl font-bold text-gray-900">{awaitingTickets}</p>
                 </div>
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Inbox className="h-5 w-5 text-blue-600" />
+                  <Ticket className="h-5 w-5 text-blue-600" />
                 </div>
               </div>
             </CardContent>

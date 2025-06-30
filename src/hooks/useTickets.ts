@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -52,32 +51,42 @@ export const useTickets = () => {
       console.log(`Fetched ${data?.length || 0} tickets`);
       return data as SupportTicket[];
     },
-    staleTime: 60000, // Consider data stale after 1 minute
+    staleTime: 30000, // Reduceret til 30 sekunder for hurtigere opdateringer
+    refetchInterval: false, // Fjern polling - brug kun real-time
   });
 
-  // Real-time subscription for instant updates
+  // Optimeret real-time subscription
   useEffect(() => {
-    console.log('Setting up real-time ticket subscription...');
+    console.log('Setting up optimized real-time ticket subscription...');
     
     const channel = supabase
-      .channel('tickets-changes')
+      .channel('tickets-realtime')
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          event: '*',
           schema: 'public',
           table: 'support_tickets'
         },
         (payload) => {
-          console.log('Real-time ticket update received:', payload);
-          // Invalidate and refetch tickets when changes occur
+          console.log('Real-time ticket update received:', payload.eventType, payload.new?.ticket_number);
+          
+          // Invalidate både tickets og dashboard queries for at sikre konsistens
           queryClient.invalidateQueries({ queryKey: ['tickets'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard-tickets'] });
+          
+          // Hvis det er en ny ticket, vis toast
+          if (payload.eventType === 'INSERT' && payload.new) {
+            console.log('Ny ticket oprettet:', payload.new.ticket_number);
+          }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Real-time subscription status:', status);
+      });
 
     return () => {
-      console.log('Cleaning up real-time ticket subscription...');
+      console.log('Cleaning up optimized real-time ticket subscription...');
       supabase.removeChannel(channel);
     };
   }, [queryClient]);

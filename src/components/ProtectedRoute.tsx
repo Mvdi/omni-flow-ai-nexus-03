@@ -1,6 +1,8 @@
 
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useRouteMemory } from '@/hooks/useRouteMemory';
+import { useEffect } from 'react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,6 +10,18 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const { getLastRoute } = useRouteMemory();
+
+  useEffect(() => {
+    // Hvis brugeren kommer fra login eller root, redirect til sidste besøgte route
+    if (user && location.pathname === '/') {
+      const lastRoute = getLastRoute();
+      if (lastRoute && lastRoute !== '/' && lastRoute !== '/auth') {
+        window.history.replaceState(null, '', lastRoute);
+      }
+    }
+  }, [user, location.pathname, getLastRoute]);
 
   if (loading) {
     return (

@@ -6,40 +6,57 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { TrendingUp, TrendingDown, Users, Ticket, Calendar, DollarSign, Target, Clock, Phone, Mail, AlertTriangle, CheckCircle2, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Navigation } from '@/components/Navigation';
+import { useDashboardData } from '@/hooks/useDashboardData';
 
 const Index = () => {
-  // Sample data for charts
-  const leadsData = [
-    { name: 'Jan', leads: 45, converted: 12 },
-    { name: 'Feb', leads: 52, converted: 18 },
-    { name: 'Mar', leads: 48, converted: 15 },
-    { name: 'Apr', leads: 61, converted: 22 },
-    { name: 'Maj', leads: 55, converted: 19 },
-    { name: 'Jun', leads: 67, converted: 28 },
-  ];
+  const { 
+    stats, 
+    leadsChartData, 
+    supportData, 
+    revenueData, 
+    routeEfficiencyData, 
+    prioritizedTasks, 
+    recentActivity,
+    isLoading,
+    error 
+  } = useDashboardData();
 
-  const supportData = [
-    { name: 'Åbne', value: 23, color: '#ef4444' },
-    { name: 'I gang', value: 15, color: '#f59e0b' },
-    { name: 'Løst', value: 142, color: '#10b981' },
-    { name: 'Afventer', value: 8, color: '#6b7280' },
-  ];
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <Navigation />
+        <div className="container mx-auto px-6 py-8">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Indlæser dashboard data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const revenueData = [
-    { name: 'Jan', revenue: 125000, forecast: 130000 },
-    { name: 'Feb', revenue: 142000, forecast: 135000 },
-    { name: 'Mar', revenue: 138000, forecast: 140000 },
-    { name: 'Apr', revenue: 156000, forecast: 145000 },
-    { name: 'Maj', revenue: 149000, forecast: 150000 },
-    { name: 'Jun', revenue: 167000, forecast: 155000 },
-  ];
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <Navigation />
+        <div className="container mx-auto px-6 py-8">
+          <div className="text-center text-red-600">
+            Fejl ved indlæsning af dashboard data. Prøv igen senere.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const routeEfficiencyData = [
-    { name: 'Uge 1', efficiency: 87, distance: 245 },
-    { name: 'Uge 2', efficiency: 92, distance: 223 },
-    { name: 'Uge 3', efficiency: 89, distance: 237 },
-    { name: 'Uge 4', efficiency: 94, distance: 218 },
-  ];
+  const getIcon = (iconName: string) => {
+    const icons = {
+      CheckCircle2,
+      Mail,
+      Phone
+    };
+    const IconComponent = icons[iconName as keyof typeof icons] || Mail;
+    return IconComponent;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -60,10 +77,10 @@ const Index = () => {
               <Users className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">147</div>
+              <div className="text-2xl font-bold">{stats.activeLeads}</div>
               <div className="flex items-center text-xs opacity-90">
                 <ArrowUpRight className="h-3 w-3 mr-1" />
-                +12% fra sidste måned
+                Live data fra CRM
               </div>
             </CardContent>
           </Card>
@@ -74,10 +91,10 @@ const Index = () => {
               <DollarSign className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">167.000 kr</div>
+              <div className="text-2xl font-bold">{stats.monthlyRevenue.toLocaleString('da-DK')} kr</div>
               <div className="flex items-center text-xs opacity-90">
                 <ArrowUpRight className="h-3 w-3 mr-1" />
-                +8% fra sidste måned
+                Fra ordrer denne måned
               </div>
             </CardContent>
           </Card>
@@ -88,10 +105,10 @@ const Index = () => {
               <Ticket className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">23</div>
+              <div className="text-2xl font-bold">{stats.openTickets}</div>
               <div className="flex items-center text-xs opacity-90">
                 <ArrowDownRight className="h-3 w-3 mr-1" />
-                -3 fra i går
+                Real-time fra support
               </div>
             </CardContent>
           </Card>
@@ -102,10 +119,10 @@ const Index = () => {
               <Target className="h-4 w-4 opacity-90" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">94%</div>
+              <div className="text-2xl font-bold">{stats.routeEfficiency}%</div>
               <div className="flex items-center text-xs opacity-90">
                 <ArrowUpRight className="h-3 w-3 mr-1" />
-                +2% fra sidste uge
+                AI-optimerede ruter
               </div>
             </CardContent>
           </Card>
@@ -124,7 +141,7 @@ const Index = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={leadsData}>
+                <BarChart data={leadsChartData}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="name" />
                   <YAxis />
@@ -190,7 +207,7 @@ const Index = () => {
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip formatter={(value) => [`${value} kr`, '']} />
+                  <Tooltip formatter={(value) => [`${value?.toLocaleString('da-DK')} kr`, '']} />
                   <Area type="monotone" dataKey="forecast" stackId="1" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.3} />
                   <Area type="monotone" dataKey="revenue" stackId="2" stroke="#10b981" fill="#10b981" fillOpacity={0.8} />
                 </AreaChart>
@@ -232,18 +249,12 @@ const Index = () => {
                 <AlertTriangle className="h-5 w-5 text-orange-500" />
               </div>
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                  <span className="text-sm text-gray-700">3 høj prioritet tickets</span>
-                  <Badge variant="destructive">Høj</Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                  <span className="text-sm text-gray-700">12 leads kræver opfølgning</span>
-                  <Badge variant="secondary">Medium</Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <span className="text-sm text-gray-700">Ugens ruter skal optimeres</span>
-                  <Badge variant="outline">Lav</Badge>
-                </div>
+                {prioritizedTasks.map((task, index) => (
+                  <div key={index} className={`flex items-center justify-between p-3 ${task.color} rounded-lg`}>
+                    <span className="text-sm text-gray-700">{task.task}</span>
+                    <Badge variant={task.badge as any}>{task.priority}</Badge>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -255,27 +266,22 @@ const Index = () => {
                 <Clock className="h-5 w-5 text-blue-500" />
               </div>
               <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm">
-                    <span className="font-medium">Lead konverteret:</span>
-                    <span className="text-gray-600 block">Jens Hansen - 15.000 kr</span>
+                {recentActivity.length > 0 ? recentActivity.map((activity, index) => {
+                  const IconComponent = getIcon(activity.icon);
+                  return (
+                    <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                      <IconComponent className={`h-4 w-4 ${activity.color} mt-0.5 flex-shrink-0`} />
+                      <div className="text-sm">
+                        <span className="font-medium">{activity.title}</span>
+                        <span className="text-gray-600 block">{activity.description}</span>
+                      </div>
+                    </div>
+                  );
+                }) : (
+                  <div className="text-sm text-gray-500 text-center py-4">
+                    Ingen seneste aktivitet
                   </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Mail className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm">
-                    <span className="font-medium">Ny support mail:</span>
-                    <span className="text-gray-600 block">Problem med installation</span>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Phone className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm">
-                    <span className="font-medium">Opkald planlagt:</span>
-                    <span className="text-gray-600 block">Maria Nielsen - i morgen kl. 10</span>
-                  </div>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>
