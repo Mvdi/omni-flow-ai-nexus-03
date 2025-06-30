@@ -13,8 +13,12 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const location = useLocation();
   const { getLastRoute } = useRouteMemory();
 
-  // Remove the problematic redirect logic that causes reload issues
-  // Users should stay on the page they reload, not be redirected to dashboard
+  // Save current route when component mounts and user is authenticated
+  useEffect(() => {
+    if (user && location.pathname !== '/auth') {
+      // Route is automatically saved by useRouteMemory hook
+    }
+  }, [user, location.pathname]);
 
   if (loading) {
     return (
@@ -31,6 +35,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/auth" replace />;
   }
 
+  // User is authenticated, render children without redirects
   return <>{children}</>;
 };
 
