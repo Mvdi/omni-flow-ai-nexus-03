@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateTicket } from '@/hooks/useTickets';
+import { useAddTicket } from '@/hooks/useTickets';
 import { Plus } from 'lucide-react';
 
 export interface CreateTicketDialogProps {
@@ -21,21 +20,22 @@ export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps)
     content: '',
     customer_email: '',
     customer_name: '',
-    priority: '' as string // Fix: Default to empty string instead of 'Medium'
+    priority: '' as string
   });
 
-  const createTicket = useCreateTicket();
+  const addTicket = useAddTicket();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const ticketData = {
       ...formData,
-      priority: formData.priority || null, // Convert empty string to null
-      status: 'Åben'
+      priority: formData.priority || null,
+      status: 'Åben' as const,
+      assignee_id: null
     };
 
-    await createTicket.mutateAsync(ticketData);
+    await addTicket.mutateAsync(ticketData);
     
     // Reset form
     setFormData({
@@ -114,7 +114,6 @@ export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps)
               <SelectContent>
                 <SelectItem value="">Ingen prioritet</SelectItem>
                 <SelectItem value="Lav">Lav</SelectItem>
-                <SelectItem value="Medium">Medium</SelectItem>
                 <SelectItem value="Høj">Høj</SelectItem>
               </SelectContent>
             </Select>
@@ -144,9 +143,9 @@ export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps)
             </Button>
             <Button
               type="submit"
-              disabled={createTicket.isPending}
+              disabled={addTicket.isPending}
             >
-              {createTicket.isPending ? 'Opretter...' : 'Opret Ticket'}
+              {addTicket.isPending ? 'Opretter...' : 'Opret Ticket'}
             </Button>
           </div>
         </form>
