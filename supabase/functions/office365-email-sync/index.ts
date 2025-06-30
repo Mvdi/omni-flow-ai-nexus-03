@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -529,7 +530,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting Office 365 email sync with IMPROVED conversation threading...');
+    console.log('Starting Office 365 email sync with FIXED Microsoft Graph API syntax...');
     
     // First run cleanup to remove existing duplicates
     const duplicatesRemoved = await cleanupDuplicateMessages(supabase);
@@ -619,7 +620,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Processing ${mailboxes.length} monitored mailboxes with IMPROVED threading...`);
+    console.log(`Processing ${mailboxes.length} monitored mailboxes with FIXED API syntax...`);
     let totalProcessed = 0;
     let totalErrors = 0;
     let totalMerged = 0;
@@ -643,11 +644,11 @@ serve(async (req) => {
         // Use 5 minute window for real-time performance
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
-        // FORBEDRET: Hent flere headers for bedre threading
+        // KRITISK FIX: Brug $select i stedet for $expand for internetMessageHeaders
         const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
-        const filter = `?$filter=receivedDateTime gt ${fiveMinutesAgo}&$top=20&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments&$expand=internetMessageHeaders`;
+        const filter = `?$filter=receivedDateTime gt ${fiveMinutesAgo}&$top=20&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments,internetMessageHeaders`;
 
-        console.log(`Fetching messages with headers from: ${messagesUrl}${filter}`);
+        console.log(`Fetching messages with FIXED syntax from: ${messagesUrl}${filter}`);
         
         const messagesResponse = await fetch(`${messagesUrl}${filter}`, {
           headers: {
@@ -679,7 +680,7 @@ serve(async (req) => {
         const messagesData = await messagesResponse.json();
         const messages: GraphMessage[] = messagesData.value || [];
         
-        console.log(`Found ${messages.length} messages for ${mailbox.email_address} with improved threading detection`);
+        console.log(`Found ${messages.length} messages for ${mailbox.email_address} with FIXED API syntax`);
 
         for (const message of messages) {
           try {
@@ -839,7 +840,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Email sync completed with IMPROVED threading. Processed: ${totalProcessed}, Merged: ${totalMerged}, Reopened: ${totalReopened}, Skipped: ${totalSkipped}, Errors: ${totalErrors}, Duplicates cleaned: ${duplicatesRemoved}, Attachments: ${totalAttachmentsProcessed}`);
+    console.log(`Email sync completed with FIXED API syntax. Processed: ${totalProcessed}, Merged: ${totalMerged}, Reopened: ${totalReopened}, Skipped: ${totalSkipped}, Errors: ${totalErrors}, Duplicates cleaned: ${duplicatesRemoved}, Attachments: ${totalAttachmentsProcessed}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -852,7 +853,7 @@ serve(async (req) => {
       attachmentsProcessed: totalAttachmentsProcessed,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `IMPROVED threading - merged ${totalMerged} messages, reopened ${totalReopened} tickets, cleaned ${duplicatesRemoved} duplicates, processed ${totalAttachmentsProcessed} attachments`
+      details: `FIXED API syntax - merged ${totalMerged} messages, reopened ${totalReopened} tickets, cleaned ${duplicatesRemoved} duplicates, processed ${totalAttachmentsProcessed} attachments`
     }), {
       status: 200,
       headers: corsHeaders
