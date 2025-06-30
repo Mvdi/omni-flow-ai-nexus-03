@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { useTickets } from './useTickets';
 import { useOrders } from './useOrders';
@@ -9,7 +8,7 @@ export const useDashboardData = () => {
   const { data: tickets = [] } = useTickets();
   const { orders } = useOrders();
   const { data: leads = [] } = useLeads();
-  const { data: employees = [] } = useEmployees();
+  const { employees = [] } = useEmployees();
 
   const dashboardQuery = useQuery({
     queryKey: ['dashboard-data', tickets, orders, leads, employees],
