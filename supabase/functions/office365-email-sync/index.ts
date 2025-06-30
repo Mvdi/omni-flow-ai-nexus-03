@@ -38,8 +38,17 @@ interface GraphMessage {
   parentFolderId: string;
 }
 
-// Function to find duplicate tickets
+// Function to create content fingerprint for duplicate detection
+function createContentFingerprint(subject: string, content: string): string {
+  const cleanSubject = subject.replace(/^(Re:|Sv:|Ang\.:|AW:)/i, '').trim();
+  const cleanContent = content.replace(/\s+/g, ' ').trim().substring(0, 200);
+  return `${cleanSubject}|${cleanContent}`.toLowerCase();
+}
+
+// Function to find duplicate tickets with improved algorithm
 async function findDuplicateTicket(supabase: any, message: GraphMessage) {
+  console.log(`Looking for duplicates for message: ${message.id}`);
+  
   // First check by exact email_thread_id
   const { data: exactMatch } = await supabase
     .from('support_tickets')
@@ -64,7 +73,33 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
     return messageMatch;
   }
 
-  // Check by customer email and similar subject (fuzzy match)
+  // NEW: Content-based duplicate detection
+  const contentFingerprint = createContentFingerprint(message.subject, message.body?.content || message.bodyPreview || '');
+  const fiveMinutesAgo = new Date(new Date(message.receivedDateTime).getTime() - 5 * 60 * 1000).toISOString();
+  const fiveMinutesLater = new Date(new Date(message.receivedDateTime).getTime() + 5 * 60 * 1000).toISOString();
+
+  console.log(`Checking content-based duplicates with fingerprint: ${contentFingerprint.substring(0, 50)}...`);
+
+  // Look for tickets with similar content and time proximity
+  const { data: contentMatches } = await supabase
+    .from('support_tickets')
+    .select('id, ticket_number, subject, content, created_at, customer_email')
+    .eq('customer_email', message.from.emailAddress.address)
+    .gte('created_at', fiveMinutesAgo)
+    .lte('created_at', fiveMinutesLater)
+    .limit(10);
+
+  if (contentMatches && contentMatches.length > 0) {
+    for (const ticket of contentMatches) {
+      const ticketFingerprint = createContentFingerprint(ticket.subject, ticket.content || '');
+      if (ticketFingerprint === contentFingerprint) {
+        console.log(`Found content-based duplicate: ${ticket.ticket_number}`);
+        return ticket;
+      }
+    }
+  }
+
+  // Fallback: Check by customer email and similar subject (existing logic)
   const cleanSubject = message.subject.replace(/^(Re:|Sv:|Ang\.:|AW:)/i, '').trim();
   const { data: similarTickets } = await supabase
     .from('support_tickets')
@@ -78,23 +113,60 @@ async function findDuplicateTicket(supabase: any, message: GraphMessage) {
     return similarTickets[0]; // Return the first match
   }
 
+  console.log(`No duplicates found for message: ${message.id}`);
   return null;
 }
 
-// Function to merge ticket messages
+// Function to merge ticket messages with duplicate check
 async function mergeTicketMessage(supabase: any, existingTicket: any, message: GraphMessage, mailboxAddress: string) {
+  console.log(`Merging message ${message.id} into existing ticket ${existingTicket.ticket_number}`);
+  
+  // NEW: Check if this exact email_message_id already exists in this ticket
+  const { data: existingMessage } = await supabase
+    .from('ticket_messages')
+    .select('id, email_message_id')
+    .eq('ticket_id', existingTicket.id)
+    .eq('email_message_id', message.id)
+    .single();
+
+  if (existingMessage) {
+    console.log(`Message ${message.id} already exists in ticket ${existingTicket.ticket_number}, skipping...`);
+    return existingTicket;
+  }
+
+  // NEW: Content-based duplicate check for messages without email_message_id
+  const messageContent = message.body?.content || message.bodyPreview || '';
+  const contentFingerprint = createContentFingerprint(message.subject, messageContent);
+  
+  const { data: similarMessages } = await supabase
+    .from('ticket_messages')
+    .select('id, message_content, created_at')
+    .eq('ticket_id', existingTicket.id)
+    .eq('sender_email', message.from.emailAddress.address)
+    .limit(10);
+
+  if (similarMessages && similarMessages.length > 0) {
+    for (const msg of similarMessages) {
+      const msgFingerprint = createContentFingerprint(message.subject, msg.message_content);
+      if (msgFingerprint === contentFingerprint) {
+        console.log(`Similar message content already exists in ticket ${existingTicket.ticket_number}, skipping...`);
+        return existingTicket;
+      }
+    }
+  }
+
   // Add the new message to the existing ticket
   const messageData = {
     ticket_id: existingTicket.id,
     sender_email: message.from.emailAddress.address,
     sender_name: message.from.emailAddress.name,
-    message_content: message.body?.content || message.bodyPreview || '',
+    message_content: messageContent,
     message_type: 'inbound_email',
     email_message_id: message.id,
     is_internal: false
   };
 
-  console.log(`Merging message into existing ticket ${existingTicket.ticket_number}`);
+  console.log(`Adding new message to ticket ${existingTicket.ticket_number}`);
 
   const { error: messageError } = await supabase
     .from('ticket_messages')
@@ -125,6 +197,7 @@ async function mergeTicketMessage(supabase: any, existingTicket: any, message: G
     console.error('Failed to update existing ticket:', updateError);
   }
 
+  console.log(`Successfully merged message into ticket ${existingTicket.ticket_number}`);
   return existingTicket;
 }
 
@@ -147,7 +220,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting Office 365 email sync with duplicate detection...');
+    console.log('Starting Office 365 email sync with IMPROVED duplicate detection...');
     
     // Extended logging for debugging
     const debugInfo = {
@@ -255,10 +328,11 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Processing ${mailboxes.length} monitored mailboxes with duplicate detection`);
+    console.log(`Processing ${mailboxes.length} monitored mailboxes with IMPROVED duplicate detection`);
     let totalProcessed = 0;
     let totalErrors = 0;
     let totalMerged = 0;
+    let totalSkipped = 0;
     let debugResults: any[] = [];
 
     // Process hver mailbox
@@ -387,16 +461,16 @@ serve(async (req) => {
           console.log('Generated test ticket number:', testTicketNumber);
         }
 
-        // Process hver email with duplicate detection
+        // Process hver email with IMPROVED duplicate detection
         for (const message of messages) {
           try {
             console.log(`Processing message ${message.id} with subject: "${message.subject}"`);
             
-            // NEW: Check for duplicate tickets
+            // IMPROVED: Check for duplicate tickets with better algorithm
             const duplicateTicket = await findDuplicateTicket(supabase, message);
             
             if (duplicateTicket) {
-              console.log(`Found duplicate ticket ${duplicateTicket.ticket_number}, merging message...`);
+              console.log(`Found duplicate ticket ${duplicateTicket.ticket_number}, attempting to merge message...`);
               await mergeTicketMessage(supabase, duplicateTicket, message, mailbox.email_address);
               totalMerged++;
               continue;
@@ -404,7 +478,7 @@ serve(async (req) => {
 
             console.log('No duplicate found, creating new ticket...');
 
-            // ... keep existing code (create customer)
+            // ... keep existing code (create customer, generate ticket number, create ticket, create ticket message)
             console.log('Creating new customer record...');
             const { data: customerResult, error: customerError } = await supabase
               .from('customers')
@@ -423,7 +497,6 @@ serve(async (req) => {
               console.log('Customer upserted successfully:', customerResult);
             }
 
-            // ... keep existing code (generate ticket number and create ticket)
             const { data: ticketNumber, error: ticketNumError } = await supabase.rpc('generate_ticket_number');
             
             if (ticketNumError) {
@@ -466,7 +539,6 @@ serve(async (req) => {
 
             console.log(`Created new ticket ${newTicket.ticket_number} from email ${message.id}`);
 
-            // ... keep existing code (create ticket message)
             const messageData = {
               ticket_id: newTicket.id,
               sender_email: message.from.emailAddress.address,
@@ -506,7 +578,7 @@ serve(async (req) => {
           processed: totalProcessed
         });
 
-        // Opdater last_sync_at for mailbox
+        // ... keep existing code (update mailbox and sync log)
         await supabase
           .from('monitored_mailboxes')
           .update({ 
@@ -515,7 +587,6 @@ serve(async (req) => {
           })
           .eq('id', mailbox.id);
 
-        // Opdater sync log
         if (syncLog) {
           await supabase
             .from('email_sync_log')
@@ -532,7 +603,6 @@ serve(async (req) => {
         console.error(`Error processing mailbox ${mailbox.email_address}:`, mailboxError);
         totalErrors++;
         
-        // Opdater sync log med fejl
         if (syncLog) {
           await supabase
             .from('email_sync_log')
@@ -547,17 +617,18 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Email sync completed. Processed: ${totalProcessed}, Merged: ${totalMerged}, Errors: ${totalErrors}`);
+    console.log(`Email sync completed. Processed: ${totalProcessed}, Merged: ${totalMerged}, Skipped: ${totalSkipped}, Errors: ${totalErrors}`);
     console.log('Debug results per mailbox:', JSON.stringify(debugResults, null, 2));
 
     return new Response(JSON.stringify({ 
       success: true, 
       processed: totalProcessed,
       merged: totalMerged,
+      skipped: totalSkipped,
       errors: totalErrors,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `Duplicate detection enabled - merged ${totalMerged} messages into existing tickets`,
+      details: `IMPROVED duplicate detection - merged ${totalMerged} messages, skipped ${totalSkipped} duplicates`,
       debugResults: debugResults,
       diagnostics: {
         timeChecked: debugInfo,
