@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -39,6 +38,96 @@ interface GraphMessage {
   parentFolderId: string;
 }
 
+// Function to find duplicate tickets
+async function findDuplicateTicket(supabase: any, message: GraphMessage) {
+  // First check by exact email_thread_id
+  const { data: exactMatch } = await supabase
+    .from('support_tickets')
+    .select('id, ticket_number, email_thread_id, subject')
+    .eq('email_thread_id', message.conversationId)
+    .single();
+
+  if (exactMatch) {
+    console.log(`Found exact duplicate by thread ID: ${exactMatch.ticket_number}`);
+    return exactMatch;
+  }
+
+  // Check by email_message_id to avoid processing the same message twice
+  const { data: messageMatch } = await supabase
+    .from('support_tickets')
+    .select('id, ticket_number, email_message_id, subject')
+    .eq('email_message_id', message.id)
+    .single();
+
+  if (messageMatch) {
+    console.log(`Found duplicate by message ID: ${messageMatch.ticket_number}`);
+    return messageMatch;
+  }
+
+  // Check by customer email and similar subject (fuzzy match)
+  const cleanSubject = message.subject.replace(/^(Re:|Sv:|Ang\.:|AW:)/i, '').trim();
+  const { data: similarTickets } = await supabase
+    .from('support_tickets')
+    .select('id, ticket_number, subject, customer_email')
+    .eq('customer_email', message.from.emailAddress.address)
+    .ilike('subject', `%${cleanSubject.substring(0, 30)}%`)
+    .limit(5);
+
+  if (similarTickets && similarTickets.length > 0) {
+    console.log(`Found similar tickets by subject and customer: ${similarTickets.map(t => t.ticket_number).join(', ')}`);
+    return similarTickets[0]; // Return the first match
+  }
+
+  return null;
+}
+
+// Function to merge ticket messages
+async function mergeTicketMessage(supabase: any, existingTicket: any, message: GraphMessage, mailboxAddress: string) {
+  // Add the new message to the existing ticket
+  const messageData = {
+    ticket_id: existingTicket.id,
+    sender_email: message.from.emailAddress.address,
+    sender_name: message.from.emailAddress.name,
+    message_content: message.body?.content || message.bodyPreview || '',
+    message_type: 'inbound_email',
+    email_message_id: message.id,
+    is_internal: false
+  };
+
+  console.log(`Merging message into existing ticket ${existingTicket.ticket_number}`);
+
+  const { error: messageError } = await supabase
+    .from('ticket_messages')
+    .insert(messageData);
+
+  if (messageError) {
+    console.error('Failed to merge ticket message:', messageError);
+    throw messageError;
+  }
+
+  // Update the existing ticket with latest info
+  const updateData: any = {
+    last_response_at: message.receivedDateTime,
+    updated_at: new Date().toISOString()
+  };
+
+  // Update email thread ID if it wasn't set before
+  if (!existingTicket.email_thread_id) {
+    updateData.email_thread_id = message.conversationId;
+  }
+
+  const { error: updateError } = await supabase
+    .from('support_tickets')
+    .update(updateData)
+    .eq('id', existingTicket.id);
+
+  if (updateError) {
+    console.error('Failed to update existing ticket:', updateError);
+  }
+
+  return existingTicket;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -58,7 +147,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting Office 365 email sync - EXTENDED DEBUG MODE...');
+    console.log('Starting Office 365 email sync with duplicate detection...');
     
     // Extended logging for debugging
     const debugInfo = {
@@ -166,9 +255,10 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Processing ${mailboxes.length} monitored mailboxes`);
+    console.log(`Processing ${mailboxes.length} monitored mailboxes with duplicate detection`);
     let totalProcessed = 0;
     let totalErrors = 0;
+    let totalMerged = 0;
     let debugResults: any[] = [];
 
     // Process hver mailbox
@@ -297,25 +387,25 @@ serve(async (req) => {
           console.log('Generated test ticket number:', testTicketNumber);
         }
 
-        // Process hver email
+        // Process hver email with duplicate detection
         for (const message of messages) {
           try {
             console.log(`Processing message ${message.id} with subject: "${message.subject}"`);
             
-            // Check hvis ticket allerede eksisterer
-            const { data: existingTicket } = await supabase
-              .from('support_tickets')
-              .select('id, ticket_number, source')
-              .eq('email_message_id', message.id)
-              .single();
-
-            if (existingTicket) {
-              console.log(`Ticket already exists for message ${message.id}: ${existingTicket.ticket_number} (source: ${existingTicket.source})`);
+            // NEW: Check for duplicate tickets
+            const duplicateTicket = await findDuplicateTicket(supabase, message);
+            
+            if (duplicateTicket) {
+              console.log(`Found duplicate ticket ${duplicateTicket.ticket_number}, merging message...`);
+              await mergeTicketMessage(supabase, duplicateTicket, message, mailbox.email_address);
+              totalMerged++;
               continue;
             }
 
+            console.log('No duplicate found, creating new ticket...');
+
+            // ... keep existing code (create customer)
             console.log('Creating new customer record...');
-            // Ensure customer exists in customers table
             const { data: customerResult, error: customerError } = await supabase
               .from('customers')
               .upsert({
@@ -333,7 +423,7 @@ serve(async (req) => {
               console.log('Customer upserted successfully:', customerResult);
             }
 
-            // Generate ticket number using database function
+            // ... keep existing code (generate ticket number and create ticket)
             const { data: ticketNumber, error: ticketNumError } = await supabase.rpc('generate_ticket_number');
             
             if (ticketNumError) {
@@ -344,7 +434,6 @@ serve(async (req) => {
 
             console.log(`Generated ticket number: ${ticketNumber}`);
 
-            // Opret nyt support ticket
             const ticketData = {
               ticket_number: ticketNumber,
               subject: message.subject || 'Ingen emne',
@@ -377,13 +466,13 @@ serve(async (req) => {
 
             console.log(`Created new ticket ${newTicket.ticket_number} from email ${message.id}`);
 
-            // Opret ticket message - FIXED: Use 'inbound_email' instead of 'incoming'
+            // ... keep existing code (create ticket message)
             const messageData = {
               ticket_id: newTicket.id,
               sender_email: message.from.emailAddress.address,
               sender_name: message.from.emailAddress.name,
               message_content: message.body?.content || message.bodyPreview || '',
-              message_type: 'inbound_email', // FIXED: Changed from 'incoming' to 'inbound_email'
+              message_type: 'inbound_email',
               email_message_id: message.id,
               is_internal: false
             };
@@ -458,16 +547,17 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Email sync completed. Processed: ${totalProcessed}, Errors: ${totalErrors}`);
+    console.log(`Email sync completed. Processed: ${totalProcessed}, Merged: ${totalMerged}, Errors: ${totalErrors}`);
     console.log('Debug results per mailbox:', JSON.stringify(debugResults, null, 2));
 
     return new Response(JSON.stringify({ 
       success: true, 
       processed: totalProcessed,
+      merged: totalMerged,
       errors: totalErrors,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `Fixed message_type constraint - now using 'inbound_email'`,
+      details: `Duplicate detection enabled - merged ${totalMerged} messages into existing tickets`,
       debugResults: debugResults,
       diagnostics: {
         timeChecked: debugInfo,
