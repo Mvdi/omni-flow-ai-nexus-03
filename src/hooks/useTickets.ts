@@ -165,7 +165,7 @@ export const useAddTicket = () => {
       content: string | null;
       customer_email: string;
       customer_name: string | null;
-      priority: 'Høj' | 'Medium' | 'Lav';
+      priority: 'Høj' | 'Medium' | 'Lav' | null;
       status: 'Åben' | 'I gang' | 'Afventer kunde' | 'Løst' | 'Lukket';
       assignee_id: string | null;
     }) => {
