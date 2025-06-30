@@ -45,48 +45,31 @@ export const useTickets = () => {
     queryKey: ['tickets'],
     queryFn: async () => {
       console.log('Fetching tickets with Danish timezone support...');
-      
-      // First get tickets
-      const { data: ticketsData, error: ticketsError } = await supabase
+      const { data, error } = await supabase
         .from('support_tickets')
-        .select('*')
+        .select(`
+          *,
+          assignee:profiles(navn)
+        `)
         .order('created_at', { ascending: false });
       
-      if (ticketsError) {
-        console.error('Error fetching tickets:', ticketsError);
-        throw ticketsError;
-      }
-
-      // Then get assignee names separately
-      const assigneeIds = ticketsData?.map(t => t.assignee_id).filter(Boolean) || [];
-      let assigneeMap: Record<string, string> = {};
-      
-      if (assigneeIds.length > 0) {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, navn')
-          .in('id', assigneeIds);
-        
-        if (!profilesError && profilesData) {
-          assigneeMap = profilesData.reduce((acc, profile) => {
-            acc[profile.id] = profile.navn || '';
-            return acc;
-          }, {} as Record<string, string>);
-        }
+      if (error) {
+        console.error('Error fetching tickets:', error);
+        throw error;
       }
       
-      console.log(`Fetched ${ticketsData?.length || 0} tickets with enhanced metadata`);
+      console.log(`Fetched ${data?.length || 0} tickets with enhanced metadata`);
       
       // Process tickets for enhanced features
-      const processedTickets = ticketsData?.map(ticket => ({
+      const processedTickets = data?.map(ticket => ({
         ...ticket,
-        assignee_name: ticket.assignee_id ? assigneeMap[ticket.assignee_id] || null : null,
+        assignee_name: ticket.assignee?.navn || null,
         // Auto-prioritize based on keywords and customer history
-        priority: ticket.priority || autoDetectPriority(ticket),
+        priority: ticket.priority || await autoDetectPriority(ticket),
         // Auto-categorize based on subject and content
-        category: ticket.category || autoDetectCategory(ticket),
-        // Calculate SLA deadline if not set
-        sla_deadline: ticket.sla_deadline || calculateSLADeadline(ticket.created_at, ticket.priority)
+        category: ticket.category || await autoDetectCategory(ticket),
+        // Calculate SLA deadline
+        sla_deadline: calculateSLADeadline(ticket.created_at, ticket.priority)
       })) || [];
       
       return processedTickets as SupportTicket[];
@@ -139,8 +122,8 @@ export const useTickets = () => {
   return query;
 };
 
-// AI-powered priority detection (synchronous version)
-const autoDetectPriority = (ticket: any): 'Høj' | 'Medium' | 'Lav' => {
+// AI-powered priority detection
+const autoDetectPriority = async (ticket: any): Promise<'Høj' | 'Medium' | 'Lav'> => {
   const content = `${ticket.subject} ${ticket.content || ''}`.toLowerCase();
   
   // High priority keywords
@@ -156,8 +139,8 @@ const autoDetectPriority = (ticket: any): 'Høj' | 'Medium' | 'Lav' => {
   return 'Lav';
 };
 
-// AI-powered category detection (synchronous version)
-const autoDetectCategory = (ticket: any): string => {
+// AI-powered category detection
+const autoDetectCategory = async (ticket: any): Promise<string> => {
   const content = `${ticket.subject} ${ticket.content || ''}`.toLowerCase();
   
   if (content.includes('faktura') || content.includes('betaling') || content.includes('regning')) {
