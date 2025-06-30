@@ -442,18 +442,6 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                 {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
-            
-            {/* Forhåndsvisning med signatur */}
-            {newMessage.trim() && signatureHtml && (
-              <div className="mt-3 p-3 bg-gray-50 rounded border">
-                <p className="text-xs text-gray-600 mb-2">Sådan vil emailen se ud med signatur:</p>
-                <div className="border rounded bg-white p-3">
-                  <div dangerouslySetInnerHTML={{ 
-                    __html: `${newMessage.replace(/\n/g, '<br>')}<br><br>${signatureHtml}`
-                  }} />
-                </div>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
