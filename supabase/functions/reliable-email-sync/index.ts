@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -274,7 +273,7 @@ const addMessageToTicket = async (supabase: any, ticket: any, message: GraphMess
   if (updateError) throw updateError;
 };
 
-// Create new ticket with AI enhancements
+// Create new ticket WITHOUT AI enhancements that set priority
 const createNewTicket = async (supabase: any, message: GraphMessage, mailboxAddress: string) => {
   // Upsert customer
   await supabase
@@ -291,11 +290,10 @@ const createNewTicket = async (supabase: any, message: GraphMessage, mailboxAddr
   const { data: ticketNumber, error: ticketNumError } = await supabase.rpc('generate_ticket_number');
   if (ticketNumError) throw ticketNumError;
 
-  // AI-powered enhancements
+  // CRITICAL: NO AUTOMATIC PRIORITY OR AI ENHANCEMENTS
   const messageContent = message.body?.content || message.bodyPreview || '';
-  const detectedPriority = autoDetectPriority(message.subject, messageContent);
-  const detectedCategory = autoDetectCategory(message.subject, messageContent);
-  const slaDeadline = calculateSLADeadline(message.receivedDateTime, detectedPriority);
+  const basicCategory = autoDetectCategory(message.subject, messageContent);
+  const slaDeadline = calculateSLADeadline(message.receivedDateTime);
 
   const ticketData = {
     ticket_number: ticketNumber,
@@ -309,8 +307,8 @@ const createNewTicket = async (supabase: any, message: GraphMessage, mailboxAddr
     mailbox_address: mailboxAddress,
     source: 'office365',
     status: 'Åben',
-    priority: detectedPriority,
-    category: detectedCategory,
+    priority: null, // CRITICAL: NO AUTOMATIC PRIORITY
+    category: basicCategory,
     sla_deadline: slaDeadline,
     auto_assigned: false,
     created_at: new Date().toISOString(),
@@ -345,29 +343,7 @@ const createNewTicket = async (supabase: any, message: GraphMessage, mailboxAddr
   return newTicket;
 };
 
-// AI-powered priority detection
-const autoDetectPriority = (subject: string, content: string): 'Høj' | 'Medium' | 'Lav' => {
-  const text = `${subject} ${content}`.toLowerCase();
-  
-  const highPriorityKeywords = [
-    'urgent', 'kritisk', 'nødsituation', 'ned', 'virker ikke', 'kan ikke', 
-    'fejl', 'problem', 'hjælp hurtigst', 'asap', 'øjeblikkeligt'
-  ];
-  
-  const mediumPriorityKeywords = [
-    'spørgsmål', 'hjælp', 'hvordan', 'support', 'assistance', 'information'
-  ];
-  
-  if (highPriorityKeywords.some(keyword => text.includes(keyword))) {
-    return 'Høj';
-  } else if (mediumPriorityKeywords.some(keyword => text.includes(keyword))) {
-    return 'Medium';
-  }
-  
-  return 'Lav';
-};
-
-// AI-powered category detection
+// AI-powered category detection - SIMPLIFIED
 const autoDetectCategory = (subject: string, content: string): string => {
   const text = `${subject} ${content}`.toLowerCase();
   
@@ -384,22 +360,10 @@ const autoDetectCategory = (subject: string, content: string): string => {
   return 'Generel';
 };
 
-// Calculate SLA deadline
-const calculateSLADeadline = (createdAt: string, priority: string): string => {
+// Calculate SLA deadline - SIMPLIFIED WITHOUT PRIORITY
+const calculateSLADeadline = (createdAt: string): string => {
   const created = new Date(createdAt);
-  let hoursToAdd = 24;
-  
-  switch (priority) {
-    case 'Høj':
-      hoursToAdd = 4;
-      break;
-    case 'Medium':
-      hoursToAdd = 12;
-      break;
-    case 'Lav':
-      hoursToAdd = 48;
-      break;
-  }
+  const hoursToAdd = 24; // Default 24 hours for ALL tickets
   
   return new Date(created.getTime() + hoursToAdd * 60 * 60 * 1000).toISOString();
 };
@@ -461,7 +425,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('🚀 Starting BULLETPROOF Email Sync System...');
+    console.log('🚀 Starting BULLETPROOF Email Sync System with NO AUTOMATIC PRIORITY...');
     
     // SINGLETON PATTERN - Acquire lock
     if (!(await acquireSyncLock(supabase))) {
@@ -664,7 +628,7 @@ serve(async (req) => {
       message: summary.details
     });
 
-    console.log('🎉 BULLETPROOF email sync completed:', summary.details);
+    console.log('🎉 BULLETPROOF email sync completed with NO AUTOMATIC PRIORITY:', summary.details);
 
     // Release lock
     await releaseSyncLock(supabase);

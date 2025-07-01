@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -125,61 +124,26 @@ const calculateSyncWindow = (lastSyncAt: string | null): { hours: number, window
   }
 };
 
-// AI-powered priority detection
-const autoDetectPriority = (subject: string, content: string): 'Høj' | 'Medium' | 'Lav' => {
-  const text = `${subject} ${content}`.toLowerCase();
-  
-  const highPriorityKeywords = [
-    'urgent', 'kritisk', 'nødsituation', 'ned', 'virker ikke', 'kan ikke', 
-    'fejl', 'problem', 'hjælp hurtigst', 'asap', 'øjeblikkeligt'
-  ];
-  
-  const mediumPriorityKeywords = [
-    'spørgsmål', 'hjælp', 'hvordan', 'support', 'assistance', 'information'
-  ];
-  
-  if (highPriorityKeywords.some(keyword => text.includes(keyword))) {
-    return 'Høj';
-  } else if (mediumPriorityKeywords.some(keyword => text.includes(keyword))) {
-    return 'Medium';
-  }
-  
-  return 'Lav';
-};
+// FJERNET: AI-powered priority detection - NO AUTOMATIC PRIORITY ASSIGNMENT
+// Priority should ONLY be set when explicitly chosen by user
 
-// AI-powered category detection
-const autoDetectCategory = (subject: string, content: string): string => {
+// FJERNET: AI-powered category detection - SIMPLIFIED
+const detectBasicCategory = (subject: string, content: string): string => {
   const text = `${subject} ${content}`.toLowerCase();
   
-  if (text.includes('faktura') || text.includes('betaling') || text.includes('regning') || text.includes('billing')) {
+  if (text.includes('faktura') || text.includes('betaling') || text.includes('regning')) {
     return 'Fakturering';
-  } else if (text.includes('teknisk') || text.includes('fejl') || text.includes('bug') || text.includes('virker ikke')) {
+  } else if (text.includes('teknisk') || text.includes('fejl') || text.includes('bug')) {
     return 'Teknisk Support';
-  } else if (text.includes('klage') || text.includes('utilfreds') || text.includes('complaint') || text.includes('problem med service')) {
-    return 'Klage';
-  } else if (text.includes('ændring') || text.includes('opdater') || text.includes('skift') || text.includes('modify')) {
-    return 'Ændringer';
   }
   
   return 'Generel';
 };
 
-// Calculate SLA deadline based on priority
-const calculateSLADeadline = (createdAt: string, priority: string): string => {
+// Calculate SLA deadline - SIMPLIFIED WITHOUT PRIORITY
+const calculateSLADeadline = (createdAt: string): string => {
   const created = new Date(createdAt);
-  let hoursToAdd = 24; // Default 24 hours
-  
-  switch (priority) {
-    case 'Høj':
-      hoursToAdd = 4; // 4 hours for high priority
-      break;
-    case 'Medium':
-      hoursToAdd = 12; // 12 hours for medium priority
-      break;
-    case 'Lav':
-      hoursToAdd = 48; // 48 hours for low priority
-      break;
-  }
+  const hoursToAdd = 24; // Default 24 hours for ALL tickets
   
   return new Date(created.getTime() + hoursToAdd * 60 * 60 * 1000).toISOString();
 };
@@ -279,7 +243,7 @@ const findDuplicateTicket = async (supabase: any, message: GraphMessage) => {
   return null;
 };
 
-// FORBEDRET message merging med automatiske status updates TIL "Nyt svar"
+// KRITISK FIX: Updated message merging - NO PRIORITY CHANGES
 const mergeTicketMessage = async (supabase: any, existingTicket: any, message: GraphMessage, mailboxAddress: string, accessToken: string) => {
   console.log(`Merging message ${message.id} into existing ticket ${existingTicket.ticket_number} (current status: ${existingTicket.status})`);
   
@@ -334,6 +298,7 @@ const mergeTicketMessage = async (supabase: any, existingTicket: any, message: G
     status: 'Nyt svar', // Always set to "Nyt svar" when customer replies
     last_response_at: new Date(message.receivedDateTime).toISOString(),
     updated_at: new Date().toISOString()
+    // FJERNET: priority updates - NO AUTOMATIC PRIORITY CHANGES
   };
 
   // Reopen closed/solved tickets
@@ -393,11 +358,11 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('🚀 Starting ENHANCED Office 365 email sync with intelligent catch-up...');
+    console.log('🚀 Starting ENHANCED Office 365 email sync with NO AUTOMATIC PRIORITY...');
     
     // Record sync start heartbeat
     await recordSyncHeartbeat(supabase, 'running', { processed: 0, errors: 0 });
-    
+
     // Fetch Office 365 credentials
     const { data: secrets, error: secretsError } = await supabase
       .from('integration_secrets')
@@ -450,7 +415,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`📧 Processing ${mailboxes.length} monitored mailboxes with INTELLIGENT catch-up...`);
+    console.log(`📧 Processing ${mailboxes.length} monitored mailboxes with NO AUTOMATIC PRIORITY...`);
     
     let totalProcessed = 0;
     let totalErrors = 0;
@@ -539,8 +504,8 @@ serve(async (req) => {
               continue;
             }
 
-            // Create new ticket with AI enhancements
-            console.log('✨ Creating new AI-enhanced ticket...');
+            // Create new ticket WITHOUT automatic AI enhancements
+            console.log('✨ Creating new ticket WITHOUT automatic priority...');
 
             // Upsert customer
             await supabase
@@ -562,11 +527,10 @@ serve(async (req) => {
               continue;
             }
 
-            // AI-powered enhancements
+            // CRITICAL: NO AUTOMATIC PRIORITY OR AI ENHANCEMENTS
             const messageContent = message.body?.content || message.bodyPreview || '';
-            const detectedPriority = autoDetectPriority(message.subject, messageContent);
-            const detectedCategory = autoDetectCategory(message.subject, messageContent);
-            const slaDeadline = calculateSLADeadline(message.receivedDateTime, detectedPriority);
+            const basicCategory = detectBasicCategory(message.subject, messageContent);
+            const slaDeadline = calculateSLADeadline(message.receivedDateTime);
 
             const ticketData = {
               ticket_number: ticketNumber,
@@ -580,15 +544,13 @@ serve(async (req) => {
               mailbox_address: mailbox.email_address,
               source: 'office365',
               status: 'Åben',
-              priority: detectedPriority,
-              category: detectedCategory,
+              priority: null, // CRITICAL: NO AUTOMATIC PRIORITY
+              category: basicCategory,
               sla_deadline: slaDeadline,
               auto_assigned: false,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             };
-
-            console.log(`🎯 Creating AI-enhanced ticket with priority: ${detectedPriority}, category: ${detectedCategory}`);
 
             const { data: newTicket, error: ticketError } = await supabase
               .from('support_tickets')
@@ -603,29 +565,28 @@ serve(async (req) => {
             }
 
             // Add initial message
-            const messageData = {
-              ticket_id: newTicket.id,
-              sender_email: message.from.emailAddress.address,
-              sender_name: message.from.emailAddress.name,
-              message_content: messageContent,
-              message_type: 'inbound_email',
-              email_message_id: message.id,
-              is_internal: false,
-              attachments: [],
-              created_at: new Date(message.receivedDateTime).toISOString()
-            };
-
             const { error: messageError } = await supabase
               .from('ticket_messages')
-              .insert(messageData);
+              .insert({
+                ticket_id: newTicket.id,
+                sender_email: message.from.emailAddress.address,
+                sender_name: message.from.emailAddress.name,
+                message_content: messageContent,
+                message_type: 'inbound_email',
+                email_message_id: message.id,
+                is_internal: false,
+                attachments: [],
+                created_at: new Date(message.receivedDateTime).toISOString()
+              });
 
             if (messageError) {
-              console.error('Failed to create ticket message:', messageError);
+              console.error('Failed to add initial message:', messageError);
               totalErrors++;
-            } else {
-              totalProcessed++;
-              console.log(`✅ Successfully created AI-enhanced ticket ${newTicket.ticket_number} with priority ${detectedPriority}`);
+              continue;
             }
+
+            console.log(`✅ Successfully created ticket ${newTicket.ticket_number} WITHOUT automatic priority`);
+            totalProcessed++;
 
           } catch (messageError) {
             console.error(`❌ Error processing message ${message.id}:`, messageError);
@@ -653,23 +614,23 @@ serve(async (req) => {
       processed: totalProcessed,
       merged: totalMerged,
       reopened: totalReopened,
-      internalSkipped: totalInternalSkipped,
-      duplicatesSkipped: totalDuplicatesSkipped,
-      caughtUp: totalCaughtUp,
+      caught_up: totalCaughtUp,
+      internal_skipped: totalInternalSkipped,
+      duplicates_skipped: totalDuplicatesSkipped,
       errors: totalErrors,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `🚀 ENHANCED sync completed: ${totalProcessed} new tickets, ${totalMerged} merged messages, ${totalReopened} reopened tickets, ${totalCaughtUp} caught-up emails, ${totalInternalSkipped} internal emails skipped, ${totalDuplicatesSkipped} duplicates skipped`
+      note: 'NO AUTOMATIC PRIORITY ASSIGNMENT - Only manual priority setting allowed'
     };
 
-    // Record successful sync heartbeat
-    await recordSyncHeartbeat(supabase, 'completed', { 
-      processed: totalProcessed, 
-      errors: totalErrors,
-      caught_up: totalCaughtUp 
-    });
+    console.log('🎉 Enhanced email sync completed:', `🚀 ENHANCED sync completed: ${totalProcessed} new tickets, ${totalMerged} merged messages, ${totalReopened} reopened tickets, ${totalCaughtUp} caught-up emails, ${totalInternalSkipped} internal emails skipped, ${totalDuplicatesSkipped} duplicates skipped`);
 
-    console.log('🎉 Enhanced email sync completed:', summary.details);
+    // Record successful completion
+    await recordSyncHeartbeat(supabase, 'completed', {
+      processed: totalProcessed,
+      errors: totalErrors,
+      error_message: null
+    });
 
     return new Response(JSON.stringify(summary), {
       status: 200,
@@ -677,13 +638,13 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('💥 Enhanced email sync error:', error);
+    console.error('❌ Error in Office 365 email sync:', error);
     
-    // Record failed sync heartbeat
-    await recordSyncHeartbeat(supabase, 'failed', { 
-      processed: 0, 
-      errors: 1, 
-      error_message: String(error) 
+    // Record failure
+    await recordSyncHeartbeat(supabase, 'failed', {
+      processed: 0,
+      errors: 1,
+      error_message: String(error)
     });
 
     return new Response(JSON.stringify({ 

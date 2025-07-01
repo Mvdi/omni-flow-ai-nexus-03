@@ -5,12 +5,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from 'react';
 import { SupportTicket, useUpdateTicket } from '@/hooks/useTickets';
 import { useTicketMessages } from '@/hooks/useTicketMessages';
 import { useOffice365EmailSender } from '@/hooks/useOffice365EmailSender';
 import { AttachmentViewer } from './AttachmentViewer';
 import { DuplicateMessageHandler } from './DuplicateMessageHandler';
+import { AIResponseSuggestions } from './AIResponseSuggestions';
 import { formatDanishDistance, formatDanishDateTime } from '@/utils/danishTime';
 import { Send, Bot, User, Clock, Mail, Tag, Sparkles, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,6 +53,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [signatureHtml, setSignatureHtml] = useState('');
+  const [activeTab, setActiveTab] = useState('compose');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -110,6 +113,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
       
       console.log('Email sent successfully via Office 365');
       setNewMessage('');
+      setActiveTab('compose'); // Switch back to compose tab after sending
       
       setTimeout(() => {
         refetch();
@@ -163,6 +167,11 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const useAiSuggestion = () => {
     setNewMessage(aiSuggestion);
     setAiSuggestion('');
+  };
+
+  const handleUseSuggestion = (content: string) => {
+    setNewMessage(content);
+    setActiveTab('compose');
   };
 
   const getStatusColor = (status: string) => {
@@ -294,7 +303,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
         </CardHeader>
       </Card>
 
-      {/* Messages with Enhanced Duplicate Detection */}
+      {/* Messages */}
       <Card className="flex-1 flex flex-col">
         <CardContent className="flex-1 flex flex-col p-0">
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -426,39 +435,60 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
             </div>
           )}
 
-          {/* Reply Input */}
+          {/* Enhanced Reply System with AI Suggestions */}
           <div className="p-3 border-t">
-            <div className="flex gap-2 mb-3">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={generateAiResponse}
-                disabled={isGeneratingAI}
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                {isGeneratingAI ? 'Genererer...' : 'AI Forslag'}
-              </Button>
-            </div>
-            <div className="flex gap-2">
-              <Textarea
-                placeholder="Skriv dit svar..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-1 min-h-[200px] resize-y"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                    handleSendMessage();
-                  }
-                }}
-              />
-              <Button 
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim() || isSending}
-                className="self-end"
-              >
-                {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
-            </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="compose">Skriv Svar</TabsTrigger>
+                <TabsTrigger value="ai-suggestions">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  AI Forslag
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="compose" className="space-y-3">
+                <div className="flex gap-2 mb-3">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={generateAiResponse}
+                    disabled={isGeneratingAI}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {isGeneratingAI ? 'Genererer...' : 'Hurtig AI Forslag'}
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Textarea
+                    placeholder="Skriv dit svar..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    className="flex-1 min-h-[200px] resize-y"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                        handleSendMessage();
+                      }
+                    }}
+                  />
+                  <Button 
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim() || isSending}
+                    className="self-end"
+                  >
+                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="ai-suggestions" className="space-y-3">
+                <AIResponseSuggestions
+                  ticketId={ticket.id}
+                  ticketContent={`${ticket.subject}\n\n${ticket.content}`}
+                  customerHistory={`Kunde: ${ticket.customer_name || ticket.customer_email}\nStatus: ${ticket.status}`}
+                  onUseSuggestion={handleUseSuggestion}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
         </CardContent>
       </Card>
