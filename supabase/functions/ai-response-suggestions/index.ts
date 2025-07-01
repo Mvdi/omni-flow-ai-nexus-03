@@ -20,86 +20,61 @@ serve(async (req) => {
       throw new Error('OPENAI_API_KEY is not configured');
     }
 
-    const systemPrompt = `Du er en ekspert kundeservice specialist hos MM Multipartner - en førende dansk virksomhed inden for tekniske løsninger og support.
+    // REVOLUTIONIZED: Much shorter, natural Danish prompt
+    const systemPrompt = `Du er en hjælpsom kundeservice medarbejder hos MM Multipartner. 
 
-VIRKSOMHEDSPROFIL:
-- MM Multipartner leverer tekniske løsninger, support og rådgivning
-- Vi er kendt for vores høje serviceniveau og personlige tilgang
-- Vores kunder spænder fra små virksomheder til store enterprise kunder
-- Vi prioriterer langsigtede kundeforhold og proaktiv problemløsning
+VIGTIGE REGLER:
+- Skriv naturligt dansk - ikke robot-sprog
+- Vær direkte og hjælpsom
+- Fokuser kun på det konkrete problem
+- Undgå generiske fraser som "jeg sætter pris på" eller "hvis du har brug for hjælp"
+- Vær professionel men ikke stiv
 
-DIN ROLLE:
-- Du er en erfaren kundeservice ekspert med dyb teknisk viden
-- Du kender MM Multipartners services, processer og best practices
-- Du kommunikerer professionelt men varmt og personligt
-- Du løser problemer grundigt og tænker langsigtet
+Generer 3 forskellige svar:
+1. HURTIG: Kort, direkte løsning
+2. GRUNDIG: Detaljeret forklaring og løsning  
+3. VENLIG: Mere personlig tilgang
 
-SVAR RETNINGSLINJER:
-1. ALTID begynd med empati og forståelse for kundens situation
-2. Giv konkrete, actionable løsninger - ikke vage svar
-3. Forklar tekniske ting på en måde kunden kan forstå
-4. Tilbyd opfølgning og videre assistance
-5. Vis proaktivitet - foreslå forbedringer eller forebyggende tiltag
-6. Brug kundens navn hvis tilgængeligt
-7. Referencér tidligere kommunikation når relevant
-
-TONE:
-- Professionel men varm og personlig
-- Løsningsorienteret og positiv
-- Tålmodig selv ved gentagne spørgsmål
-- Tydelig kommunikation uden jargon
-- Påtager sig ejerskab af problemet
-
-KRITISK: Du skal generere 3 forskellige forslag til svar, hver med forskellig tilgang:
-1. Et direkte, effektivt svar (få ord, handling-fokuseret)
-2. Et detaljeret, grundigt svar (omfattende forklaring og løsning)
-3. Et empatisk, relationsbyggende svar (fokus på kundeforhold)
-
-Brugerens nuværende svarstil: ${userStyle}
-
-Format dit svar som JSON med denne struktur:
+Format som JSON med denne struktur:
 {
   "suggestions": [
     {
-      "id": "suggestion_1",
-      "content": "Det direkte svar her...",
+      "id": "hurtig_1",
+      "content": "Hej\\n\\nSelvfølgelig kan jeg hjælpe med det...\\n\\nBedste hilsner",
       "confidence": 85,
-      "reasoning": "Dette forslag er direkte og effektivt fordi...",
-      "suggestedActions": ["Konkret handling 1", "Konkret handling 2"],
-      "approach": "Direkte & Effektiv"
+      "reasoning": "Kort beskrivelse af hvorfor",
+      "suggestedActions": ["Handling 1", "Handling 2"],
+      "approach": "Hurtig & Direkte"
     },
     {
-      "id": "suggestion_2", 
-      "content": "Det detaljerede svar her...",
+      "id": "grundig_2", 
+      "content": "Hej\\n\\nJeg har kigget på dit problem...\\n\\nBedste hilsner",
       "confidence": 90,
-      "reasoning": "Dette forslag er grundigt og omfattende fordi...", 
-      "suggestedActions": ["Detaljeret handling 1", "Detaljeret handling 2"],
-      "approach": "Detaljeret & Grundig"
+      "reasoning": "Grundig forklaring hvorfor", 
+      "suggestedActions": ["Detaljeret handling 1"],
+      "approach": "Grundig & Detaljeret"
     },
     {
-      "id": "suggestion_3",
-      "content": "Det empatiske svar her...",
+      "id": "venlig_3",
+      "content": "Hej\\n\\nTak for din henvendelse...\\n\\nHav en god dag",
       "confidence": 88,
-      "reasoning": "Dette forslag fokuserer på kundeforholdet fordi...",
-      "suggestedActions": ["Relationsbyggende handling 1", "Relationsbyggende handling 2"],
-      "approach": "Empatisk & Relationsbyggende"
+      "reasoning": "Personlig tilgang fordi",
+      "suggestedActions": ["Personlig handling"],
+      "approach": "Venlig & Personlig"
     }
   ],
   "success": true
 }
 
-VIGTIG: Alle svar skal være på dansk og tilpasset MM Multipartners tone. INGEN signatur eller afslutning - dette tilføjes automatisk.`;
+KRITISK: Brug \\n for linjeskift. Ingen signatur - tilføjes automatisk.`;
 
-    const userPrompt = `KUNDENS HENVENDELSE:
+    const userPrompt = `KUNDENS PROBLEM:
 ${ticketContent}
 
-KUNDEHISTORIK & KONTEKST:
+KUNDE INFO:
 ${customerHistory}
 
-MEDARBEJDERENS SVARSTIL:
-${userStyle}
-
-Generer nu 3 professionelle MM Multipartner svar forslag med forskellige tilgange. Husk at være konkret, hjælpsom og actionable i alle forslag.`;
+Skriv 3 naturlige, hjælpsomme svar på dansk. Vær konkret og fokuseret på problemet.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -113,8 +88,8 @@ Generer nu 3 professionelle MM Multipartner svar forslag med forskellige tilgang
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.7,
-        max_tokens: 2000,
+        temperature: 0.5, // Reduced from 0.7 for faster, more consistent responses
+        max_tokens: 1000, // Reduced from 2000 for faster generation
       }),
     });
 
@@ -135,7 +110,7 @@ Generer nu 3 professionelle MM Multipartner svar forslag med forskellige tilgang
           ...suggestion,
           id: suggestion.id || `mm_suggestion_${index + 1}_${Date.now()}`,
           learningContext: {
-            userStyle: userStyle.substring(0, 100) + '...',
+            userStyle: 'Optimized for speed and naturalness',
             ticketId,
             generatedAt: new Date().toISOString(),
             company: 'MM Multipartner'
@@ -143,7 +118,7 @@ Generer nu 3 professionelle MM Multipartner svar forslag med forskellige tilgang
         }));
       }
 
-      console.log(`Generated ${parsedResponse.suggestions?.length || 0} MM Multipartner AI suggestions for ticket ${ticketId}`);
+      console.log(`Generated ${parsedResponse.suggestions?.length || 0} fast MM AI suggestions for ticket ${ticketId}`);
 
       return new Response(JSON.stringify(parsedResponse), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -154,11 +129,11 @@ Generer nu 3 professionelle MM Multipartner svar forslag med forskellige tilgang
       return new Response(JSON.stringify({ 
         suggestions: [{
           id: `mm_fallback_${Date.now()}`,
-          content: aiResponse,
+          content: aiResponse.replace(/\n/g, '\\n'), // Preserve line breaks
           confidence: 70,
-          reasoning: "AI svar kunne ikke parses korrekt, men indholdet er stadig professionelt",
+          reasoning: "Fallback svar",
           suggestedActions: [],
-          approach: "Fallback svar",
+          approach: "Standard",
           learningContext: {
             ticketId,
             company: 'MM Multipartner',
@@ -172,7 +147,7 @@ Generer nu 3 professionelle MM Multipartner svar forslag med forskellige tilgang
     }
 
   } catch (error) {
-    console.error('Error in MM Multipartner AI response suggestions:', error);
+    console.error('Error in MM AI response suggestions:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
       success: false 

@@ -18,6 +18,23 @@ export interface AIResponseSuggestion {
   };
 }
 
+// PERFORMANCE: Cache user style in localStorage
+const getCachedUserStyle = (): string | null => {
+  try {
+    return localStorage.getItem('mm_user_style');
+  } catch {
+    return null;
+  }
+};
+
+const setCachedUserStyle = (style: string): void => {
+  try {
+    localStorage.setItem('mm_user_style', style);
+  } catch {
+    // Ignore cache errors
+  }
+};
+
 export const useAIResponseGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<AIResponseSuggestion[]>([]);
@@ -25,43 +42,51 @@ export const useAIResponseGenerator = () => {
 
   const generateResponseSuggestions = async (ticketId: string, ticketContent: string, customerHistory?: string) => {
     setIsGenerating(true);
+    const startTime = Date.now();
+    
     try {
-      console.log('Generating MM Multipartner AI response suggestions for ticket:', ticketId);
+      console.log('Generating fast MM AI response suggestions for ticket:', ticketId);
       
-      // Get user profile for personalization
-      const user = (await supabase.auth.getUser()).data.user;
-      let userStyle = 'professionel MM Multipartner kundeservice specialist med fokus på at levere excellent service';
+      // PERFORMANCE: Use parallel queries for better speed
+      const [userResult, customerEmailMatch] = await Promise.all([
+        supabase.auth.getUser(),
+        Promise.resolve(ticketContent.match(/\S+@\S+\.\S+/)?.[0])
+      ]);
       
-      if (user) {
-        // Get user's previous responses to learn style
+      const user = userResult.data.user;
+      let userStyle = getCachedUserStyle() || 'MM Multipartner kundeservice specialist';
+      
+      // PERFORMANCE: Only fetch user style if not cached
+      if (!getCachedUserStyle() && user) {
         const { data: userResponses } = await supabase
           .from('ticket_messages')
           .select('message_content')
           .eq('sender_email', user.email)
-          .limit(15);
+          .limit(8) // Reduced from 15 for faster queries
+          .order('created_at', { ascending: false });
         
         if (userResponses && userResponses.length > 0) {
-          const sampleMessages = userResponses.map(r => r.message_content).join('\n\n');
-          userStyle = `Baseret på tidligere beskeder fra denne medarbejder: ${sampleMessages.substring(0, 800)}...`;
+          const sampleMessages = userResponses.slice(0, 3).map(r => r.message_content).join('\n\n');
+          userStyle = `Baseret på tidligere beskeder: ${sampleMessages.substring(0, 400)}...`;
+          setCachedUserStyle(userStyle);
         }
       }
 
-      // Get enhanced customer history
-      const customerEmail = ticketContent.includes('@') ? ticketContent.match(/\S+@\S+\.\S+/)?.[0] : null;
-      let enhancedHistory = customerHistory || 'Ingen tidligere historik tilgængelig';
+      // PERFORMANCE: Simplified customer history with limit
+      let enhancedHistory = customerHistory || 'Ingen tidligere historik';
       
-      if (customerEmail) {
+      if (customerEmailMatch) {
         const { data: previousTickets } = await supabase
           .from('support_tickets')
-          .select('subject, status, created_at, priority')
-          .eq('customer_email', customerEmail)
+          .select('subject, status, priority')
+          .eq('customer_email', customerEmailMatch)
           .order('created_at', { ascending: false })
-          .limit(5);
+          .limit(3); // Reduced from 5 for faster queries
         
         if (previousTickets && previousTickets.length > 0) {
-          enhancedHistory += `\n\nKundens tidligere tickets:\n${previousTickets.map(t => 
-            `- ${t.subject} (${t.status}, ${t.priority || 'Normal'}) - ${new Date(t.created_at).toLocaleDateString('da-DK')}`
-          ).join('\n')}`;
+          enhancedHistory += `\n\nKundens tidligere tickets: ${previousTickets.map(t => 
+            `${t.subject} (${t.status})`
+          ).join(', ')}`;
         }
       }
 
@@ -78,15 +103,18 @@ export const useAIResponseGenerator = () => {
 
       if (data.success && data.suggestions) {
         setSuggestions(data.suggestions);
+        
+        const generationTime = Math.round((Date.now() - startTime) / 1000);
+        
         toast({
-          title: "MM Multipartner AI Forslag Genereret",
-          description: `${data.suggestions.length} ekspert kundeservice forslag er nu tilgængelige.`,
+          title: "MM AI Forslag Genereret",
+          description: `${data.suggestions.length} forslag klar på ${generationTime} sekunder`,
         });
       } else {
         throw new Error(data.error || 'Ukendt fejl');
       }
     } catch (error) {
-      console.error('Error generating MM Multipartner AI suggestions:', error);
+      console.error('Error generating MM AI suggestions:', error);
       toast({
         title: "Fejl",
         description: "Kunne ikke generere AI forslag. Prøv igen.",
@@ -99,7 +127,7 @@ export const useAIResponseGenerator = () => {
 
   const provideFeedback = async (suggestionId: string, isUseful: boolean, userModifications?: string) => {
     try {
-      console.log('Providing feedback for MM Multipartner AI suggestion:', { suggestionId, isUseful });
+      console.log('Providing feedback for MM AI suggestion:', { suggestionId, isUseful });
       
       await supabase.functions.invoke('ai-learning-feedback', {
         body: {
@@ -111,12 +139,10 @@ export const useAIResponseGenerator = () => {
         }
       });
       
-      // Show user feedback was recorded
+      // Simplified feedback toast
       toast({
-        title: isUseful ? "Tak for feedback!" : "Feedback noteret",
-        description: isUseful 
-          ? "AI'en lærer fra dit positive feedback og bliver bedre." 
-          : "AI'en vil forbedre sig baseret på din feedback.",
+        title: isUseful ? "Tak!" : "Noteret",
+        description: isUseful ? "AI'en lærer fra din feedback" : "AI'en forbedres",
         variant: isUseful ? "default" : "destructive",
       });
       
@@ -124,7 +150,7 @@ export const useAIResponseGenerator = () => {
       console.error('Error providing AI feedback:', error);
       toast({
         title: "Fejl",
-        description: "Kunne ikke gemme feedback. AI'en får ikke denne læring.",
+        description: "Kunne ikke gemme feedback",
         variant: "destructive",
       });
     }

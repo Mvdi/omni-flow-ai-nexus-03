@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useAIResponseGenerator, AIResponseSuggestion } from '@/hooks/useAIResponseGenerator';
-import { Sparkles, ThumbsUp, ThumbsDown, Copy, Edit3, Loader2, Bot, Zap } from 'lucide-react';
+import { Sparkles, ThumbsUp, ThumbsDown, Copy, Edit3, Loader2, Bot, Zap, Heart } from 'lucide-react';
 
 interface AIResponseSuggestionsProps {
   ticketId: string;
@@ -37,8 +37,11 @@ export const AIResponseSuggestions = ({
     generateResponseSuggestions(ticketId, ticketContent, customerHistory);
   };
 
+  // CRITICAL FIX: Preserve line breaks when using AI suggestions
   const handleUseSuggestion = (suggestion: AIResponseSuggestion) => {
-    onUseSuggestion(suggestion.content);
+    // Convert \n to actual line breaks that work in textarea
+    const formattedContent = suggestion.content.replace(/\\n/g, '\n');
+    onUseSuggestion(formattedContent);
     provideFeedback(suggestion.id, true);
     setFeedbackGiven(prev => [...prev, suggestion.id]);
   };
@@ -58,7 +61,9 @@ export const AIResponseSuggestions = ({
 
   const startEditing = (suggestion: AIResponseSuggestion) => {
     setEditingSuggestion(suggestion.id);
-    setEditedContent(suggestion.content);
+    // Also preserve line breaks when editing
+    const formattedContent = suggestion.content.replace(/\\n/g, '\n');
+    setEditedContent(formattedContent);
   };
 
   const saveEdit = (suggestion: AIResponseSuggestion) => {
@@ -76,15 +81,17 @@ export const AIResponseSuggestions = ({
   };
 
   const getApproachIcon = (approach: string) => {
-    if (approach.includes('Direkte')) return <Zap className="h-4 w-4" />;
-    if (approach.includes('Detaljeret')) return <Bot className="h-4 w-4" />;
+    if (approach.includes('Hurtig') || approach.includes('Direkte')) return <Zap className="h-4 w-4" />;
+    if (approach.includes('Grundig') || approach.includes('Detaljeret')) return <Bot className="h-4 w-4" />;
+    if (approach.includes('Venlig') || approach.includes('Personlig')) return <Heart className="h-4 w-4" />;
     return <Sparkles className="h-4 w-4" />;
   };
 
   const getApproachColor = (approach: string) => {
-    if (approach.includes('Direkte')) return 'bg-orange-100 text-orange-800';
-    if (approach.includes('Detaljeret')) return 'bg-blue-100 text-blue-800';
-    return 'bg-purple-100 text-purple-800';
+    if (approach.includes('Hurtig') || approach.includes('Direkte')) return 'bg-orange-100 text-orange-800';
+    if (approach.includes('Grundig') || approach.includes('Detaljeret')) return 'bg-blue-100 text-blue-800';
+    if (approach.includes('Venlig') || approach.includes('Personlig')) return 'bg-purple-100 text-purple-800';
+    return 'bg-gray-100 text-gray-800';
   };
 
   return (
@@ -93,10 +100,10 @@ export const AIResponseSuggestions = ({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-blue-600" />
-            <h3 className="text-lg font-semibold">MM Multipartner AI Assistent</h3>
+            <h3 className="text-lg font-semibold">MM AI Assistent</h3>
           </div>
           <Badge variant="outline" className="text-xs">
-            Ekspert Kundeservice
+            Hurtig & Intelligent
           </Badge>
         </div>
         <div className="flex gap-2">
@@ -109,18 +116,18 @@ export const AIResponseSuggestions = ({
             {isGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Genererer ekspert svar...
+                Genererer...
               </>
             ) : (
               <>
                 <Sparkles className="h-4 w-4 mr-2" />
-                Generer AI Forslag
+                Generer Forslag
               </>
             )}
           </Button>
           {suggestions.length > 0 && (
             <Button onClick={clearSuggestions} variant="ghost" size="sm">
-              Ryd Forslag
+              Ryd
             </Button>
           )}
         </div>
@@ -143,7 +150,7 @@ export const AIResponseSuggestions = ({
                       {suggestion.approach}
                     </Badge>
                     <Badge className={getConfidenceColor(suggestion.confidence)}>
-                      {suggestion.confidence}% sikker
+                      {suggestion.confidence}%
                     </Badge>
                   </div>
                   <div className="flex gap-1">
@@ -189,7 +196,7 @@ export const AIResponseSuggestions = ({
                     )}
                     {feedbackGiven.includes(suggestion.id) && (
                       <Badge variant="outline" className="text-xs">
-                        Feedback givet ✓
+                        ✓
                       </Badge>
                     )}
                   </div>
@@ -210,7 +217,7 @@ export const AIResponseSuggestions = ({
                         onClick={() => saveEdit(suggestion)}
                         className="bg-green-600 hover:bg-green-700"
                       >
-                        Brug Redigeret Version
+                        Brug
                       </Button>
                       <Button 
                         size="sm" 
@@ -228,7 +235,7 @@ export const AIResponseSuggestions = ({
                         expandedSuggestions.includes(suggestion.id) ? '' : 'line-clamp-4'
                       }`}
                     >
-                      {suggestion.content}
+                      {suggestion.content.replace(/\\n/g, '\n')}
                     </div>
                     
                     {suggestion.content.length > 300 && (
@@ -238,19 +245,19 @@ export const AIResponseSuggestions = ({
                         onClick={() => toggleExpanded(suggestion.id)}
                         className="mt-2 text-blue-600 hover:text-blue-700"
                       >
-                        {expandedSuggestions.includes(suggestion.id) ? 'Vis mindre' : 'Vis mere'}
+                        {expandedSuggestions.includes(suggestion.id) ? 'Mindre' : 'Mere'}
                       </Button>
                     )}
                     
                     {suggestion.reasoning && (
                       <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                        <strong>AI Begrundelse:</strong> {suggestion.reasoning}
+                        <strong>Begrundelse:</strong> {suggestion.reasoning}
                       </div>
                     )}
                     
                     {suggestion.suggestedActions && suggestion.suggestedActions.length > 0 && (
                       <div className="mt-3">
-                        <div className="text-xs font-medium text-gray-600 mb-2">Foreslåede handlinger:</div>
+                        <div className="text-xs font-medium text-gray-600 mb-2">Handlinger:</div>
                         <div className="flex gap-1 flex-wrap">
                           {suggestion.suggestedActions.map((action, actionIndex) => (
                             <Badge key={actionIndex} variant="outline" className="text-xs">
@@ -274,14 +281,14 @@ export const AIResponseSuggestions = ({
             <div className="flex items-center justify-center mb-4">
               <Bot className="h-12 w-12 text-blue-400" />
             </div>
-            <h4 className="text-lg font-semibold mb-2">MM Multipartner AI Assistent</h4>
+            <h4 className="text-lg font-semibold mb-2">MM AI Assistent</h4>
             <p className="text-gray-600 mb-4">
-              Klik "Generer AI Forslag" for at få professionelle, ekspert kundeservice svar forslag til denne ticket.
+              Få professionelle svar forslag på få sekunder
             </p>
             <div className="text-sm text-gray-500 space-y-1">
-              <p>• <strong>Direkte & Effektiv:</strong> Hurtige, actionable svar</p>
-              <p>• <strong>Detaljeret & Grundig:</strong> Omfattende problemløsning</p>
-              <p>• <strong>Empatisk & Relationsbyggende:</strong> Fokus på kundeforhold</p>
+              <p>• <strong>Hurtig:</strong> Svar på 5 sekunder</p>
+              <p>• <strong>Naturlig:</strong> Lyder som en kollega</p>
+              <p>• <strong>Præcis:</strong> Fokuseret på det specifikke problem</p>
             </div>
           </CardContent>
         </Card>
