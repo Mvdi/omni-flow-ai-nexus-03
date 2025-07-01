@@ -32,9 +32,13 @@ export const useReliableEmailSync = () => {
   const checkSyncHealth = async () => {
     setIsLoading(true);
     try {
-      // Use the new bulletproof health check function
+      // Use direct SQL call instead of RPC since the function might not be in types yet
       const { data: healthData, error } = await supabase
-        .rpc('check_email_sync_health');
+        .from('email_sync_log')
+        .select('status, sync_started_at, errors_count, emails_processed')
+        .not('mailbox_address', 'in', '("SYSTEM_LOCK", "HEALTH_CHECK", "CRITICAL_ALERT", "DEAD_LETTER_QUEUE")')
+        .order('sync_started_at', { ascending: false })
+        .limit(1);
 
       if (error) {
         console.error('Failed to check sync health:', error);
@@ -48,35 +52,57 @@ export const useReliableEmailSync = () => {
       }
 
       if (healthData && healthData.length > 0) {
-        const health: SyncHealth = healthData[0];
+        const lastSync = healthData[0];
+        const minutesSinceLastSync = Math.floor(
+          (Date.now() - new Date(lastSync.sync_started_at).getTime()) / (1000 * 60)
+        );
+        
+        // Get consecutive failures from recent logs
+        const { data: recentLogs } = await supabase
+          .from('email_sync_log')
+          .select('status')
+          .not('mailbox_address', 'in', '("SYSTEM_LOCK", "HEALTH_CHECK", "CRITICAL_ALERT", "DEAD_LETTER_QUEUE")')
+          .order('sync_started_at', { ascending: false })
+          .limit(5);
+
+        let consecutiveFailures = 0;
+        if (recentLogs) {
+          for (const log of recentLogs) {
+            if (log.status === 'failed') {
+              consecutiveFailures++;
+            } else {
+              break;
+            }
+          }
+        }
         
         let healthStatus: 'healthy' | 'warning' | 'critical' = 'healthy';
         let warningMessage = undefined;
         let isHealthy = true;
 
         // Determine health status based on bulletproof criteria
-        if (health.consecutive_failures >= 3) {
+        if (consecutiveFailures >= 3) {
           healthStatus = 'critical';
           isHealthy = false;
-          warningMessage = `🚨 KRITISK: ${health.consecutive_failures} sync fejl i træk`;
-        } else if (health.minutes_since_last_sync > 10) {
+          warningMessage = `🚨 KRITISK: ${consecutiveFailures} sync fejl i træk`;
+        } else if (minutesSinceLastSync > 10) {
           healthStatus = 'critical';
           isHealthy = false;
-          warningMessage = `🚨 KRITISK: Ingen sync i ${health.minutes_since_last_sync} minutter`;
-        } else if (health.consecutive_failures > 0) {
+          warningMessage = `🚨 KRITISK: Ingen sync i ${minutesSinceLastSync} minutter`;
+        } else if (consecutiveFailures > 0) {
           healthStatus = 'warning';
           isHealthy = false;
-          warningMessage = `⚠️ USTABIL: ${health.consecutive_failures} fejl i træk`;
-        } else if (health.minutes_since_last_sync > 5) {
+          warningMessage = `⚠️ USTABIL: ${consecutiveFailures} fejl i træk`;
+        } else if (minutesSinceLastSync > 5) {
           healthStatus = 'warning';
-          warningMessage = `⚠️ FORSINKET: ${health.minutes_since_last_sync} minutter siden sidste sync`;
+          warningMessage = `⚠️ FORSINKET: ${minutesSinceLastSync} minutter siden sidste sync`;
         }
 
         setSyncMetrics({
           isHealthy,
-          lastSyncAt: health.last_sync_at,
-          consecutiveFailures: health.consecutive_failures,
-          minutesSinceLastSync: health.minutes_since_last_sync,
+          lastSyncAt: lastSync.sync_started_at,
+          consecutiveFailures,
+          minutesSinceLastSync,
           healthStatus,
           warningMessage
         });

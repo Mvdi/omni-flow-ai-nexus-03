@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,17 +46,7 @@ export const ReliableEmailSyncMonitor = () => {
 
   const fetchSyncHealth = async () => {
     try {
-      // Fetch current health status
-      const { data: healthData, error: healthError } = await supabase
-        .rpc('check_email_sync_health');
-
-      if (healthError) {
-        console.error('Failed to fetch sync health:', healthError);
-      } else if (healthData && healthData.length > 0) {
-        setSyncHealth(healthData[0]);
-      }
-
-      // Fetch recent logs
+      // Fetch recent logs to calculate health
       const { data: logsData, error: logsError } = await supabase
         .from('email_sync_log')
         .select('*')
@@ -68,7 +57,33 @@ export const ReliableEmailSyncMonitor = () => {
       if (logsError) {
         console.error('Failed to fetch recent logs:', logsError);
       } else {
-        setRecentLogs(logsData || []);
+        const logs = logsData || [];
+        setRecentLogs(logs);
+
+        // Calculate health from logs
+        if (logs.length > 0) {
+          const lastLog = logs[0];
+          const minutesSinceLastSync = Math.floor(
+            (Date.now() - new Date(lastLog.sync_started_at).getTime()) / (1000 * 60)
+          );
+
+          // Count consecutive failures
+          let consecutiveFailures = 0;
+          for (const log of logs) {
+            if (log.status === 'failed') {
+              consecutiveFailures++;
+            } else {
+              break;
+            }
+          }
+
+          setSyncHealth({
+            current_status: lastLog.status,
+            last_sync_at: lastLog.sync_started_at,
+            consecutive_failures: consecutiveFailures,
+            minutes_since_last_sync: minutesSinceLastSync
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching sync data:', error);
