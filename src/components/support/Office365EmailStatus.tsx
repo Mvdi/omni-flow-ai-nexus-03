@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Mail, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { RefreshCw, Mail, Clock, CheckCircle, XCircle, AlertCircle, Activity } from 'lucide-react';
+import { ManualEmailSync } from './ManualEmailSync';
 
 interface EmailSyncLog {
   id: string;
@@ -41,7 +42,7 @@ export const Office365EmailStatus = () => {
         .from('email_sync_log')
         .select('*')
         .order('sync_started_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (logsError) {
         console.error('Failed to fetch sync logs:', logsError);
@@ -76,7 +77,7 @@ export const Office365EmailStatus = () => {
         throw new Error('Du skal være logget ind');
       }
 
-      console.log('Triggering manual email sync after database fix...');
+      console.log('Triggering enhanced email sync with intelligent catch-up...');
       
       const { data, error } = await supabase.functions.invoke('office365-email-sync', {
         body: { source: 'manual', debug: true },
@@ -93,7 +94,7 @@ export const Office365EmailStatus = () => {
       
       toast({
         title: 'Email sync completed',
-        description: `Processed ${data.processed} emails from ${data.mailboxes} mailboxes. ${data.errors} errors.`,
+        description: `Processed ${data.processed} emails, ${data.caughtUp} caught-up. ${data.errors} errors.`,
         variant: data.errors > 0 ? 'destructive' : 'default',
       });
 
@@ -144,23 +145,76 @@ export const Office365EmailStatus = () => {
     }
   };
 
+  const getTimeSinceLastSync = (lastSyncAt: string | null) => {
+    if (!lastSyncAt) return 'Aldrig';
+    
+    const lastSync = new Date(lastSyncAt);
+    const now = new Date();
+    const diffMs = now.getTime() - lastSync.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diffHours > 0) {
+      return `${diffHours}t ${diffMins}m siden`;
+    } else {
+      return `${diffMins}m siden`;
+    }
+  };
+
+  const getSyncHealthStatus = () => {
+    const recentLogs = syncLogs.filter(log => 
+      new Date(log.sync_started_at).getTime() > Date.now() - 60 * 60 * 1000 // Last hour
+    );
+    
+    const failedRecent = recentLogs.filter(log => log.status === 'failed');
+    const runningLong = recentLogs.filter(log => 
+      log.status === 'running' && 
+      new Date(log.sync_started_at).getTime() < Date.now() - 10 * 60 * 1000 // Running for more than 10 min
+    );
+
+    if (failedRecent.length > 2) return { status: 'unhealthy', message: 'Flere sync fejl den sidste time' };
+    if (runningLong.length > 0) return { status: 'warning', message: 'Sync kører usædvanligt længe' };
+    if (recentLogs.length === 0) return { status: 'warning', message: 'Ingen sync aktivitet den sidste time' };
+    
+    return { status: 'healthy', message: 'Email sync kører normalt' };
+  };
+
+  const healthStatus = getSyncHealthStatus();
+
   return (
     <div className="space-y-6">
-      {/* Database Fix Status */}
-      <Card className="border-green-200 bg-green-50">
+      {/* System Health Status */}
+      <Card className={`border-2 ${
+        healthStatus.status === 'healthy' ? 'border-green-200 bg-green-50' :
+        healthStatus.status === 'warning' ? 'border-yellow-200 bg-yellow-50' :
+        'border-red-200 bg-red-50'
+      }`}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-green-800">
-            <CheckCircle className="h-5 w-5" />
-            Database Constraint Fixed
+          <CardTitle className={`flex items-center gap-2 ${
+            healthStatus.status === 'healthy' ? 'text-green-800' :
+            healthStatus.status === 'warning' ? 'text-yellow-800' :
+            'text-red-800'
+          }`}>
+            <Activity className="h-5 w-5" />
+            Email Sync System Status
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-green-700">
-            Database constraint er nu opdateret til at tillade 'office365' som source. 
-            Email sync burde nu fungere korrekt og oprette support tickets.
+          <p className={`${
+            healthStatus.status === 'healthy' ? 'text-green-700' :
+            healthStatus.status === 'warning' ? 'text-yellow-700' :
+            'text-red-700'
+          }`}>
+            {healthStatus.message}
           </p>
+          <div className="mt-2 text-sm text-gray-600">
+            Sidste opdatering: {new Date().toLocaleTimeString('da-DK')}
+          </div>
         </CardContent>
       </Card>
+
+      {/* Manual Historical Sync */}
+      <ManualEmailSync />
 
       {/* Last Sync Result */}
       {lastSyncResult && (
@@ -172,27 +226,28 @@ export const Office365EmailStatus = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
               <div>
                 <span className="font-medium">Processed:</span> {lastSyncResult.processed}
+              </div>
+              <div>
+                <span className="font-medium">Merged:</span> {lastSyncResult.merged || 0}
+              </div>
+              <div>
+                <span className="font-medium">Caught-up:</span> {lastSyncResult.caughtUp || 0}
               </div>
               <div>
                 <span className="font-medium">Errors:</span> {lastSyncResult.errors}
               </div>
               <div>
-                <span className="font-medium">Mailboxes:</span> {lastSyncResult.mailboxes}
-              </div>
-              <div>
                 <span className="font-medium">Time:</span> {new Date(lastSyncResult.timestamp).toLocaleTimeString('da-DK')}
               </div>
             </div>
-            {lastSyncResult.debugResults && (
-              <details className="mt-4">
-                <summary className="cursor-pointer font-medium text-blue-600">Debug Information</summary>
-                <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto">
-                  {JSON.stringify(lastSyncResult.debugResults, null, 2)}
-                </pre>
-              </details>
+            {lastSyncResult.caughtUp > 0 && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                <span className="text-blue-800 font-medium">🔄 Catch-up aktiv: </span>
+                <span className="text-blue-700">Fandt {lastSyncResult.caughtUp} historiske emails</span>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -207,7 +262,7 @@ export const Office365EmailStatus = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             {mailboxes.map((mailbox) => (
               <div key={mailbox.id} className="p-4 border rounded-lg">
                 <div className="flex items-center justify-between mb-2">
@@ -216,11 +271,16 @@ export const Office365EmailStatus = () => {
                     {mailbox.is_active ? 'Aktiv' : 'Inaktiv'}
                   </Badge>
                 </div>
-                <div className="text-sm text-gray-600">
-                  Sidste sync: {mailbox.last_sync_at 
-                    ? new Date(mailbox.last_sync_at).toLocaleString('da-DK')
-                    : 'Aldrig'
-                  }
+                <div className="text-sm text-gray-600 space-y-1">
+                  <div>
+                    Sidste sync: {mailbox.last_sync_at 
+                      ? new Date(mailbox.last_sync_at).toLocaleString('da-DK')
+                      : 'Aldrig'
+                    }
+                  </div>
+                  <div className="font-medium">
+                    {getTimeSinceLastSync(mailbox.last_sync_at)}
+                  </div>
                 </div>
               </div>
             ))}
@@ -229,7 +289,7 @@ export const Office365EmailStatus = () => {
           <div className="flex gap-2">
             <Button onClick={triggerSync} disabled={syncing || loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Test Email Sync (Manual)'}
+              {syncing ? 'Syncing...' : 'Smart Email Sync'}
             </Button>
             <Button variant="outline" onClick={fetchData} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -242,7 +302,7 @@ export const Office365EmailStatus = () => {
       {/* Sync Logs */}
       <Card>
         <CardHeader>
-          <CardTitle>Seneste Email Sync Aktivitet</CardTitle>
+          <CardTitle>Detaljeret Email Sync Aktivitet</CardTitle>
         </CardHeader>
         <CardContent>
           {syncLogs.length === 0 ? (
@@ -250,7 +310,7 @@ export const Office365EmailStatus = () => {
               Ingen sync aktivitet endnu
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
               {syncLogs.map((log) => (
                 <div key={log.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
@@ -258,14 +318,14 @@ export const Office365EmailStatus = () => {
                     <div>
                       <div className="font-medium">{log.mailbox_address}</div>
                       <div className="text-sm text-gray-600">
-                        Startet: {new Date(log.sync_started_at).toLocaleString('da-DK')}
+                        {new Date(log.sync_started_at).toLocaleString('da-DK')}
                         {log.sync_completed_at && (
-                          <span> • Færdig: {new Date(log.sync_completed_at).toLocaleString('da-DK')}</span>
+                          <span> → {new Date(log.sync_completed_at).toLocaleString('da-DK')}</span>
                         )}
                       </div>
                       {log.error_details && (
-                        <div className="text-sm text-red-600 mt-1">
-                          Fejl: {log.error_details}
+                        <div className="text-sm text-red-600 mt-1 max-w-md truncate">
+                          {log.error_details}
                         </div>
                       )}
                     </div>
@@ -276,7 +336,7 @@ export const Office365EmailStatus = () => {
                       {log.status}
                     </Badge>
                     <div className="text-sm text-gray-600 mt-1">
-                      {log.emails_processed} emails • {log.errors_count} fejl
+                      📧 {log.emails_processed} • ❌ {log.errors_count}
                     </div>
                   </div>
                 </div>

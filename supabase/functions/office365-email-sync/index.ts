@@ -97,6 +97,34 @@ const getAccessToken = async (clientId: string, clientSecret: string, tenantId: 
   });
 };
 
+// INTELLIGENT TIME WINDOW: Calculate optimal sync window based on last sync
+const calculateSyncWindow = (lastSyncAt: string | null): { hours: number, windowName: string } => {
+  if (!lastSyncAt) {
+    console.log('No previous sync found - using 48 hour full catch-up window');
+    return { hours: 48, windowName: 'Full Catch-up' };
+  }
+  
+  const lastSync = new Date(lastSyncAt);
+  const now = new Date();
+  const hoursSinceLastSync = (now.getTime() - lastSync.getTime()) / (1000 * 60 * 60);
+  
+  console.log(`Hours since last sync: ${hoursSinceLastSync.toFixed(2)}`);
+  
+  if (hoursSinceLastSync > 24) {
+    console.log('Last sync was more than 24 hours ago - using 48 hour emergency catch-up');
+    return { hours: 48, windowName: 'Emergency Catch-up' };
+  } else if (hoursSinceLastSync > 6) {
+    console.log('Last sync was more than 6 hours ago - using 12 hour extended catch-up');
+    return { hours: 12, windowName: 'Extended Catch-up' };
+  } else if (hoursSinceLastSync > 2) {
+    console.log('Last sync was more than 2 hours ago - using 4 hour normal catch-up');
+    return { hours: 4, windowName: 'Normal Catch-up' };
+  } else {
+    console.log('Recent sync detected - using 1 hour standard window');
+    return { hours: 1, windowName: 'Standard' };
+  }
+};
+
 // AI-powered priority detection
 const autoDetectPriority = (subject: string, content: string): 'Høj' | 'Medium' | 'Lav' => {
   const text = `${subject} ${content}`.toLowerCase();
@@ -327,6 +355,25 @@ const mergeTicketMessage = async (supabase: any, existingTicket: any, message: G
   return { ...existingTicket, ...updateData };
 };
 
+// SYNC HEARTBEAT: Record sync activity for monitoring
+const recordSyncHeartbeat = async (supabase: any, status: string, details: any) => {
+  try {
+    await supabase
+      .from('email_sync_log')
+      .insert({
+        mailbox_address: 'system-heartbeat',
+        status: status,
+        emails_processed: details.processed || 0,
+        errors_count: details.errors || 0,
+        error_details: details.error_message || null,
+        sync_started_at: new Date().toISOString(),
+        sync_completed_at: status === 'completed' ? new Date().toISOString() : null
+      });
+  } catch (error) {
+    console.error('Failed to record sync heartbeat:', error);
+  }
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -346,7 +393,10 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('Starting enhanced Office 365 email sync with fixed Danish timezone handling...');
+    console.log('🚀 Starting ENHANCED Office 365 email sync with intelligent catch-up...');
+    
+    // Record sync start heartbeat
+    await recordSyncHeartbeat(supabase, 'running', { processed: 0, errors: 0 });
     
     // Fetch Office 365 credentials
     const { data: secrets, error: secretsError } = await supabase
@@ -356,6 +406,7 @@ serve(async (req) => {
 
     if (secretsError || !secrets || secrets.length === 0) {
       console.error('Missing Office 365 credentials:', secretsError);
+      await recordSyncHeartbeat(supabase, 'failed', { processed: 0, errors: 1, error_message: 'Missing Office 365 credentials' });
       return new Response(JSON.stringify({ 
         error: "Office 365 credentials not configured"
       }), { 
@@ -373,6 +424,7 @@ serve(async (req) => {
 
     if (!client_id || !client_secret || !tenant_id) {
       console.error('Incomplete Office 365 credentials');
+      await recordSyncHeartbeat(supabase, 'failed', { processed: 0, errors: 1, error_message: 'Incomplete Office 365 credentials' });
       return new Response(JSON.stringify({ 
         error: "Incomplete Office 365 credentials"
       }), { 
@@ -391,13 +443,14 @@ serve(async (req) => {
 
     if (mailboxError || !mailboxes) {
       console.error('Failed to fetch monitored mailboxes:', mailboxError);
+      await recordSyncHeartbeat(supabase, 'failed', { processed: 0, errors: 1, error_message: 'Failed to fetch monitored mailboxes' });
       return new Response(JSON.stringify({ error: "Failed to fetch monitored mailboxes" }), { 
         status: 500, 
         headers: corsHeaders 
       });
     }
 
-    console.log(`Processing ${mailboxes.length} monitored mailboxes with enhanced AI features...`);
+    console.log(`📧 Processing ${mailboxes.length} monitored mailboxes with INTELLIGENT catch-up...`);
     
     let totalProcessed = 0;
     let totalErrors = 0;
@@ -405,16 +458,20 @@ serve(async (req) => {
     let totalInternalSkipped = 0;
     let totalReopened = 0;
     let totalDuplicatesSkipped = 0;
+    let totalCaughtUp = 0;
 
     for (const mailbox of mailboxes) {
-      console.log(`Processing mailbox: ${mailbox.email_address}`);
+      console.log(`📮 Processing mailbox: ${mailbox.email_address}`);
       
       try {
-        // Enhanced time window - last 10 minutes for better real-time processing
-        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        // INTELLIGENT TIME WINDOW: Calculate optimal sync window
+        const { hours: syncWindowHours, windowName } = calculateSyncWindow(mailbox.last_sync_at);
+        const syncWindowStart = new Date(Date.now() - syncWindowHours * 60 * 60 * 1000).toISOString();
+        
+        console.log(`⏰ Using ${windowName} sync window: ${syncWindowHours} hours (since ${syncWindowStart})`);
 
         const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
-        const filter = `?$filter=receivedDateTime gt ${tenMinutesAgo}&$top=50&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments,internetMessageHeaders`;
+        const filter = `?$filter=receivedDateTime gt ${syncWindowStart}&$top=100&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments,internetMessageHeaders`;
 
         const messagesResponse = await retryWithExponentialBackoff(() => 
           fetch(`${messagesUrl}${filter}`, {
@@ -427,7 +484,7 @@ serve(async (req) => {
 
         if (!messagesResponse.ok) {
           const errorText = await messagesResponse.text();
-          console.error(`Failed to fetch messages for ${mailbox.email_address}:`, errorText);
+          console.error(`❌ Failed to fetch messages for ${mailbox.email_address}:`, errorText);
           totalErrors++;
           continue;
         }
@@ -435,11 +492,16 @@ serve(async (req) => {
         const messagesData = await messagesResponse.json();
         const messages: GraphMessage[] = messagesData.value || [];
         
-        console.log(`Found ${messages.length} messages for ${mailbox.email_address}`);
+        console.log(`📬 Found ${messages.length} messages for ${mailbox.email_address} in ${windowName} window`);
+        
+        if (syncWindowHours > 1) {
+          totalCaughtUp += messages.length;
+          console.log(`🔄 CATCH-UP: Processing ${messages.length} historical emails`);
+        }
 
         for (const message of messages) {
           try {
-            console.log(`Processing message ${message.id} from: ${message.from.emailAddress.address}`);
+            console.log(`📝 Processing message ${message.id} from: ${message.from.emailAddress.address} at ${message.receivedDateTime}`);
             
             const duplicateResult = await findDuplicateTicket(supabase, message);
             
@@ -449,7 +511,7 @@ serve(async (req) => {
               const senderEmail = message.from.emailAddress.address.toLowerCase();
               
               if (internalDomains.some(domain => senderEmail.includes(domain))) {
-                console.log(`SKIPPED internal email from ${senderEmail}`);
+                console.log(`⏭️ SKIPPED internal email from ${senderEmail}`);
                 totalInternalSkipped++;
                 continue;
               }
@@ -457,19 +519,20 @@ serve(async (req) => {
             
             // Handle duplicate messages
             if (duplicateResult && duplicateResult.isDuplicate) {
-              console.log(`SKIPPED duplicate message ${message.id}`);
+              console.log(`⏭️ SKIPPED duplicate message ${message.id}`);
               totalDuplicatesSkipped++;
               continue;
             }
             
             if (duplicateResult && !duplicateResult.isDuplicate) {
-              console.log(`Merging into existing ticket ${duplicateResult.ticket_number}...`);
+              console.log(`🔗 Merging into existing ticket ${duplicateResult.ticket_number}...`);
               const wasClosedOrSolved = duplicateResult.status === 'Lukket' || duplicateResult.status === 'Løst';
               
               await mergeTicketMessage(supabase, duplicateResult, message, mailbox.email_address, accessToken);
               
               if (wasClosedOrSolved) {
                 totalReopened++;
+                console.log(`🔄 REOPENED ticket ${duplicateResult.ticket_number}`);
               }
               
               totalMerged++;
@@ -477,7 +540,7 @@ serve(async (req) => {
             }
 
             // Create new ticket with AI enhancements
-            console.log('Creating new AI-enhanced ticket...');
+            console.log('✨ Creating new AI-enhanced ticket...');
 
             // Upsert customer
             await supabase
@@ -525,7 +588,7 @@ serve(async (req) => {
               updated_at: new Date().toISOString()
             };
 
-            console.log(`Creating AI-enhanced ticket with priority: ${detectedPriority}, category: ${detectedCategory}`);
+            console.log(`🎯 Creating AI-enhanced ticket with priority: ${detectedPriority}, category: ${detectedCategory}`);
 
             const { data: newTicket, error: ticketError } = await supabase
               .from('support_tickets')
@@ -561,11 +624,11 @@ serve(async (req) => {
               totalErrors++;
             } else {
               totalProcessed++;
-              console.log(`Successfully created AI-enhanced ticket ${newTicket.ticket_number} with priority ${detectedPriority}`);
+              console.log(`✅ Successfully created AI-enhanced ticket ${newTicket.ticket_number} with priority ${detectedPriority}`);
             }
 
           } catch (messageError) {
-            console.error(`Error processing message ${message.id}:`, messageError);
+            console.error(`❌ Error processing message ${message.id}:`, messageError);
             totalErrors++;
           }
         }
@@ -580,7 +643,7 @@ serve(async (req) => {
           .eq('id', mailbox.id);
 
       } catch (mailboxError) {
-        console.error(`Error processing mailbox ${mailbox.email_address}:`, mailboxError);
+        console.error(`❌ Error processing mailbox ${mailbox.email_address}:`, mailboxError);
         totalErrors++;
       }
     }
@@ -592,13 +655,21 @@ serve(async (req) => {
       reopened: totalReopened,
       internalSkipped: totalInternalSkipped,
       duplicatesSkipped: totalDuplicatesSkipped,
+      caughtUp: totalCaughtUp,
       errors: totalErrors,
       mailboxes: mailboxes.length,
       timestamp: new Date().toISOString(),
-      details: `AI-Enhanced sync completed: ${totalProcessed} new tickets, ${totalMerged} merged messages, ${totalReopened} reopened tickets, ${totalInternalSkipped} internal emails skipped, ${totalDuplicatesSkipped} duplicates skipped`
+      details: `🚀 ENHANCED sync completed: ${totalProcessed} new tickets, ${totalMerged} merged messages, ${totalReopened} reopened tickets, ${totalCaughtUp} caught-up emails, ${totalInternalSkipped} internal emails skipped, ${totalDuplicatesSkipped} duplicates skipped`
     };
 
-    console.log('Enhanced email sync completed:', summary.details);
+    // Record successful sync heartbeat
+    await recordSyncHeartbeat(supabase, 'completed', { 
+      processed: totalProcessed, 
+      errors: totalErrors,
+      caught_up: totalCaughtUp 
+    });
+
+    console.log('🎉 Enhanced email sync completed:', summary.details);
 
     return new Response(JSON.stringify(summary), {
       status: 200,
@@ -606,7 +677,15 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Enhanced email sync error:', error);
+    console.error('💥 Enhanced email sync error:', error);
+    
+    // Record failed sync heartbeat
+    await recordSyncHeartbeat(supabase, 'failed', { 
+      processed: 0, 
+      errors: 1, 
+      error_message: String(error) 
+    });
+
     return new Response(JSON.stringify({ 
       error: String(error),
       timestamp: new Date().toISOString()
