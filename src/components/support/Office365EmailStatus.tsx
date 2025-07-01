@@ -1,12 +1,12 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Mail, Clock, CheckCircle, XCircle, AlertCircle, Activity } from 'lucide-react';
+import { RefreshCw, Mail, Clock, CheckCircle, XCircle, AlertCircle, Activity, Shield } from 'lucide-react';
 import { ManualEmailSync } from './ManualEmailSync';
+import { ReliableEmailSyncMonitor } from './ReliableEmailSyncMonitor';
 
 interface EmailSyncLog {
   id: string;
@@ -183,35 +183,8 @@ export const Office365EmailStatus = () => {
 
   return (
     <div className="space-y-6">
-      {/* System Health Status */}
-      <Card className={`border-2 ${
-        healthStatus.status === 'healthy' ? 'border-green-200 bg-green-50' :
-        healthStatus.status === 'warning' ? 'border-yellow-200 bg-yellow-50' :
-        'border-red-200 bg-red-50'
-      }`}>
-        <CardHeader>
-          <CardTitle className={`flex items-center gap-2 ${
-            healthStatus.status === 'healthy' ? 'text-green-800' :
-            healthStatus.status === 'warning' ? 'text-yellow-800' :
-            'text-red-800'
-          }`}>
-            <Activity className="h-5 w-5" />
-            Email Sync System Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className={`${
-            healthStatus.status === 'healthy' ? 'text-green-700' :
-            healthStatus.status === 'warning' ? 'text-yellow-700' :
-            'text-red-700'
-          }`}>
-            {healthStatus.message}
-          </p>
-          <div className="mt-2 text-sm text-gray-600">
-            Sidste opdatering: {new Date().toLocaleTimeString('da-DK')}
-          </div>
-        </CardContent>
-      </Card>
+      {/* BULLETPROOF System Monitor - This is the new primary monitoring system */}
+      <ReliableEmailSyncMonitor />
 
       {/* Manual Historical Sync */}
       <ManualEmailSync />
@@ -253,12 +226,12 @@ export const Office365EmailStatus = () => {
         </Card>
       )}
 
-      {/* Monitored Mailboxes */}
+      {/* Legacy Monitored Mailboxes - Kept for backward compatibility */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
-            Monitored Email Addresses
+            Monitored Email Addresses (Legacy)
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -287,9 +260,9 @@ export const Office365EmailStatus = () => {
           </div>
           
           <div className="flex gap-2">
-            <Button onClick={triggerSync} disabled={syncing || loading}>
+            <Button onClick={triggerSync} disabled={syncing || loading} variant="outline">
               <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Smart Email Sync'}
+              {syncing ? 'Syncing...' : 'Legacy Sync (Ikke anbefalet)'}
             </Button>
             <Button variant="outline" onClick={fetchData} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -299,15 +272,15 @@ export const Office365EmailStatus = () => {
         </CardContent>
       </Card>
 
-      {/* Sync Logs */}
+      {/* Legacy Sync Logs */}
       <Card>
         <CardHeader>
-          <CardTitle>Detaljeret Email Sync Aktivitet</CardTitle>
+          <CardTitle>Legacy Email Sync Aktivitet</CardTitle>
         </CardHeader>
         <CardContent>
           {syncLogs.length === 0 ? (
             <div className="text-center py-6 text-gray-500">
-              Ingen sync aktivitet endnu
+              Ingen legacy sync aktivitet endnu
             </div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
