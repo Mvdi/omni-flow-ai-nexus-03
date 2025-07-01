@@ -177,11 +177,12 @@ export const useAddTicket = () => {
           navn: ticket.customer_name
         }, { onConflict: 'email', ignoreDuplicates: true });
 
-      // Then create the ticket
+      // Then create the ticket - ensure priority is properly handled
       const { data, error } = await supabase
         .from('support_tickets')
         .insert({
           ...ticket,
+          priority: ticket.priority || null, // Explicitly set to null if not provided
           ticket_number: '' // This will trigger the database function to generate a ticket number
         })
         .select()

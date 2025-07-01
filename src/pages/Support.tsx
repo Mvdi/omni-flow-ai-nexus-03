@@ -130,6 +130,15 @@ const Support = () => {
     }
   };
 
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'Høj': return 'destructive';
+      case 'Medium': return 'secondary';
+      case 'Lav': return 'outline';
+      default: return 'secondary';
+    }
+  };
+
   if (showSettings) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -377,6 +386,11 @@ const Support = () => {
                                 <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
                                   {ticket.status}
                                 </Badge>
+                                {ticket.priority && (
+                                  <Badge variant={getPriorityColor(ticket.priority)} className="text-xs">
+                                    {ticket.priority}
+                                  </Badge>
+                                )}
                               </div>
                               <div className="flex-1">
                                 <h3 className="font-medium text-gray-900 mb-1">
@@ -397,7 +411,7 @@ const Support = () => {
                                   {ticket.assignee_name && (
                                     <>
                                       <span>•</span>
-                                      <span className="text-blue-600">
+                                      <span className="text-blue-600 font-medium">
                                         Tildelt: {ticket.assignee_name}
                                       </span>
                                     </>

@@ -266,30 +266,16 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
               </div>
             </div>
             <div className="flex gap-2">
-              {ticket.priority && ticket.priority.trim() !== '' && (
-                <Select value={ticket.priority} onValueChange={handlePriorityChange}>
-                  <SelectTrigger className="w-24">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Høj">Høj</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="Lav">Lav</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-              {(!ticket.priority || ticket.priority.trim() === '') && (
-                <Select value="" onValueChange={handlePriorityChange}>
-                  <SelectTrigger className="w-24">
-                    <SelectValue placeholder="Prioritet" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Høj">Høj</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="Lav">Lav</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
+              <Select value={ticket.priority || ""} onValueChange={handlePriorityChange}>
+                <SelectTrigger className="w-24">
+                  <SelectValue placeholder="Prioritet" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Høj">Høj</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Lav">Lav</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={ticket.status} onValueChange={handleStatusChange}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
@@ -423,7 +409,9 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                   <p className="text-sm font-medium text-blue-900 mb-2">AI Foreslår:</p>
                   <div 
                     className="text-sm text-blue-800 mb-3 whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ __html: aiSuggestion.replace(/\n/g, '<br>') }}
+                    dangerouslySetInnerHTML={{ 
+                      __html: aiSuggestion.replace(/\n/g, '<br>')
+                    }}
                   />
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={useAiSuggestion}>
