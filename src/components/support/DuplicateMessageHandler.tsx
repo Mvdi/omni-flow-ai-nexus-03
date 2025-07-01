@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from 'lucide-react';
@@ -72,19 +71,6 @@ export const DuplicateMessageHandler = ({ messages, children }: DuplicateMessage
   
   return (
     <>
-      {duplicateCount > 0 && (
-        <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-orange-600" />
-            <Badge variant="outline" className="bg-orange-100 text-orange-800">
-              {duplicateCount} duplikerede besked{duplicateCount > 1 ? 'er' : ''} skjult
-            </Badge>
-          </div>
-          <p className="text-sm text-orange-700 mt-1">
-            Identiske beskeder er automatisk fjernet fra visningen.
-          </p>
-        </div>
-      )}
       {children(filteredMessages, duplicateCount)}
     </>
   );
