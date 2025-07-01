@@ -20,61 +20,83 @@ serve(async (req) => {
       throw new Error('OPENAI_API_KEY is not configured');
     }
 
-    // REVOLUTIONIZED: Much shorter, natural Danish prompt
-    const systemPrompt = `Du er en hjælpsom kundeservice medarbejder hos MM Multipartner. 
+    // REVOLUTIONIZED: Intelligent context understanding
+    const systemPrompt = `Du er en ekspert kundeservice medarbejder hos MM Multipartner. 
+
+KRITISK: LÆS HELE KUNDENS BESKED NØJE!
 
 VIGTIGE REGLER:
-- Skriv naturligt dansk - ikke robot-sprog
-- Vær direkte og hjælpsom
-- Fokuser kun på det konkrete problem
-- Undgå generiske fraser som "jeg sætter pris på" eller "hvis du har brug for hjælp"
-- Vær professionel men ikke stiv
+- Analyser HELE kundens besked fra start til slut
+- Identificer ALLE kundeønsker og anmodninger
+- Vær særligt opmærksom på:
+  * Bestillinger (f.eks. "jeg vil gerne bestille", "nu vil jeg gerne have")
+  * Serviceønsker (vinduespudsning, rengøring, etc.)
+  * Spørgsmål om produkter/services
+  * Klager eller problemer
+  * Test-relaterede beskeder vs. rigtige anmodninger
+
+KONTEKST-ANALYSE:
+- Hvis kunden nævner "test" OG derefter noget konkret (bestilling, service) - fokuser på det konkrete
+- Hvis kunden siger "nu vil jeg gerne..." - det er en REEL anmodning, ikke test
+- Separer mellem test-aktivitet og faktiske kundeønsker
+- Prioriter kundens seneste/konkrete anmodning højest
+
+SVAR TILGANG:
+- Anerkend ALLE dele af kundens besked
+- Adresser kundens konkrete ønsker direkte
+- Vær professionel og hjælpsom
 
 Generer 3 forskellige svar:
-1. HURTIG: Kort, direkte løsning
-2. GRUNDIG: Detaljeret forklaring og løsning  
-3. VENLIG: Mere personlig tilgang
+1. HURTIG: Direkte adressering af kundens konkrete anmodning
+2. GRUNDIG: Omfattende svar der dækker alle aspekter af beskeden
+3. VENLIG: Personlig tilgang der anerkender både test-delen og den konkrete anmodning
 
 Format som JSON med denne struktur:
 {
   "suggestions": [
     {
       "id": "hurtig_1",
-      "content": "Hej\\n\\nSelvfølgelig kan jeg hjælpe med det...\\n\\nBedste hilsner",
+      "content": "Hej\\n\\nTak for feedback om testen. Vedrørende din anmodning om vinduespudsning...\\n\\nBedste hilsner",
       "confidence": 85,
-      "reasoning": "Kort beskrivelse af hvorfor",
-      "suggestedActions": ["Handling 1", "Handling 2"],
+      "reasoning": "Direkte fokus på kundens konkrete anmodning",
+      "suggestedActions": ["Behandl bestilling", "Send tilbud"],
       "approach": "Hurtig & Direkte"
     },
     {
       "id": "grundig_2", 
-      "content": "Hej\\n\\nJeg har kigget på dit problem...\\n\\nBedste hilsner",
+      "content": "Hej\\n\\nTak for din positive feedback om systemtesten. Jeg er glad for at høre, at det fungerede godt. Vedrørende din anmodning om vinduespudsning...\\n\\nBedste hilsner",
       "confidence": 90,
-      "reasoning": "Grundig forklaring hvorfor", 
-      "suggestedActions": ["Detaljeret handling 1"],
+      "reasoning": "Adresserer både test-feedback og konkret anmodning", 
+      "suggestedActions": ["Anerkend test-feedback", "Proces service-anmodning"],
       "approach": "Grundig & Detaljeret"
     },
     {
       "id": "venlig_3",
-      "content": "Hej\\n\\nTak for din henvendelse...\\n\\nHav en god dag",
+      "content": "Hej\\n\\nDet er fantastisk at høre, at systemtesten gik så godt! Tak for din feedback. Jeg kan se, at du nu gerne vil bestille en vinduespudsning...\\n\\nHav en god dag",
       "confidence": 88,
-      "reasoning": "Personlig tilgang fordi",
-      "suggestedActions": ["Personlig handling"],
+      "reasoning": "Personlig tilgang der anerkender begge dele",
+      "suggestedActions": ["Fejr test-succes", "Håndter service-anmodning"],
       "approach": "Venlig & Personlig"
     }
   ],
   "success": true
 }
 
-KRITISK: Brug \\n for linjeskift. Ingen signatur - tilføjes automatisk.`;
+KRITISK: Brug \\n for linjeskift. Fokuser på kundens KONKRETE anmodninger, ikke kun på første del af beskeden.`;
 
-    const userPrompt = `KUNDENS PROBLEM:
+    const userPrompt = `KUNDENS KOMPLETTE BESKED (analyser HELE beskeden nøje):
 ${ticketContent}
 
 KUNDE INFO:
 ${customerHistory}
 
-Skriv 3 naturlige, hjælpsomme svar på dansk. Vær konkret og fokuseret på problemet.`;
+KRITISK INSTRUKTION: 
+- Læs HELE kundens besked fra start til slut
+- Identificer ALLE kundeønsker (især bestillinger, serviceønsker)
+- Hvis kunden nævner både "test" og "bestilling/service" - fokuser på den konkrete anmodning
+- Svar på kundens FAKTISKE ønsker, ikke kun på første del af beskeden
+
+Skriv 3 intelligente, kontekst-bevidste svar på dansk.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -88,8 +110,8 @@ Skriv 3 naturlige, hjælpsomme svar på dansk. Vær konkret og fokuseret på pro
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.5, // Reduced from 0.7 for faster, more consistent responses
-        max_tokens: 1000, // Reduced from 2000 for faster generation
+        temperature: 0.3, // Lower for more consistent context understanding
+        max_tokens: 1200,
       }),
     });
 
@@ -108,17 +130,18 @@ Skriv 3 naturlige, hjælpsomme svar på dansk. Vær konkret og fokuseret på pro
       if (parsedResponse.suggestions) {
         parsedResponse.suggestions = parsedResponse.suggestions.map((suggestion: any, index: number) => ({
           ...suggestion,
-          id: suggestion.id || `mm_suggestion_${index + 1}_${Date.now()}`,
+          id: suggestion.id || `mm_intelligent_${index + 1}_${Date.now()}`,
           learningContext: {
-            userStyle: 'Optimized for speed and naturalness',
+            userStyle: 'Revolutionized context understanding',
             ticketId,
             generatedAt: new Date().toISOString(),
-            company: 'MM Multipartner'
+            company: 'MM Multipartner',
+            contextAnalysis: 'Full message analysis with concrete request identification'
           }
         }));
       }
 
-      console.log(`Generated ${parsedResponse.suggestions?.length || 0} fast MM AI suggestions for ticket ${ticketId}`);
+      console.log(`Generated ${parsedResponse.suggestions?.length || 0} INTELLIGENT MM AI suggestions for ticket ${ticketId}`);
 
       return new Response(JSON.stringify(parsedResponse), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -129,11 +152,11 @@ Skriv 3 naturlige, hjælpsomme svar på dansk. Vær konkret og fokuseret på pro
       return new Response(JSON.stringify({ 
         suggestions: [{
           id: `mm_fallback_${Date.now()}`,
-          content: aiResponse.replace(/\n/g, '\\n'), // Preserve line breaks
+          content: aiResponse.replace(/\n/g, '\\n'),
           confidence: 70,
-          reasoning: "Fallback svar",
-          suggestedActions: [],
-          approach: "Standard",
+          reasoning: "Fallback intelligent response",
+          suggestedActions: ["Analyser kundens anmodning"],
+          approach: "Intelligent Fallback",
           learningContext: {
             ticketId,
             company: 'MM Multipartner',
@@ -147,7 +170,7 @@ Skriv 3 naturlige, hjælpsomme svar på dansk. Vær konkret og fokuseret på pro
     }
 
   } catch (error) {
-    console.error('Error in MM AI response suggestions:', error);
+    console.error('Error in INTELLIGENT MM AI response suggestions:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
       success: false 

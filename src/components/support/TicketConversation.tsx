@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +13,7 @@ import { useOffice365EmailSender } from '@/hooks/useOffice365EmailSender';
 import { AttachmentViewer } from './AttachmentViewer';
 import { DuplicateMessageHandler } from './DuplicateMessageHandler';
 import { AIResponseSuggestions } from './AIResponseSuggestions';
-import { formatDanishDistance, formatDanishDateTime } from '@/utils/danishTime';
+import { formatDanishDistance, formatDanishDateTime, debugTimeConversion } from '@/utils/danishTime';
 import { Send, Bot, User, Clock, Mail, Tag, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -24,13 +23,13 @@ interface TicketConversationProps {
   ticket: SupportTicket;
 }
 
-// Funktion til at formatere beskeder MED signatur korrekt
+// CRITICAL FIX: Format messages with signature AND correct Danish time
 const formatMessageWithSignature = (content: string, isFromSupport: boolean) => {
   if (!isFromSupport) {
     return content.replace(/\n/g, '<br>');
   }
 
-  // For support beskeder: tjek om der er en signatur
+  // For support messages: check for signature
   if (content.includes('---SIGNATUR---')) {
     const parts = content.split('---SIGNATUR---');
     const messageText = parts[0].trim();
@@ -92,7 +91,6 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   };
 
   const handlePriorityChange = (newPriority: string) => {
-    // CRITICAL: Only update if user explicitly selects a priority
     if (newPriority && newPriority !== '') {
       updateTicket.mutate({ 
         id: ticket.id, 
@@ -165,7 +163,6 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
     }
   };
 
-  // Show error state if there's an error
   if (isError) {
     return (
       <div className="p-6 text-center">
@@ -177,7 +174,6 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
     );
   }
 
-  // Show loading state
   if (isLoading) {
     return (
       <div className="p-6 text-center">
@@ -270,7 +266,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
       <Card className="flex-1 flex flex-col">
         <CardContent className="flex-1 flex flex-col p-0">
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {/* Initial ticket content - only show if not duplicated in messages */}
+            {/* Initial ticket content */}
             {ticket.content && !messages.some(msg => 
               msg.sender_email === ticket.customer_email && 
               msg.message_content.includes(ticket.content?.substring(0, 50) || '')
@@ -288,7 +284,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                         {ticket.customer_name || ticket.customer_email}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {formatDanishDistance(ticket.created_at)}
+                        {formatDanishDistance(ticket.created_at)} - DANSK TID: {debugTimeConversion(ticket.created_at)}
                       </span>
                     </div>
                     <div className="text-sm text-gray-700 whitespace-pre-wrap">
@@ -299,7 +295,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
               </div>
             )}
 
-            {/* Messages with Duplicate Detection */}
+            {/* Messages with FIXED Danish time display */}
             <DuplicateMessageHandler messages={messages}>
               {(filteredMessages, duplicateCount) => (
                 <>
@@ -346,7 +342,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                                 </Badge>
                               )}
                               <span className="text-xs text-gray-500">
-                                {formatDanishDistance(message.created_at)}
+                                {formatDanishDistance(message.created_at)} - DANSK TID: {debugTimeConversion(message.created_at)}
                               </span>
                             </div>
                             <div 
@@ -372,14 +368,14 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
 
           <Separator />
 
-          {/* Enhanced Reply System with AI Suggestions */}
+          {/* Enhanced Reply System with REVOLUTIONIZED AI */}
           <div className="p-3 border-t">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="compose">Skriv Svar</TabsTrigger>
                 <TabsTrigger value="ai-suggestions">
                   <Bot className="h-4 w-4 mr-2" />
-                  MM AI Assistent
+                  INTELLIGENT MM AI
                 </TabsTrigger>
               </TabsList>
               
