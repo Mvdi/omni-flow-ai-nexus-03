@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,7 @@ import { AttachmentViewer } from './AttachmentViewer';
 import { DuplicateMessageHandler } from './DuplicateMessageHandler';
 import { AIResponseSuggestions } from './AIResponseSuggestions';
 import { formatDanishDistance, formatDanishDateTime } from '@/utils/danishTime';
-import { Send, Bot, User, Clock, Mail, Tag, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Clock, Mail, Tag, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -50,8 +51,6 @@ const formatMessageWithSignature = (content: string, isFromSupport: boolean) => 
 
 export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const [newMessage, setNewMessage] = useState('');
-  const [aiSuggestion, setAiSuggestion] = useState('');
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [signatureHtml, setSignatureHtml] = useState('');
   const [activeTab, setActiveTab] = useState('compose');
   const { toast } = useToast();
@@ -93,10 +92,13 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   };
 
   const handlePriorityChange = (newPriority: string) => {
-    updateTicket.mutate({ 
-      id: ticket.id, 
-      updates: { priority: newPriority as any } 
-    });
+    // CRITICAL: Only update if user explicitly selects a priority
+    if (newPriority && newPriority !== '') {
+      updateTicket.mutate({ 
+        id: ticket.id, 
+        updates: { priority: newPriority as any } 
+      });
+    }
   };
 
   const handleSendMessage = async () => {
@@ -113,7 +115,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
       
       console.log('Email sent successfully via Office 365');
       setNewMessage('');
-      setActiveTab('compose'); // Switch back to compose tab after sending
+      setActiveTab('compose');
       
       setTimeout(() => {
         refetch();
@@ -128,45 +130,6 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
         variant: "destructive",
       });
     }
-  };
-
-  const generateAiResponse = async () => {
-    setIsGeneratingAI(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-ticket-response', {
-        body: {
-          ticketContent: `${ticket.subject}\n\n${ticket.content}`,
-          customerHistory: `Kunde: ${ticket.customer_name || ticket.customer_email}\nPrioritet: ${ticket.priority}\nStatus: ${ticket.status}`,
-          priority: ticket.priority
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.success) {
-        setAiSuggestion(data.response);
-        toast({
-          title: "AI forslag genereret",
-          description: "Et forslag til svar er nu tilgængeligt.",
-        });
-      } else {
-        throw new Error(data.error || 'Ukendt fejl');
-      }
-    } catch (error) {
-      console.error('Error generating AI response:', error);
-      toast({
-        title: "Fejl",
-        description: "Kunne ikke generere AI forslag. Prøv igen.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingAI(false);
-    }
-  };
-
-  const useAiSuggestion = () => {
-    setNewMessage(aiSuggestion);
-    setAiSuggestion('');
   };
 
   const handleUseSuggestion = (content: string) => {
@@ -276,8 +239,8 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
             </div>
             <div className="flex gap-2">
               <Select value={ticket.priority || ""} onValueChange={handlePriorityChange}>
-                <SelectTrigger className="w-24">
-                  <SelectValue placeholder="Prioritet" />
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Vælg prioritet" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Høj">Høj</SelectItem>
@@ -409,58 +372,21 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
 
           <Separator />
 
-          {/* AI Suggestion */}
-          {aiSuggestion && (
-            <div className="p-3 bg-blue-50 border-t border-blue-200">
-              <div className="flex items-start gap-2 mb-3">
-                <Sparkles className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-900 mb-2">AI Foreslår:</p>
-                  <div 
-                    className="text-sm text-blue-800 mb-3 whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ 
-                      __html: aiSuggestion.replace(/\n/g, '<br>')
-                    }}
-                  />
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={useAiSuggestion}>
-                      Brug forslag
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setAiSuggestion('')}>
-                      Afvis
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Enhanced Reply System with AI Suggestions */}
           <div className="p-3 border-t">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="compose">Skriv Svar</TabsTrigger>
                 <TabsTrigger value="ai-suggestions">
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  AI Forslag
+                  <Bot className="h-4 w-4 mr-2" />
+                  MM AI Assistent
                 </TabsTrigger>
               </TabsList>
               
               <TabsContent value="compose" className="space-y-3">
-                <div className="flex gap-2 mb-3">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={generateAiResponse}
-                    disabled={isGeneratingAI}
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    {isGeneratingAI ? 'Genererer...' : 'Hurtig AI Forslag'}
-                  </Button>
-                </div>
                 <div className="flex gap-2">
                   <Textarea
-                    placeholder="Skriv dit svar..."
+                    placeholder="Skriv dit professionelle svar..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     className="flex-1 min-h-[200px] resize-y"
@@ -484,7 +410,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                 <AIResponseSuggestions
                   ticketId={ticket.id}
                   ticketContent={`${ticket.subject}\n\n${ticket.content}`}
-                  customerHistory={`Kunde: ${ticket.customer_name || ticket.customer_email}\nStatus: ${ticket.status}`}
+                  customerHistory={`Kunde: ${ticket.customer_name || ticket.customer_email}\nStatus: ${ticket.status}\nPrioritet: ${ticket.priority || 'Ikke angivet'}`}
                   onUseSuggestion={handleUseSuggestion}
                 />
               </TabsContent>

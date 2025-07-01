@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -177,18 +176,24 @@ export const useAddTicket = () => {
           navn: ticket.customer_name
         }, { onConflict: 'email', ignoreDuplicates: true });
 
-      // Then create the ticket - ensure priority is properly handled
+      // CRITICAL: NEVER set automatic priority - always keep as NULL unless explicitly set
       const { data, error } = await supabase
         .from('support_tickets')
         .insert({
-          ...ticket,
-          priority: ticket.priority || null, // Explicitly set to null if not provided
+          subject: ticket.subject,
+          content: ticket.content,
+          customer_email: ticket.customer_email,
+          customer_name: ticket.customer_name,
+          priority: null, // CRITICAL: Always NULL - no automatic priority assignment
+          status: ticket.status,
+          assignee_id: ticket.assignee_id,
           ticket_number: '' // This will trigger the database function to generate a ticket number
         })
         .select()
         .single();
       
       if (error) throw error;
+      console.log('New ticket created with NO automatic priority:', data.ticket_number);
       return data;
     },
     onSuccess: () => {
@@ -196,7 +201,7 @@ export const useAddTicket = () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast({
         title: "Ticket oprettet",
-        description: "Den nye ticket er blevet oprettet succesfuldt.",
+        description: "Den nye ticket er blevet oprettet succesfuldt UDEN automatisk prioritet.",
       });
     },
     onError: (error) => {
