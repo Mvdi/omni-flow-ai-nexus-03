@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +10,7 @@ import { SupportTicket, useUpdateTicket } from '@/hooks/useTickets';
 import { useTicketMessages } from '@/hooks/useTicketMessages';
 import { useOffice365EmailSender } from '@/hooks/useOffice365EmailSender';
 import { AttachmentViewer } from './AttachmentViewer';
+import { DuplicateMessageHandler } from './DuplicateMessageHandler';
 import { formatDanishDistance, formatDanishDateTime } from '@/utils/danishTime';
 import { Send, Bot, User, Clock, Mail, Tag, Sparkles, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -294,7 +294,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
         </CardHeader>
       </Card>
 
-      {/* Messages */}
+      {/* Messages with Enhanced Duplicate Detection */}
       <Card className="flex-1 flex flex-col">
         <CardContent className="flex-1 flex flex-col p-0">
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -327,70 +327,75 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
               </div>
             )}
 
-            {/* Messages - NU MED KORREKT DANSK TID */}
-            {messages.map((message) => {
-              const isFromSupport = message.sender_email.includes('@mmmultipartner.dk');
-              
-              return (
-                <div key={message.id} className="flex gap-3">
-                  <Avatar className="h-8 w-8 mt-1">
-                    <AvatarFallback className={
-                      message.is_internal 
-                        ? "bg-purple-100 text-purple-600" 
-                        : isFromSupport
-                        ? "bg-green-100 text-green-600"
-                        : "bg-blue-100 text-blue-600"
-                    }>
-                      {message.sender_name 
-                        ? message.sender_name.split(' ').map(n => n[0]).join('').toUpperCase()
-                        : message.sender_email.substring(0, 2).toUpperCase()
-                      }
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className={`rounded-lg p-3 ${
-                      message.is_internal 
-                        ? "bg-purple-50 border border-purple-200" 
-                        : isFromSupport
-                        ? "bg-green-50 border border-green-200"
-                        : "bg-gray-50"
-                    }`}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-medium text-sm">
-                          {message.sender_name || message.sender_email}
-                        </span>
-                        {message.is_ai_generated && (
-                          <Badge variant="outline" className="text-xs">
-                            <Bot className="h-3 w-3 mr-1" />
-                            AI
-                          </Badge>
-                        )}
-                        {message.is_internal && (
-                          <Badge variant="outline" className="text-xs bg-purple-100">
-                            Intern
-                          </Badge>
-                        )}
-                        <span className="text-xs text-gray-500">
-                          {formatDanishDistance(message.created_at)}
-                        </span>
-                      </div>
-                      <div 
-                        className="text-sm text-gray-700"
-                        dangerouslySetInnerHTML={{ 
-                          __html: formatMessageWithSignature(message.message_content, isFromSupport)
-                        }}
-                      />
-                      {/* Add AttachmentViewer for message attachments */}
-                      {message.attachments && message.attachments.length > 0 && (
-                        <div className="mt-3">
-                          <AttachmentViewer attachments={message.attachments} />
+            {/* Messages with Duplicate Detection */}
+            <DuplicateMessageHandler messages={messages}>
+              {(filteredMessages, duplicateCount) => (
+                <>
+                  {filteredMessages.map((message) => {
+                    const isFromSupport = message.sender_email.includes('@mmmultipartner.dk');
+                    
+                    return (
+                      <div key={message.id} className="flex gap-3">
+                        <Avatar className="h-8 w-8 mt-1">
+                          <AvatarFallback className={
+                            message.is_internal 
+                              ? "bg-purple-100 text-purple-600" 
+                              : isFromSupport
+                              ? "bg-green-100 text-green-600"
+                              : "bg-blue-100 text-blue-600"
+                          }>
+                            {message.sender_name 
+                              ? message.sender_name.split(' ').map(n => n[0]).join('').toUpperCase()
+                              : message.sender_email.substring(0, 2).toUpperCase()
+                            }
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className={`rounded-lg p-3 ${
+                            message.is_internal 
+                              ? "bg-purple-50 border border-purple-200" 
+                              : isFromSupport
+                              ? "bg-green-50 border border-green-200"
+                              : "bg-gray-50"
+                          }`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-medium text-sm">
+                                {message.sender_name || message.sender_email}
+                              </span>
+                              {message.is_ai_generated && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Bot className="h-3 w-3 mr-1" />
+                                  AI
+                                </Badge>
+                              )}
+                              {message.is_internal && (
+                                <Badge variant="outline" className="text-xs bg-purple-100">
+                                  Intern
+                                </Badge>
+                              )}
+                              <span className="text-xs text-gray-500">
+                                {formatDanishDistance(message.created_at)}
+                              </span>
+                            </div>
+                            <div 
+                              className="text-sm text-gray-700"
+                              dangerouslySetInnerHTML={{ 
+                                __html: formatMessageWithSignature(message.message_content, isFromSupport)
+                              }}
+                            />
+                            {message.attachments && message.attachments.length > 0 && (
+                              <div className="mt-3">
+                                <AttachmentViewer attachments={message.attachments} />
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </DuplicateMessageHandler>
           </div>
 
           <Separator />

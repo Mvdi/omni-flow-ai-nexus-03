@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useDuplicateCleanup } from '@/hooks/useDuplicateCleanup';
 import { 
   Shield, 
   ShieldCheck, 
@@ -16,7 +17,8 @@ import {
   CheckCircle,
   Clock,
   Zap,
-  Heart
+  Heart,
+  Trash2
 } from 'lucide-react';
 
 interface SyncHealth {
@@ -43,6 +45,7 @@ export const ReliableEmailSyncMonitor = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const { toast } = useToast();
+  const { cleanupDuplicateMessages, isCleaningUp } = useDuplicateCleanup();
 
   const fetchSyncHealth = async () => {
     try {
@@ -273,7 +276,7 @@ export const ReliableEmailSyncMonitor = () => {
         </CardContent>
       </Card>
 
-      {/* Control Panel */}
+      {/* Enhanced Control Panel */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -282,24 +285,45 @@ export const ReliableEmailSyncMonitor = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <Button 
-              onClick={triggerBulletproofSync} 
-              disabled={isTesting}
-              className="bg-orange-600 hover:bg-orange-700"
-            >
-              <Shield className={`h-4 w-4 mr-2 ${isTesting ? 'animate-spin' : ''}`} />
-              {isTesting ? 'BULLETPROOF Sync kører...' : 'Kør BULLETPROOF Sync'}
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={refreshData} 
-              disabled={isLoading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Opdater Status
-            </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <h4 className="font-medium text-gray-900">Email Sync Kontrol</h4>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={triggerBulletproofSync} 
+                  disabled={isTesting}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  <Shield className={`h-4 w-4 mr-2 ${isTesting ? 'animate-spin' : ''}`} />
+                  {isTesting ? 'BULLETPROOF Sync kører...' : 'Kør BULLETPROOF Sync'}
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  onClick={refreshData} 
+                  disabled={isLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Opdater Status
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="font-medium text-gray-900">Database Oprydning</h4>
+              <Button 
+                onClick={cleanupDuplicateMessages}
+                disabled={isCleaningUp}
+                variant="outline"
+                className="text-red-600 border-red-200 hover:bg-red-50"
+              >
+                <Trash2 className={`h-4 w-4 mr-2 ${isCleaningUp ? 'animate-spin' : ''}`} />
+                {isCleaningUp ? 'Rydder op...' : 'Fjern Duplikerede Beskeder'}
+              </Button>
+              <p className="text-xs text-gray-500">
+                Fjerner automatisk duplikerede ticket beskeder fra databasen
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

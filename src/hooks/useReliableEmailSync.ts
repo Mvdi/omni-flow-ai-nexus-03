@@ -32,11 +32,11 @@ export const useReliableEmailSync = () => {
   const checkSyncHealth = async () => {
     setIsLoading(true);
     try {
-      // Use direct SQL call instead of RPC since the function might not be in types yet
+      // Enhanced query to get better sync health data
       const { data: healthData, error } = await supabase
         .from('email_sync_log')
-        .select('status, sync_started_at, errors_count, emails_processed')
-        .not('mailbox_address', 'in', '("SYSTEM_LOCK", "HEALTH_CHECK", "CRITICAL_ALERT", "DEAD_LETTER_QUEUE")')
+        .select('status, sync_started_at, errors_count, emails_processed, error_details')
+        .not('mailbox_address', 'in', '("SYSTEM_LOCK", "HEALTH_CHECK", "CRITICAL_ALERT", "DEAD_LETTER_QUEUE", "CLEANUP_DUPLICATES")')
         .order('sync_started_at', { ascending: false })
         .limit(1);
 
@@ -60,10 +60,10 @@ export const useReliableEmailSync = () => {
         // Get consecutive failures from recent logs
         const { data: recentLogs } = await supabase
           .from('email_sync_log')
-          .select('status')
-          .not('mailbox_address', 'in', '("SYSTEM_LOCK", "HEALTH_CHECK", "CRITICAL_ALERT", "DEAD_LETTER_QUEUE")')
+          .select('status, error_details')
+          .not('mailbox_address', 'in', '("SYSTEM_LOCK", "HEALTH_CHECK", "CRITICAL_ALERT", "DEAD_LETTER_QUEUE", "CLEANUP_DUPLICATES")')
           .order('sync_started_at', { ascending: false })
-          .limit(5);
+          .limit(10);
 
         let consecutiveFailures = 0;
         if (recentLogs) {
@@ -80,7 +80,7 @@ export const useReliableEmailSync = () => {
         let warningMessage = undefined;
         let isHealthy = true;
 
-        // Determine health status based on bulletproof criteria
+        // Enhanced health determination with duplicate detection
         if (consecutiveFailures >= 3) {
           healthStatus = 'critical';
           isHealthy = false;
@@ -96,6 +96,17 @@ export const useReliableEmailSync = () => {
         } else if (minutesSinceLastSync > 5) {
           healthStatus = 'warning';
           warningMessage = `⚠️ FORSINKET: ${minutesSinceLastSync} minutter siden sidste sync`;
+        } else {
+          // Check for potential duplicate issues
+          const errorLogs = recentLogs?.filter(log => 
+            log.error_details?.toLowerCase().includes('duplicate') ||
+            log.error_details?.toLowerCase().includes('duplikat')
+          );
+          
+          if (errorLogs && errorLogs.length > 0) {
+            healthStatus = 'warning';
+            warningMessage = `⚠️ DUPLIKATER: Mulige duplikerede beskeder detekteret`;
+          }
         }
 
         setSyncMetrics({
@@ -128,8 +139,14 @@ export const useReliableEmailSync = () => {
         throw new Error('Du skal være logget ind');
       }
 
+      console.log('🚀 Triggering BULLETPROOF email sync with duplicate prevention...');
+
       const { data, error } = await supabase.functions.invoke('reliable-email-sync', {
-        body: { source: 'manual-trigger', priority: 'high' },
+        body: { 
+          source: 'manual-trigger', 
+          priority: 'high',
+          preventDuplicates: true 
+        },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
@@ -139,6 +156,7 @@ export const useReliableEmailSync = () => {
         throw error;
       }
 
+      console.log('✅ BULLETPROOF sync completed:', data);
       return data;
     } catch (error) {
       console.error('Failed to trigger bulletproof sync:', error);
