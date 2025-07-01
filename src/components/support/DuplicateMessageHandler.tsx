@@ -1,12 +1,18 @@
+
 import React from 'react';
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from 'lucide-react';
 
 interface Message {
   id: string;
-  message_content: string;
-  created_at: string;
+  ticket_id: string;
   sender_email: string;
+  sender_name: string | null;
+  message_content: string;
+  is_internal: boolean;
+  is_ai_generated: boolean;
+  created_at: string;
+  attachments: any[];
   email_message_id?: string;
 }
 
