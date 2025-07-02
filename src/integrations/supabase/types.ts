@@ -1105,6 +1105,42 @@ export type Database = {
           },
         ]
       }
+      tilbud: {
+        Row: {
+          adresse: string
+          beregnet_pris: string
+          created_at: string | null
+          email: string
+          id: string
+          interval: string
+          navn: string
+          telefon: string
+          vedligeholdelse: boolean
+        }
+        Insert: {
+          adresse: string
+          beregnet_pris: string
+          created_at?: string | null
+          email: string
+          id?: string
+          interval: string
+          navn: string
+          telefon: string
+          vedligeholdelse: boolean
+        }
+        Update: {
+          adresse?: string
+          beregnet_pris?: string
+          created_at?: string | null
+          email?: string
+          id?: string
+          interval?: string
+          navn?: string
+          telefon?: string
+          vedligeholdelse?: boolean
+        }
+        Relationships: []
+      }
       user_signatures: {
         Row: {
           created_at: string | null
