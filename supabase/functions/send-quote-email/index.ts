@@ -142,15 +142,24 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    console.log('Fetching Office 365 credentials...');
+    
     const { data: secrets, error: secretsError } = await supabase
       .from('integration_secrets')
       .select('key_name, key_value')
       .eq('provider', 'office365');
 
-    if (secretsError || !secrets || secrets.length === 0) {
-      console.error('Missing Office 365 credentials:', secretsError);
+    if (secretsError) {
+      console.error('Error fetching Office 365 credentials:', secretsError);
+      throw new Error(`Database error: ${secretsError.message}`);
+    }
+
+    if (!secrets || secrets.length === 0) {
+      console.error('No Office 365 credentials found in database');
       throw new Error("Office 365 credentials not configured");
     }
+
+    console.log(`Found ${secrets.length} Office 365 credentials`);
 
     const credentialsMap = secrets.reduce((acc, secret) => {
       acc[secret.key_name] = secret.key_value;
@@ -160,7 +169,11 @@ const handler = async (req: Request): Promise<Response> => {
     const { client_id, client_secret, tenant_id } = credentialsMap;
 
     if (!client_id || !client_secret || !tenant_id) {
-      console.error('Incomplete Office 365 credentials');
+      console.error('Incomplete Office 365 credentials. Missing:', {
+        client_id: !!client_id,
+        client_secret: !!client_secret, 
+        tenant_id: !!tenant_id
+      });
       throw new Error("Incomplete Office 365 credentials");
     }
 
