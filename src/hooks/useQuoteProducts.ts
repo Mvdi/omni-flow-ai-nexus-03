@@ -2,46 +2,50 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-export interface QuoteTemplate {
+export interface QuoteProduct {
   id: string;
   name: string;
   description: string | null;
-  template_text: string;
-  is_default: boolean;
+  default_price: number;
+  unit: string;
+  category: string | null;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
   user_id: string;
 }
 
-export const useQuoteTemplates = () => {
+export const useQuoteProducts = () => {
   return useQuery({
-    queryKey: ['quote-templates'],
+    queryKey: ['quote-products'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('quote_templates')
+        .from('quote_products')
         .select('*')
-        .order('is_default', { ascending: false })
-        .order('created_at', { ascending: false });
+        .eq('is_active', true)
+        .order('category', { ascending: true })
+        .order('name', { ascending: true });
       
       if (error) throw error;
-      return data as QuoteTemplate[];
+      return data as QuoteProduct[];
     },
   });
 };
 
-export const useCreateTemplate = () => {
+export const useCreateProduct = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (templateData: Omit<QuoteTemplate, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
+    mutationFn: async (productData: Omit<QuoteProduct, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'is_active'>) => {
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
-        .from('quote_templates')
+        .from('quote_products')
         .insert({
-          ...templateData,
+          ...productData,
           user_id: user.id,
+          is_active: true
         })
         .select()
         .single();
@@ -50,18 +54,18 @@ export const useCreateTemplate = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['quote-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['quote-products'] });
     },
   });
 };
 
-export const useUpdateTemplate = () => {
+export const useUpdateProduct = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<QuoteTemplate> }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<QuoteProduct> }) => {
       const { data, error } = await supabase
-        .from('quote_templates')
+        .from('quote_products')
         .update(updates)
         .eq('id', id)
         .select()
@@ -71,25 +75,26 @@ export const useUpdateTemplate = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['quote-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['quote-products'] });
     },
   });
 };
 
-export const useDeleteTemplate = () => {
+export const useDeleteProduct = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (id: string) => {
+      // Soft delete by setting is_active to false
       const { error } = await supabase
-        .from('quote_templates')
-        .delete()
+        .from('quote_products')
+        .update({ is_active: false })
         .eq('id', id);
       
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['quote-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['quote-products'] });
     },
   });
 };

@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useCreateQuote } from '@/hooks/useQuotes';
 import { useQuoteTemplates } from '@/hooks/useQuoteTemplates';
-import { FileText, Plus, Calendar, DollarSign, Trash2, User, Building, MapPin, Phone, Mail } from 'lucide-react';
+import { useQuoteProducts } from '@/hooks/useQuoteProducts';
+import { FileText, Plus, Calendar, DollarSign, Trash2, User, Building, MapPin, Phone, Mail, Package } from 'lucide-react';
 import { Lead } from '@/hooks/useLeads';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,6 +43,7 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
   ]);
 
   const { data: templates = [], isLoading: templatesLoading } = useQuoteTemplates();
+  const { data: products = [] } = useQuoteProducts();
   const createQuote = useCreateQuote();
 
   // Calculate total amount
@@ -78,6 +80,21 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
     }
   };
 
+  const addProductToItems = (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      const newItem: QuoteItem = {
+        id: Date.now().toString(),
+        description: product.name + (product.description ? ` - ${product.description}` : ''),
+        quantity: 1,
+        unit_price: product.default_price,
+        total_price: product.default_price
+      };
+      setItems(prev => [...prev, newItem]);
+      toast.success(`${product.name} tilføjet til tilbuddet`);
+    }
+  };
+
   const handleTemplateChange = async (templateName: string) => {
     setFormData(prev => ({ ...prev, template_used: templateName }));
     
@@ -94,7 +111,7 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
 
   const generateQuoteHtml = () => {
     const template = templates.find(t => t.name === formData.template_used);
-    let html = template?.template_content || getDefaultTemplate();
+    let html = template?.template_text || getDefaultTemplate();
     
     // Replace template variables
     const now = new Date();
@@ -442,10 +459,29 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
             <CardHeader>
               <CardTitle className="text-base flex items-center justify-between">
                 <span>Ydelser & Priser</span>
-                <Button type="button" onClick={addItem} size="sm" variant="outline">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Tilføj Ydelse
-                </Button>
+                <div className="flex gap-2">
+                  {products.length > 0 && (
+                    <Select onValueChange={addProductToItems}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Tilføj fra varelinjer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.map(product => (
+                          <SelectItem key={product.id} value={product.id}>
+                            <div className="flex justify-between items-center w-full">
+                              <span>{product.name}</span>
+                              <span className="text-green-600 ml-2">{product.default_price.toLocaleString('da-DK')} kr</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <Button type="button" onClick={addItem} size="sm" variant="outline">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Manuel Ydelse
+                  </Button>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">

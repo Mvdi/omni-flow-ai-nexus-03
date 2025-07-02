@@ -618,6 +618,45 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_products: {
+        Row: {
+          category: string | null
+          created_at: string
+          default_price: number
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          unit: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          default_price?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          unit?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          default_price?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          unit?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       quote_templates: {
         Row: {
           created_at: string
@@ -625,7 +664,7 @@ export type Database = {
           id: string
           is_default: boolean | null
           name: string
-          template_content: string
+          template_text: string
           updated_at: string
           user_id: string
         }
@@ -635,7 +674,7 @@ export type Database = {
           id?: string
           is_default?: boolean | null
           name: string
-          template_content: string
+          template_text?: string
           updated_at?: string
           user_id: string
         }
@@ -645,7 +684,7 @@ export type Database = {
           id?: string
           is_default?: boolean | null
           name?: string
-          template_content?: string
+          template_text?: string
           updated_at?: string
           user_id?: string
         }

@@ -26,7 +26,7 @@ export interface QuoteTemplate {
   id: string;
   name: string;
   description: string | null;
-  template_content: string;
+  template_text: string;
   is_default: boolean;
   created_at: string;
   updated_at: string;
