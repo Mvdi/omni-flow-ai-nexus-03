@@ -32,6 +32,8 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    console.log('Attempting to send quote email via Office365 integration...');
+
     const { data: emailResponse, error } = await supabase.functions.invoke('office365-send-email', {
       body: {
         to: [to],
@@ -43,7 +45,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (error) {
       console.error("Error sending quote email via Office365:", error);
-      throw error;
+      // Return a more detailed error message
+      throw new Error(`Email sending failed: ${error.message || 'Unknown error'}`);
     }
 
     console.log("Quote email sent successfully via Office365:", emailResponse);

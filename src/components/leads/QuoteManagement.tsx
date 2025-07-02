@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuotes, useUpdateQuote } from '@/hooks/useQuotes';
-import { FileText, Eye, Send, DollarSign, Calendar, CheckCircle, X } from 'lucide-react';
+import { FileText, Eye, Send, DollarSign, Calendar, CheckCircle, X, RotateCcw } from 'lucide-react';
 import { formatDanishDateTime } from '@/utils/danishTime';
 import { Lead } from '@/hooks/useLeads';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface QuoteManagementProps {
   lead: Lead;
@@ -15,6 +17,7 @@ interface QuoteManagementProps {
 export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
   const { data: allQuotes = [] } = useQuotes();
   const updateQuote = useUpdateQuote();
+  const [sendingQuote, setSendingQuote] = useState<string | null>(null);
 
   // Filter quotes for this lead
   const leadQuotes = allQuotes.filter(quote => quote.lead_id === lead.id);
@@ -24,6 +27,50 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
       id: quoteId,
       updates: { status }
     });
+  };
+
+  const handleSendQuote = async (quote: any) => {
+    setSendingQuote(quote.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-quote-email', {
+        body: {
+          to: lead.email,
+          customerName: lead.navn,
+          quoteNumber: quote.quote_number,
+          quoteHtml: generateQuoteHtml(quote),
+          subject: `Tilbud ${quote.quote_number} fra MM Multipartner`
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Update quote status to sent
+      await updateQuote.mutateAsync({
+        id: quote.id,
+        updates: { status: 'sent' }
+      });
+
+      toast.success(`Tilbud ${quote.quote_number} sendt til ${lead.navn}`);
+    } catch (error: any) {
+      console.error('Failed to send quote:', error);
+      toast.error('Fejl ved afsendelse af tilbud: ' + (error.message || 'Ukendt fejl'));
+    } finally {
+      setSendingQuote(null);
+    }
+  };
+
+  const generateQuoteHtml = (quote: any) => {
+    // Simple HTML template for now - can be enhanced later
+    return `
+      <h2>Tilbud ${quote.quote_number}</h2>
+      <p><strong>Titel:</strong> ${quote.title}</p>
+      <p><strong>Beskrivelse:</strong> ${quote.description || 'Ingen beskrivelse'}</p>
+      <p><strong>Total beløb:</strong> ${quote.total_amount.toLocaleString('da-DK')} ${quote.currency}</p>
+      <p><strong>Gyldig til:</strong> ${quote.valid_until ? new Date(quote.valid_until).toLocaleDateString('da-DK') : 'Ikke angivet'}</p>
+      <p>Med venlig hilsen,<br>MM Multipartner</p>
+    `;
   };
 
   const getStatusColor = (status: string) => {
@@ -100,15 +147,17 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
           </TabsList>
 
           <TabsContent value="all" className="space-y-3 mt-4">
-            {leadQuotes.map((quote) => (
-              <QuoteCard 
-                key={quote.id} 
-                quote={quote} 
-                onStatusChange={handleStatusChange}
-                getStatusColor={getStatusColor}
-                getStatusIcon={getStatusIcon}
-              />
-            ))}
+              {leadQuotes.map((quote) => (
+                <QuoteCard 
+                  key={quote.id} 
+                  quote={quote} 
+                  onStatusChange={handleStatusChange}
+                  onSendQuote={handleSendQuote}
+                  getStatusColor={getStatusColor}
+                  getStatusIcon={getStatusIcon}
+                  sendingQuote={sendingQuote}
+                />
+              ))}
           </TabsContent>
 
           {['draft', 'sent', 'accepted', 'rejected'].map((status) => (
@@ -118,8 +167,10 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
                   key={quote.id} 
                   quote={quote} 
                   onStatusChange={handleStatusChange}
+                  onSendQuote={handleSendQuote}
                   getStatusColor={getStatusColor}
                   getStatusIcon={getStatusIcon}
+                  sendingQuote={sendingQuote}
                 />
               ))}
             </TabsContent>
@@ -133,11 +184,13 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
 interface QuoteCardProps {
   quote: any;
   onStatusChange: (quoteId: string, status: 'sent' | 'accepted' | 'rejected') => void;
+  onSendQuote: (quote: any) => void;
   getStatusColor: (status: string) => string;
   getStatusIcon: (status: string) => JSX.Element;
+  sendingQuote: string | null;
 }
 
-const QuoteCard = ({ quote, onStatusChange, getStatusColor, getStatusIcon }: QuoteCardProps) => {
+const QuoteCard = ({ quote, onStatusChange, onSendQuote, getStatusColor, getStatusIcon, sendingQuote }: QuoteCardProps) => {
   return (
     <div className="p-3 border rounded-lg bg-gray-50">
       <div className="flex items-start justify-between">
@@ -184,17 +237,28 @@ const QuoteCard = ({ quote, onStatusChange, getStatusColor, getStatusIcon }: Quo
             <Button
               size="sm"
               variant="outline"
-              onClick={() => onStatusChange(quote.id, 'sent')}
+              onClick={() => onSendQuote(quote)}
+              disabled={sendingQuote === quote.id}
               className="text-xs"
             >
               <Send className="h-3 w-3 mr-1" />
-              Send
+              {sendingQuote === quote.id ? 'Sender...' : 'Send'}
             </Button>
           </div>
         )}
 
         {quote.status === 'sent' && (
           <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onSendQuote(quote)}
+              disabled={sendingQuote === quote.id}
+              className="text-xs text-blue-600 border-blue-200"
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              {sendingQuote === quote.id ? 'Sender...' : 'Gensend'}
+            </Button>
             <Button
               size="sm"
               variant="outline"

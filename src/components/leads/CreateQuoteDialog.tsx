@@ -37,6 +37,17 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
     template_used: '',
     notes: ''
   });
+
+  // Auto-generate quote title when dialog opens
+  useEffect(() => {
+    if (open && !formData.title) {
+      const referenceNumber = `${Date.now().toString().slice(-6)}`;
+      setFormData(prev => ({ 
+        ...prev, 
+        title: `Tilbud fra MM Multipartner ${referenceNumber}` 
+      }));
+    }
+  }, [open, formData.title]);
   
   const [items, setItems] = useState<QuoteItem[]>([
     { id: '1', description: '', quantity: 1, unit_price: 0, total_price: 0 }
@@ -252,34 +263,7 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
 
       const result = await createQuote.mutateAsync(quoteData);
       
-      // Generate and send email
-      const quoteHtml = generateQuoteHtml().replace('{{items_html}}', 
-        items.filter(item => item.description.trim()).map(item => `
-          <tr>
-            <td>${item.description}</td>
-            <td>${item.quantity}</td>
-            <td>${item.unit_price.toLocaleString('da-DK')} DKK</td>
-            <td>${item.total_price.toLocaleString('da-DK')} DKK</td>
-          </tr>
-        `).join('')
-      );
-
-      // Send email via edge function
-      const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-quote-email', {
-        body: {
-          to: lead.email,
-          customerName: lead.navn,
-          quoteNumber: result.quote_number,
-          quoteHtml: quoteHtml,
-          subject: `Tilbud ${result.quote_number} fra MM Multipartner`
-        }
-      });
-
-      if (emailError) {
-        toast.error('Tilbud oprettet, men email kunne ikke sendes: ' + emailError.message);
-      } else {
-        toast.success(`Tilbud ${result.quote_number} sendt til ${lead.navn}`);
-      }
+      toast.success(`Tilbud ${result.quote_number} oprettet og klar til afsendelse`);
 
       setOpen(false);
       
@@ -584,7 +568,7 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
               Annuller
             </Button>
             <Button type="submit" disabled={createQuote.isPending} className="bg-blue-600 hover:bg-blue-700">
-              {createQuote.isPending ? 'Opretter og sender...' : 'Opret & Send Tilbud'}
+              {createQuote.isPending ? 'Opretter tilbud...' : 'Opret Tilbud'}
             </Button>
           </div>
         </form>
