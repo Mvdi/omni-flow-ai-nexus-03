@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,32 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
   const [sendingQuote, setSendingQuote] = useState<string | null>(null);
   const [previewQuote, setPreviewQuote] = useState<any>(null);
   const [editQuote, setEditQuote] = useState<any>(null);
+  const [templateData, setTemplateData] = useState<any>(null);
+
+  // Load template data
+  useEffect(() => {
+    const loadTemplateData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: template } = await supabase
+            .from('quote_email_templates')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_default', true)
+            .single();
+            
+          if (template && template.template_data) {
+            setTemplateData(template.template_data);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading template data:', error);
+      }
+    };
+    
+    loadTemplateData();
+  }, []);
 
   // Filter quotes for this lead
   const leadQuotes = allQuotes.filter(quote => quote.lead_id === lead.id);
@@ -35,6 +61,7 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
 
   const handleSendQuote = async (quote: any) => {
     console.log('handleSendQuote received quote:', quote);
+    console.log('templateData loaded:', templateData);
     console.log('customEmailData:', quote.customEmailData);
     setSendingQuote(quote.id);
     
@@ -69,8 +96,10 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
           };
         }
       } else {
+        // Use loaded template data + quote customEmailData
         emailData = {
-          ...quote.customEmailData,
+          ...templateData, // This includes logo, company info, etc.
+          ...quote.customEmailData, // Any quote-specific overrides
           customer_phone: lead.telefon,
           customer_address: lead.adresse,
           customer_company: lead.virksomhed,

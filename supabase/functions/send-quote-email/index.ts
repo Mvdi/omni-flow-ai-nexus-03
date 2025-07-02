@@ -463,7 +463,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Successfully obtained Office 365 token');
 
     // Generate PDF attachment with full quote data
-    console.log('Generating PDF attachment...');
+    console.log('Generating PDF attachment with data:', {
+      customEmailData: customEmailData?.userId,
+      logoUrl,
+      templateData: !!templateData
+    });
+    
     const pdfResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-quote-pdf`, {
       method: 'POST',
       headers: {
@@ -495,9 +500,10 @@ const handler = async (req: Request): Promise<Response> => {
         contentType: "application/pdf",
         contentBytes: base64Pdf
       };
-      console.log('PDF attachment generated successfully');
+      console.log('PDF attachment generated successfully, size:', base64Pdf.length);
     } else {
-      console.error('Failed to generate PDF attachment:', await pdfResponse.text());
+      const errorText = await pdfResponse.text();
+      console.error('Failed to generate PDF attachment:', errorText);
     }
 
     // Send email via Microsoft Graph with PDF attachment
