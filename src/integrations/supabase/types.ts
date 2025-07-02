@@ -618,6 +618,42 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_email_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          html_template: string | null
+          id: string
+          is_default: boolean
+          name: string
+          template_data: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          html_template?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          template_data?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          html_template?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          template_data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       quote_products: {
         Row: {
           category: string | null

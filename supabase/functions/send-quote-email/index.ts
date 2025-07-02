@@ -53,7 +53,39 @@ const handler = async (req: Request): Promise<Response> => {
       logoUrl
     }: SendQuoteRequest = await req.json();
 
-    console.log(`Sending PROFESSIONAL quote ${quoteNumber} to ${to} - CLEAN DESIGN v3.0`);
+    console.log(`Sending PROFESSIONAL quote ${quoteNumber} to ${to} - USING CUSTOM TEMPLATE`);
+
+    // Get user's custom template if available
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    let templateData = null;
+    let templateHtml = null;
+
+    // If custom email data is provided, use it
+    if (customEmailData) {
+      templateData = customEmailData;
+      console.log('Using provided custom email data');
+    } else {
+      // Try to load user's saved template
+      try {
+        const { data: userTemplate } = await supabaseClient
+          .from('quote_email_templates')
+          .select('template_data, html_template')
+          .eq('is_default', true)
+          .single();
+          
+        if (userTemplate) {
+          templateData = userTemplate.template_data;
+          templateHtml = userTemplate.html_template;
+          console.log('Using saved user template');
+        }
+      } catch (error) {
+        console.log('No custom template found, using defaults');
+      }
+    }
 
     // Calculate subtotal and VAT
     const subtotal = Math.round(totalAmount / 1.25);

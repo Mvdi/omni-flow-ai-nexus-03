@@ -27,6 +27,7 @@ import { EmailIntegrationSettings } from '@/components/settings/EmailIntegration
 import { EmployeeManagement } from '@/components/settings/EmployeeManagement';
 import { WorkScheduleManagement } from '@/components/settings/WorkScheduleManagement';
 import { QuoteTemplateManagement } from '@/components/settings/QuoteTemplateManagement';
+import { QuoteTemplateEditor } from '@/components/settings/QuoteTemplateEditor';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('general');
@@ -278,7 +279,7 @@ const Settings = () => {
             </TabsContent>
 
             <TabsContent value="quotes" className="space-y-4">
-              <QuoteTemplateManagement />
+              <QuoteTemplateEditor />
             </TabsContent>
           </Tabs>
         </div>

@@ -120,7 +120,8 @@ export const QuoteTemplateEditor = () => {
           
           if (template && template.template_data) {
             console.log('Found quote template in database:', template);
-            setTemplateData(prev => ({ ...prev, ...template.template_data }));
+            const parsedData = template.template_data as Record<string, any>;
+            setTemplateData(prev => ({ ...prev, ...parsedData }));
           } else {
             console.log('No quote template found in database, using defaults');
           }
@@ -350,11 +351,9 @@ export const QuoteTemplateEditor = () => {
           user_id: user.id,
           name: 'Standard Tilbudsskabelon',
           description: 'Standard tilbudsskabelon lavet i editor',
-          template_data: templateData,
+          template_data: templateData as any,
           html_template: templateHtml,
           is_default: true
-        }, { 
-          onConflict: 'user_id,is_default' 
         });
       
       if (upsertError) {
