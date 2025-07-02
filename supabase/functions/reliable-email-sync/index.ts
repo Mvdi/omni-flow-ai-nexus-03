@@ -55,7 +55,7 @@ let isSyncRunning = false;
 let lastSyncTime: Date | null = null;
 let consecutiveFailures = 0;
 const MAX_CONSECUTIVE_FAILURES = 3;
-const SYNC_LOCK_TIMEOUT = 3 * 60 * 1000; // Reduced to 3 minutes for faster recovery
+const SYNC_LOCK_TIMEOUT = 3 * 60 * 1000; // 3 minutes for faster recovery
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 2000; // 2 seconds
 
@@ -91,7 +91,9 @@ const isFacebookLead = (subject: string, content: string): boolean => {
     'lead from facebook',
     'facebook inquiry',
     'via facebook',
-    'facebook contact'
+    'facebook contact',
+    'facebook ad',
+    'facebook campaign'
   ];
   
   return facebookIndicators.some(indicator => text.includes(indicator));
@@ -155,8 +157,26 @@ const createFacebookLead = async (supabase: any, message: GraphMessage, mailboxA
     source_email: senderEmail,
     facebook_lead: true,
     original_email_id: message.id,
-    processed_at: new Date().toISOString()
+    processed_at: new Date().toISOString(),
+    email_content: messageContent
   };
+  
+  // Create lead with email content as notes
+  const leadNotes = `🎯 FACEBOOK LEAD - Automatisk oprettet fra email
+  
+📧 **Original Email:**
+Emne: ${message.subject}
+Fra: ${senderName} <${senderEmail}>
+Modtaget: ${new Date(message.receivedDateTime).toLocaleString('da-DK')}
+
+📝 **Besked:**
+${messageContent}
+
+🔍 **Detekteret Service:** ${detectedService || 'Ikke detekteret'}
+📞 **Ekstraheret Telefon:** ${customerData.phones[0] || 'Ikke fundet'}
+📍 **Ekstraheret Adresse:** ${customerData.addresses[0] || 'Ikke fundet'}
+
+⚡ **Automatisk behandling:** ${new Date().toLocaleString('da-DK')}`;
   
   // Create lead
   const { data: newLead, error: leadError } = await supabase
@@ -170,9 +190,9 @@ const createFacebookLead = async (supabase: any, message: GraphMessage, mailboxA
       status: 'Ny',
       kilde: 'Facebook Lead',
       prioritet: detectedService ? 'Høj' : 'Medium',
-      noter: `Automatisk oprettet fra Facebook lead email.\n\nOriginal besked:\n${messageContent.substring(0, 500)}${messageContent.length > 500 ? '...' : ''}`,
+      noter: leadNotes,
       ai_enriched_data: enrichedData,
-      sidste_kontakt: `Email modtaget: ${new Date(message.receivedDateTime).toLocaleString('da-DK')}`
+      sidste_kontakt: `Facebook lead email: ${new Date(message.receivedDateTime).toLocaleString('da-DK')}`
     })
     .select()
     .single();
@@ -191,7 +211,7 @@ const createFacebookLead = async (supabase: any, message: GraphMessage, mailboxA
       service_detected: detectedService,
       customer_data: enrichedData,
       original_email_content: messageContent,
-      processing_notes: `Auto-created from ${mailboxAddress}`
+      processing_notes: `Auto-created lead from ${mailboxAddress} - ${detectedService || 'General service'}`
     });
   
   console.log(`✅ FACEBOOK LEAD CREATED: ${newLead.id} for ${detectedService || 'General'} service`);
@@ -327,52 +347,6 @@ const processEmail = async (supabase: any, message: GraphMessage, mailboxAddress
   }
 };
 
-// CRITICAL FIX: Proper ticket status update for customer replies
-const addMessageToTicket = async (supabase: any, ticket: any, message: GraphMessage) => {
-  const messageContent = message.body?.content || message.bodyPreview || '';
-  
-  console.log(`📝 CRITICAL FIX: Adding customer reply to ticket ${ticket.ticket_number}`);
-  
-  // Add the message first
-  const { error: messageError } = await supabase
-    .from('ticket_messages')
-    .insert({
-      ticket_id: ticket.id,
-      sender_email: message.from.emailAddress.address,
-      sender_name: message.from.emailAddress.name,
-      message_content: messageContent,
-      message_type: 'inbound_email',
-      email_message_id: message.id,
-      is_internal: false,
-      attachments: [],
-      created_at: new Date(message.receivedDateTime).toISOString()
-    });
-
-  if (messageError) {
-    console.error('Failed to add message:', messageError);
-    throw messageError;
-  }
-
-  // CRITICAL FIX: Update ticket status to "Nyt svar" for ALL customer emails
-  console.log(`🚨 CRITICAL: Setting ticket ${ticket.ticket_number} status to "Nyt svar"`);
-  
-  const { error: updateError } = await supabase
-    .from('support_tickets')
-    .update({
-      status: 'Nyt svar',
-      last_response_at: new Date(message.receivedDateTime).toISOString(),
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', ticket.id);
-
-  if (updateError) {
-    console.error('CRITICAL ERROR: Failed to update ticket status:', updateError);
-    throw updateError;
-  } else {
-    console.log(`✅ SUCCESS: Ticket ${ticket.ticket_number} status set to "Nyt svar"`);
-  }
-};
-
 // Enhanced ticket finding logic
 const findExistingTicket = async (supabase: any, message: GraphMessage) => {
   const senderEmail = message.from.emailAddress.address.toLowerCase();
@@ -414,7 +388,53 @@ const findExistingTicket = async (supabase: any, message: GraphMessage) => {
   return null;
 };
 
-// Create new ticket WITHOUT automatic priority
+// CRITICAL FIX: Proper ticket status update for customer replies
+const addMessageToTicket = async (supabase: any, ticket: any, message: GraphMessage) => {
+  const messageContent = message.body?.content || message.bodyPreview || '';
+  
+  console.log(`📝 Adding customer reply to ticket ${ticket.ticket_number}`);
+  
+  // Add the message first
+  const { error: messageError } = await supabase
+    .from('ticket_messages')
+    .insert({
+      ticket_id: ticket.id,
+      sender_email: message.from.emailAddress.address,
+      sender_name: message.from.emailAddress.name,
+      message_content: messageContent,
+      message_type: 'inbound_email',
+      email_message_id: message.id,
+      is_internal: false,
+      attachments: [],
+      created_at: new Date(message.receivedDateTime).toISOString()
+    });
+
+  if (messageError) {
+    console.error('Failed to add message:', messageError);
+    throw messageError;
+  }
+
+  // Update ticket status to "Nyt svar" for customer emails
+  console.log(`🚨 Setting ticket ${ticket.ticket_number} status to "Nyt svar"`);
+  
+  const { error: updateError } = await supabase
+    .from('support_tickets')
+    .update({
+      status: 'Nyt svar',
+      last_response_at: new Date(message.receivedDateTime).toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', ticket.id);
+
+  if (updateError) {
+    console.error('Failed to update ticket status:', updateError);
+    throw updateError;
+  } else {
+    console.log(`✅ Ticket ${ticket.ticket_number} status set to "Nyt svar"`);
+  }
+};
+
+// Create new ticket
 const createNewTicket = async (supabase: any, message: GraphMessage, mailboxAddress: string) => {
   // Upsert customer
   await supabase
@@ -442,7 +462,7 @@ const createNewTicket = async (supabase: any, message: GraphMessage, mailboxAddr
     mailbox_address: mailboxAddress,
     source: 'office365',
     status: 'Åben',
-    priority: null, // CRITICAL: NO AUTOMATIC PRIORITY
+    priority: null, // No automatic priority
     category: basicCategory,
     sla_deadline: slaDeadline,
     auto_assigned: false,
@@ -643,7 +663,7 @@ serve(async (req) => {
         const syncWindowStart = new Date(Date.now() - syncHours * 60 * 60 * 1000).toISOString();
         
         const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
-        const maxMessages = priority === 'critical' ? 200 : 50; // More for nightly deep sync
+        const maxMessages = priority === 'critical' ? 200 : 50;
         const filter = `?$filter=receivedDateTime gt ${syncWindowStart}&$top=${maxMessages}&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments,internetMessageHeaders`;
 
         const messagesResponse = await fetch(`${messagesUrl}${filter}`, {
