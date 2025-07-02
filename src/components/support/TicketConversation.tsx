@@ -14,7 +14,7 @@ import { AttachmentViewer } from './AttachmentViewer';
 import { DuplicateMessageHandler } from './DuplicateMessageHandler';
 import { AIResponseSuggestions } from './AIResponseSuggestions';
 import { formatDanishDistance, formatDanishDateTime, debugTimeConversion } from '@/utils/danishTime';
-import { Send, Bot, User, Clock, Mail, Tag, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Clock, Mail, Tag, Loader2, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -52,6 +52,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [signatureHtml, setSignatureHtml] = useState('');
   const [activeTab, setActiveTab] = useState('compose');
+  const [isFetchingAttachments, setIsFetchingAttachments] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -133,6 +134,42 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const handleUseSuggestion = (content: string) => {
     setNewMessage(content);
     setActiveTab('compose');
+  };
+
+  const handleFetchMissingAttachments = async () => {
+    setIsFetchingAttachments(true);
+    
+    try {
+      console.log('Fetching missing attachments for ticket:', ticket.id);
+      
+      const { data, error } = await supabase.functions.invoke('fetch-missing-attachments', {
+        body: { ticketId: ticket.id }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({
+          title: "Vedhæftninger hentet",
+          description: data.message,
+        });
+        
+        // Refresh messages to show the attachments
+        refetch();
+        queryClient.invalidateQueries({ queryKey: ['ticket-messages', ticket.id] });
+      } else {
+        throw new Error(data.message || 'Failed to fetch attachments');
+      }
+    } catch (error) {
+      console.error('Failed to fetch missing attachments:', error);
+      toast({
+        title: "Fejl",
+        description: "Kunne ikke hente vedhæftninger. Prøv igen.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFetchingAttachments(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -261,6 +298,36 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
           </div>
         </CardHeader>
       </Card>
+
+      {/* Fetch Missing Attachments Section */}
+      {ticket.content && ticket.content.toLowerCase().includes('vedhæftet') && (
+        <Card className="mb-3">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Download className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium">Manglende vedhæftninger?</span>
+                <span className="text-xs text-gray-500">
+                  Hvis du ikke kan se vedhæftninger fra denne email, klik her for at hente dem
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleFetchMissingAttachments}
+                disabled={isFetchingAttachments}
+              >
+                {isFetchingAttachments ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                Hent vedhæftninger
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Messages */}
       <Card className="flex-1 flex flex-col">
