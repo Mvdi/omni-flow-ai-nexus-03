@@ -143,17 +143,26 @@ const createFacebookLead = async (supabase: any, message: GraphMessage, mailboxA
   const senderEmail = message.from.emailAddress.address;
   const senderName = message.from.emailAddress.name || senderEmail.split('@')[0];
   
-  // CRITICAL: Check if lead already exists for this sender email
-  const { data: existingLead } = await supabase
-    .from('leads')
-    .select('id, email')
-    .eq('email', senderEmail)
-    .eq('kilde', 'Facebook Lead')
+  // CRITICAL: Check if this specific email message has already been processed
+  const { data: processedEmail } = await supabase
+    .from('facebook_leads_processed')
+    .select('id, lead_id')
+    .eq('email_message_id', message.id)
     .single();
   
-  if (existingLead) {
-    console.log(`⏭️ FACEBOOK LEAD ALREADY EXISTS: ${senderEmail} - Skipping creation`);
-    return existingLead;
+  if (processedEmail) {
+    console.log(`⏭️ EMAIL MESSAGE ALREADY PROCESSED: ${message.id} - Skipping creation`);
+    
+    // Return the existing lead if it still exists
+    const { data: existingLead } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('id', processedEmail.lead_id)
+      .single();
+    
+    if (existingLead) {
+      return existingLead;
+    }
   }
   
   // Intelligent service detection
