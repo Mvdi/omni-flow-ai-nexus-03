@@ -255,20 +255,6 @@ const handler = async (req: Request): Promise<Response> => {
                 padding-top: 12px;
                 border-top: 2px solid #000000;
             }
-            .confirmation-section {
-                margin: 40px 0;
-            }
-            .confirm-button {
-                display: inline-block;
-                background: #4CAF50;
-                color: white;
-                padding: 14px 28px;
-                border-radius: 6px;
-                text-decoration: none;
-                font-weight: 600;
-                font-size: 14px;
-                text-align: center;
-            }
             .signature-section {
                 margin-top: 50px;
                 font-size: 14px;
@@ -307,7 +293,6 @@ const handler = async (req: Request): Promise<Response> => {
                     <div class="company-details">
                         Penselvej 8<br>
                         1234 Spandevis<br>
-                        AB: Casper Hvid<br>
                         CVR: 12345678
                     </div>
                 </div>
@@ -364,12 +349,10 @@ const handler = async (req: Request): Promise<Response> => {
                 </div>
             </div>
             
-            <div class="confirmation-section">
-                <div style="text-align: center; margin: 40px 0;">
-                    <a href="${confirmUrl}" class="confirm-button" style="display: inline-block; background: #4CAF50; color: white; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">
-                        ✅ BEKRÆFT TILBUD NU
-                    </a>
-                </div>
+            <div style="text-align: center; margin: 40px 0;">
+                <a href="${confirmUrl}" style="display: inline-block; background: #4CAF50; color: white; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">
+                    ✅ BEKRÆFT TILBUD NU
+                </a>
             </div>
             
             <div class="signature-section">

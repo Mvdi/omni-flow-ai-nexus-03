@@ -46,7 +46,13 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
           totalAmount: quote.total_amount,
           currency: quote.currency,
           validUntil: quote.valid_until,
-          items: quote.items || []
+          items: quote.items || [],
+          customEmailData: {
+            customer_phone: lead.telefon,
+            customer_address: lead.adresse,
+            customer_company: lead.virksomhed,
+            customer_email: lead.email
+          }
         }
       });
 
