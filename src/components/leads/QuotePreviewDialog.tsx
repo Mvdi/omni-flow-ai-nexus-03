@@ -1,6 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Eye, Send } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface QuotePreviewDialogProps {
   open: boolean;
@@ -19,6 +21,34 @@ export const QuotePreviewDialog = ({
   onSendQuote,
   sending 
 }: QuotePreviewDialogProps) => {
+  const [templateData, setTemplateData] = useState<any>(null);
+
+  useEffect(() => {
+    const loadTemplate = async () => {
+      try {
+        const user = (await supabase.auth.getUser()).data.user;
+        if (user) {
+          const { data: template } = await supabase
+            .from('quote_email_templates')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_default', true)
+            .single();
+          
+          if (template && template.template_data) {
+            setTemplateData(template.template_data);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading template:', error);
+      }
+    };
+    
+    if (open) {
+      loadTemplate();
+    }
+  }, [open]);
+
   if (!quote) return null;
 
   const itemsHtml = quote.items?.map((item: any, index: number) => (
@@ -46,22 +76,28 @@ export const QuotePreviewDialog = ({
             {/* Header */}
             <div className="flex justify-between items-start mb-8">
               <div>
-                <h1 className="text-4xl font-bold text-black mb-1">Tilbud</h1>
-                <p className="text-lg text-black">(EKSEMPEL)</p>
+                <h1 className="text-4xl font-bold text-black mb-1">{templateData?.documentTitle || 'Tilbud'}</h1>
+                {templateData?.documentSubtitle && (
+                  <p className="text-lg text-black">{templateData.documentSubtitle}</p>
+                )}
               </div>
-              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold">
-                LOGO
+              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-content center text-blue-600 font-semibold">
+                {templateData?.logoUrl ? (
+                  <img src={templateData.logoUrl} alt="Logo" className="w-full h-full object-contain rounded-full" />
+                ) : (
+                  'LOGO'
+                )}
               </div>
             </div>
             
             {/* Company Info */}
             <div className="flex justify-between mb-8">
               <div>
-                <div className="font-semibold text-black mb-2">MM Multipartner</div>
+                <div className="font-semibold text-black mb-2">{templateData?.companyName || 'MM Multipartner'}</div>
                 <div className="text-sm text-black leading-relaxed">
-                  Penselvej 8<br/>
-                  1234 Spandevis<br/>
-                  CVR: 12345678
+                  {templateData?.companyAddress || 'Penselvej 8'}<br/>
+                  {templateData?.companyCity || '1234 Spandevis'}<br/>
+                  {templateData?.companyCvr || 'CVR: 12345678'}
                 </div>
               </div>
               <div className="text-sm text-black text-right">
@@ -91,8 +127,8 @@ export const QuotePreviewDialog = ({
             {/* Project Info */}
             <div className="mb-8 text-sm text-black leading-relaxed">
               <strong>{quote.title}</strong><br/>
-              Tilbuddet gælder t.o.m. den {quote.valid_until ? new Date(quote.valid_until).toLocaleDateString('da-DK') : '20/12-2024'}<br/>
-              Virksomhedsnavnet påbegynder opgaven den 01/01-2025
+              {templateData?.validityText || 'Tilbuddet gælder t.o.m. den'} {quote.valid_until ? new Date(quote.valid_until).toLocaleDateString('da-DK') : '20/12-2024'}<br/>
+              {templateData?.startText || 'Virksomhedsnavnet påbegynder opgaven den 01/01-2025'}
             </div>
             
             {/* Items Table */}
@@ -100,13 +136,13 @@ export const QuotePreviewDialog = ({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b-2 border-black">
-                    <th className="text-left py-3 font-semibold text-black">Vare</th>
-                    <th className="text-left py-3 font-semibold text-black">Beskrivelse</th>
-                    <th className="text-right py-3 font-semibold text-black">Antal</th>
-                    <th className="text-right py-3 font-semibold text-black">Enhed</th>
-                    <th className="text-right py-3 font-semibold text-black">Stk. pris</th>
-                    <th className="text-right py-3 font-semibold text-black">Rabat</th>
-                    <th className="text-right py-3 font-semibold text-black">Pris</th>
+                    <th className="text-left py-3 font-semibold text-black">{templateData?.itemColumnHeader || 'Vare'}</th>
+                    <th className="text-left py-3 font-semibold text-black">{templateData?.descriptionColumnHeader || 'Beskrivelse'}</th>
+                    <th className="text-right py-3 font-semibold text-black">{templateData?.quantityColumnHeader || 'Antal'}</th>
+                    <th className="text-right py-3 font-semibold text-black">{templateData?.unitColumnHeader || 'Enhed'}</th>
+                    <th className="text-right py-3 font-semibold text-black">{templateData?.priceColumnHeader || 'Stk. pris'}</th>
+                    <th className="text-right py-3 font-semibold text-black">{templateData?.discountColumnHeader || 'Rabat'}</th>
+                    <th className="text-right py-3 font-semibold text-black">{templateData?.totalColumnHeader || 'Pris'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -128,15 +164,15 @@ export const QuotePreviewDialog = ({
             {/* Totals */}
             <div className="text-right mb-8">
               <div className="flex justify-end mb-2">
-                <div className="w-32 text-right mr-10 text-black">Subtotal</div>
+                <div className="w-32 text-right mr-10 text-black">{templateData?.subtotalLabel || 'Subtotal'}</div>
                 <div className="w-20 text-right text-black">Kr. {Math.round((quote.total_amount || 0) / 1.25).toLocaleString('da-DK')}</div>
               </div>
               <div className="flex justify-end mb-4">
-                <div className="w-32 text-right mr-10 text-black">Moms (25%)</div>
+                <div className="w-32 text-right mr-10 text-black">{templateData?.vatLabel || 'Moms (25%)'}</div>
                 <div className="w-20 text-right text-black">Kr. {Math.round((quote.total_amount || 0) - ((quote.total_amount || 0) / 1.25)).toLocaleString('da-DK')}</div>
               </div>
               <div className="flex justify-end font-bold text-lg border-t-2 border-black pt-3">
-                <div className="w-32 text-right mr-10 text-black">Total DKK</div>
+                <div className="w-32 text-right mr-10 text-black">{templateData?.totalLabel || 'Total DKK'}</div>
                 <div className="w-20 text-right text-black">Kr. {(quote.total_amount || 0).toLocaleString('da-DK')}</div>
               </div>
             </div>
@@ -144,21 +180,21 @@ export const QuotePreviewDialog = ({
             {/* Confirmation Button */}
             <div className="text-center mb-8">
               <div className="bg-green-600 text-white px-8 py-3 rounded font-semibold text-sm inline-block">
-                ✅ BEKRÆFT TILBUD NU
+                {templateData?.ctaButtonText || '✅ BEKRÆFT TILBUD NU'}
               </div>
             </div>
             
             {/* Signature */}
             <div className="mb-8 text-black">
-              Vi ser frem til et godt samarbejde.<br/><br/>
+              {templateData?.signatureText || 'Vi ser frem til et godt samarbejde.'}<br/><br/>
               Med venlig hilsen<br/>
-              Torben Schwartz<br/>
-              Din malermester
+              {templateData?.signatureName || 'Torben Schwartz'}<br/>
+              {templateData?.signatureTitle || 'Din malermester'}
             </div>
             
             {/* Footer */}
             <div className="text-center text-xs text-gray-600 border-t border-gray-200 pt-5">
-              MM Multipartner – Penselvej 8 – 1234 Spandevis – kontakt@dinmalermester.dk – www.dinmalermester.dk
+              {templateData?.footerText || 'MM Multipartner – Penselvej 8 – 1234 Spandevis – kontakt@dinmalermester.dk – www.dinmalermester.dk'}
             </div>
           </div>
         </div>
