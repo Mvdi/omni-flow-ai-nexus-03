@@ -169,8 +169,7 @@ export const PriceCalculatorWidget = () => {
           </div>
 
           {/* Gul rabatboks */}
-          <div 
-            className="animate-pulse"
+          <div
             style={{
               background: 'linear-gradient(135deg, #FFE86E 0%, #FFDF47 100%)',
               color: '#1C1C1C',
