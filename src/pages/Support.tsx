@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketConversation } from '@/components/support/TicketConversation';
 import { CustomerInfo } from '@/components/support/CustomerInfo';
+import { InternalNotesConversation } from '@/components/support/InternalNotesConversation';
 import { CreateTicketDialog } from '@/components/support/CreateTicketDialog';
 import { SignatureSettings } from '@/components/support/SignatureSettings';
 import { useTickets, SupportTicket, useTicketAnalytics } from '@/hooks/useTickets';
@@ -171,8 +172,9 @@ const Support = () => {
             </Button>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 space-y-6">
               <CustomerInfo ticket={selectedTicket} onTicketSelect={handleTicketSelect} currentTicketId={selectedTicket.id} />
+              <InternalNotesConversation ticketId={selectedTicket.id} />
             </div>
             <div className="lg:col-span-2">
               <TicketConversation ticket={selectedTicket} />
