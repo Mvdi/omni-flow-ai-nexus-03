@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 export const PriceCalculatorWidget = () => {
   const [selectedInterval, setSelectedInterval] = useState('0');
   const [includeMaintenance, setIncludeMaintenance] = useState(false);
+  const [customM2, setCustomM2] = useState(251);
   const [currentStep, setCurrentStep] = useState(1); // 1 = prisberegning, 2 = kundeoplysninger
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -21,10 +22,19 @@ export const PriceCalculatorWidget = () => {
       standardPrice = 1395;
       maintenancePrice = 1195;
       maintenancePriceText = '1195';
-    } else {
-      standardPrice = 1405;
-      maintenancePrice = 1203;
-      maintenancePriceText = '1203';
+    } else if (selectedInterval === '2') {
+      // Dynamic pricing for over 250m²
+      const extraM2 = Math.max(0, customM2 - 250);
+      const extraCost = extraM2 * 10;
+      const basePrice = 1395;
+      
+      standardPrice = basePrice + extraCost;
+      
+      // 20% discount on extra cost for maintenance
+      const discountedExtraCost = extraCost * 0.8;
+      maintenancePrice = basePrice + discountedExtraCost;
+      
+      maintenancePriceText = Math.round(maintenancePrice).toLocaleString('da-DK');
     }
 
     const finalPrice = includeMaintenance ? maintenancePrice : standardPrice;
@@ -54,7 +64,8 @@ export const PriceCalculatorWidget = () => {
 
     const priceInfo = calculatePrice();
     const intervalText = selectedInterval === '0' ? 'Op til 100 m²' : 
-                        selectedInterval === '1' ? '101-250 m²' : 'Over 250 m²';
+                        selectedInterval === '1' ? '101-250 m²' : 
+                        selectedInterval === '2' ? `${customM2} m²` : 'Over 250 m²';
 
     try {
       // Send til sikker webhook
@@ -85,6 +96,7 @@ export const PriceCalculatorWidget = () => {
       setCurrentStep(1);
       setSelectedInterval('0');
       setIncludeMaintenance(false);
+      setCustomM2(251);
       
     } catch (error) {
       console.error('Fejl ved indsendelse:', error);
@@ -170,8 +182,34 @@ export const PriceCalculatorWidget = () => {
             >
               <option value="0">Op til 100 m²</option>
               <option value="1">101‑250 m²</option>
-              <option value="2">Over 250 m²</option>
+              <option value="2">Over 250 m² (indtast præcist areal)</option>
             </select>
+
+            {/* M² input for over 250 */}
+            {selectedInterval === '2' && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{
+                  display: 'block',
+                  fontWeight: '500',
+                  marginBottom: '.5rem',
+                  fontSize: '.95rem'
+                }}>
+                  Indtast antal m²
+                </label>
+                <input
+                  type="number"
+                  min="251"
+                  value={customM2}
+                  onChange={(e) => setCustomM2(parseInt(e.target.value) || 251)}
+                  style={{
+                    width: '100%',
+                    padding: '.5rem',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px'
+                  }}
+                />
+              </div>
+            )}
 
             <label style={{
               display: 'flex',

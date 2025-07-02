@@ -23,8 +23,13 @@
       <select id="arealValg-wp" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:0;margin-bottom:1.25rem;">
         <option value="0">Op til 100 m²</option>
         <option value="1">101‑250 m²</option>
-        <option value="2">Over 250 m²</option>
+        <option value="2">Over 250 m² (indtast præcist areal)</option>
       </select>
+      <!-- M² input for over 250 -->
+      <div id="m2Input-wp" style="display:none;margin-bottom:1.25rem;">
+        <label style="display:block;font-weight:500;margin-bottom:.5rem;font-size:.95rem;">Indtast antal m²</label>
+        <input type="number" id="customM2-wp" min="251" value="251" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+      </div>
       <label style="display:flex;align-items:flex-start;margin-bottom:1.25rem;font-weight:500;font-size:.95rem;">
         <input type="checkbox" id="vedligehold-wp" style="margin-right:8px;margin-top:4px;">Tilføj årlig vedligeholdelsesaftale <span style="font-size:.9rem;color:#555;font-weight:400;">(Pris: <span id="vedlPris-wp">795</span> kr.)</span>
       </label>
@@ -110,8 +115,18 @@
     var out = document.getElementById('prisVisning-wp');
     var før = document.getElementById('førPris-wp');
     var vedlPris = document.getElementById('vedlPris-wp');
+    var m2Input = document.getElementById('m2Input-wp');
+    var customM2 = document.getElementById('customM2-wp');
     
-    if (!ddl || !chk || !out || !før || !vedlPris) return;
+    if (!ddl || !chk || !out || !før || !vedlPris || !m2Input || !customM2) return;
+    
+    function toggleM2Input(){
+      if(ddl.value === '2'){
+        m2Input.style.display = 'block';
+      } else {
+        m2Input.style.display = 'none';
+      }
+    }
     
     function updatePrice(){
       var sel = ddl.value;
@@ -126,21 +141,37 @@
         std = 1395;
         ved = 1195;
         vedlPris.textContent = '1195';
-      } else {
-        std = 1405;
-        ved = 1203;
-        vedlPris.textContent = '1203';
+      } else if(sel === '2'){
+        // Dynamic pricing for over 250m²
+        var m2 = parseInt(customM2.value) || 251;
+        var extraM2 = Math.max(0, m2 - 250);
+        var extraCost = extraM2 * 10;
+        var basePrice = 1395;
+        
+        std = basePrice + extraCost;
+        
+        // 20% discount on extra cost for maintenance
+        var discountedExtraCost = extraCost * 0.8;
+        ved = basePrice + discountedExtraCost;
+        
+        vedlPris.textContent = Math.round(ved).toLocaleString('da-DK');
       }
       
       var pris = add ? ved : std;
-      out.textContent = pris.toLocaleString('da-DK') + ' kr.';
-      før.textContent = std.toLocaleString('da-DK') + ' kr.';
+      out.textContent = Math.round(pris).toLocaleString('da-DK') + ' kr.';
+      før.textContent = Math.round(std).toLocaleString('da-DK') + ' kr.';
       før.style.textDecoration = add ? 'line-through' : 'none';
       før.style.opacity = add ? '.5' : '0';
     }
     
-    ddl.addEventListener('change', updatePrice);
+    ddl.addEventListener('change', function() {
+      toggleM2Input();
+      updatePrice();
+    });
     chk.addEventListener('change', updatePrice);
+    customM2.addEventListener('input', updatePrice);
+    
+    toggleM2Input();
     updatePrice();
   }
 
