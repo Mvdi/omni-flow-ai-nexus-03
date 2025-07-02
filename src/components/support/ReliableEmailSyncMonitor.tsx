@@ -159,6 +159,17 @@ export const ReliableEmailSyncMonitor = () => {
 
       console.log(`Deleting ${duplicatesToDelete.length} duplicate Facebook leads...`);
 
+      // First delete from facebook_leads_processed table to avoid foreign key constraint
+      const { error: processedDeleteError } = await supabase
+        .from('facebook_leads_processed')
+        .delete()
+        .in('lead_id', duplicatesToDelete);
+
+      if (processedDeleteError) {
+        console.warn('Warning deleting from facebook_leads_processed:', processedDeleteError);
+        // Continue anyway as this might not exist for all leads
+      }
+
       // Delete the duplicate leads
       const { data: deletedLeads, error: deleteError } = await supabase
         .from('leads')
