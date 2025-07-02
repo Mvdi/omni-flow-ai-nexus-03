@@ -144,24 +144,40 @@ export const ReliableEmailSyncMonitor = () => {
   const triggerLeadCleanup = async () => {
     setIsCleaningLeads(true);
     try {
-      console.log('🧹 Calling lead cleanup edge function...');
+      console.log('🧹 Starting Facebook lead duplicate cleanup...');
       
-      const { data, error } = await supabase.functions.invoke('cleanup-lead-duplicates', {
-        body: {}
-      });
+      // Specific duplicate IDs to delete (newer duplicates, keeping the oldest)
+      const duplicatesToDelete = [
+        '6ebff3f8-86fa-42b5-9e44-b5fdaff710ed', // Karen Tambo duplicate
+        'bb0728d4-26d7-4e6c-8b9c-560c782597cf', // Lenette Thomsen duplicate  
+        '6dc40cd1-c1ac-4877-8092-aed481cf3cf6', // Lone Helboe duplicate
+        '32f2b56a-e0bb-4065-99fb-215a60fcd42d', // Maria Bisgaard duplicate
+        'ef6fe8cf-c3dd-481a-a3f0-a69b9449bbec', // Michael Furbo Koch duplicate
+        'f1da5998-fae9-45b9-9af8-c96fac67d127', // Marianne Kyed Thøgersen duplicate
+        '7c0c27ca-bcec-4eb1-85d4-d780f49d0331'  // Sanne Roed duplicate
+      ];
 
-      if (error) {
-        throw error;
+      console.log(`Deleting ${duplicatesToDelete.length} duplicate Facebook leads...`);
+
+      // Delete the duplicate leads
+      const { data: deletedLeads, error: deleteError } = await supabase
+        .from('leads')
+        .delete()
+        .in('id', duplicatesToDelete)
+        .select('id, navn, email');
+
+      if (deleteError) {
+        throw deleteError;
       }
 
-      console.log('✅ Lead cleanup completed:', data);
+      console.log(`✅ Successfully deleted ${deletedLeads?.length || 0} duplicate leads`);
       
       // Refresh leads data
       refetchLeads();
 
       toast({
         title: "Facebook lead duplikater fjernet",
-        description: `${data.deletedCount} duplikerede leads blev fjernet. ${data.remainingCount} leads tilbage.`,
+        description: `${deletedLeads?.length || 0} duplikerede leads blev fjernet.`,
       });
 
     } catch (error: any) {
