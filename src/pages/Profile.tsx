@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,11 +9,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Mail, Calendar, Shield } from 'lucide-react';
+import { User, Mail, Calendar, Shield, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -72,14 +75,27 @@ const Profile = () => {
   }
 
   return (
-    <div className="container mx-auto px-6 py-8 max-w-2xl">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Min Profil</h1>
-          <p className="text-muted-foreground">
-            Administrer dine kontooplysninger og præferencer.
-          </p>
-        </div>
+    <>
+      <Navigation />
+      <div className="container mx-auto px-6 py-8 max-w-2xl">
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Tilbage
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Min Profil</h1>
+              <p className="text-muted-foreground">
+                Administrer dine kontooplysninger og præferencer.
+              </p>
+            </div>
+          </div>
 
         <Card>
           <CardHeader>
@@ -186,6 +202,7 @@ const Profile = () => {
         </Card>
       </div>
     </div>
+    </>
   );
 };
 

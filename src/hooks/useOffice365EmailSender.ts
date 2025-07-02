@@ -7,13 +7,14 @@ interface SendEmailRequest {
   ticket_id: string;
   message_content: string;
   sender_name?: string;
+  cc_emails?: string[];
 }
 
 export function useOffice365EmailSender() {
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
 
-  const sendEmail = async ({ ticket_id, message_content, sender_name }: SendEmailRequest) => {
+  const sendEmail = async ({ ticket_id, message_content, sender_name, cc_emails }: SendEmailRequest) => {
     setIsSending(true);
     
     try {
@@ -28,7 +29,8 @@ export function useOffice365EmailSender() {
         body: {
           ticket_id,
           message_content,
-          sender_name: sender_name || 'Support Agent'
+          sender_name: sender_name || 'Support Agent',
+          cc_emails
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,

@@ -11,6 +11,7 @@ interface SendEmailRequest {
   ticket_id: string;
   message_content: string;
   sender_name: string;
+  cc_emails?: string[];
 }
 
 interface GraphTokenResponse {
@@ -88,7 +89,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    const { ticket_id, message_content, sender_name }: SendEmailRequest = await req.json();
+    const { ticket_id, message_content, sender_name, cc_emails }: SendEmailRequest = await req.json();
 
     if (!ticket_id || !message_content) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), { 
@@ -238,6 +239,14 @@ serve(async (req) => {
             }
           }
         ],
+        ...(cc_emails && cc_emails.length > 0 ? {
+          ccRecipients: cc_emails.map((email: string) => ({
+            emailAddress: {
+              address: email.trim(),
+              name: email.trim()
+            }
+          }))
+        } : {}),
         // KRITISK: Brug kun X- prefixed headers som Microsoft Graph accepterer
         internetMessageHeaders: [
           // X-In-Reply-To header for at indikere at dette er et svar

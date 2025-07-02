@@ -119,11 +119,13 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
       await sendEmail({
         ticket_id: ticket.id,
         message_content: newMessage,
-        sender_name: 'Support Team'
+        sender_name: 'Support Team',
+        cc_emails: ccEmails.trim() ? ccEmails.split(',').map(email => email.trim()).filter(Boolean) : undefined
       });
       
       console.log('Email sent successfully via Office 365');
       setNewMessage('');
+      setCcEmails('');
       setActiveTab('compose');
       
       setTimeout(() => {
