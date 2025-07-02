@@ -19,6 +19,7 @@ import { RouteOptimizationPanel } from './RouteOptimizationPanel';
 import { RouteVisualization } from './RouteVisualization';
 import { TestOrderGenerator } from './TestOrderGenerator';
 import { OrderDebugInfo } from './OrderDebugInfo';
+import { LiveView } from './LiveView';
 import { VRPOptimizer } from '@/utils/vrpOptimizer';
 
 interface WeeklyCalendarProps {
@@ -32,6 +33,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   const [showOptimizationPanel, setShowOptimizationPanel] = useState(false);
   const [showRouteVisualization, setShowRouteVisualization] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [showLiveView, setShowLiveView] = useState(false);
   const [viewMode, setViewMode] = useState<'dynamic' | 'grid'>('dynamic');
   
   const { orders, refetch: refetchOrders } = useOrders();
@@ -195,11 +197,25 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
 
               {/* View Toggle Buttons */}
               <Button 
+                variant={showLiveView ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setShowLiveView(!showLiveView);
+                  setShowRouteVisualization(false);
+                  setShowOptimizationPanel(false);
+                }}
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                Live View
+              </Button>
+
+              <Button 
                 variant={showRouteVisualization ? "default" : "outline"}
                 size="sm"
                 onClick={() => {
                   setShowRouteVisualization(!showRouteVisualization);
                   setShowOptimizationPanel(false);
+                  setShowLiveView(false);
                 }}
               >
                 <MapPin className="h-4 w-4 mr-2" />
@@ -212,6 +228,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 onClick={() => {
                   setShowOptimizationPanel(!showOptimizationPanel);
                   setShowRouteVisualization(false);
+                  setShowLiveView(false);
                 }}
               >
                 <Settings className="h-4 w-4 mr-2" />
@@ -250,6 +267,13 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
             refetchOrders();
             refetchRoutes();
           }}
+        />
+      )}
+
+      {showLiveView && (
+        <LiveView
+          selectedWeek={selectedWeek}
+          selectedEmployee={selectedEmployee}
         />
       )}
 
