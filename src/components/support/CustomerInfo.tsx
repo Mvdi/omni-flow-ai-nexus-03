@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { SupportTicket } from '@/hooks/useTickets';
 import { useCustomerSidebarData, useCreateOrUpdateCustomer, useUpdateCustomerNotes } from '@/hooks/useCustomers';
 import { InternalNotesConversation } from './InternalNotesConversation';
+import { TicketReminders } from './TicketReminders';
 import { User, Phone, Calendar, Ticket, TrendingUp, AlertCircle, Edit, MapPin, Building, Hash, Plus, X } from 'lucide-react';
 import { useTicketTags, useAddTicketTag, useRemoveTicketTag } from '@/hooks/useTicketTags';
 import { formatDistanceToNow } from 'date-fns';
@@ -492,6 +493,9 @@ export const CustomerInfo = ({ ticket, onTicketSelect, currentTicketId }: Custom
             )}
           </CardContent>
         </Card>
+
+        {/* Ticket Reminders */}
+        <TicketReminders ticketId={ticket.id} />
       </div>
     );
   }

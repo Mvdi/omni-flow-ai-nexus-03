@@ -13,6 +13,7 @@ import { Plus, Edit, Upload, FileText, MessageSquare, Calendar, Phone, Mail, Map
 import type { Lead } from '@/hooks/useLeads';
 import { TicketPopup } from './TicketPopup';
 import { CreateQuoteDialog } from './CreateQuoteDialog';
+import { QuoteManagement } from './QuoteManagement';
 import type { SupportTicket } from '@/hooks/useTickets';
 
 interface LeadDialogProps {
@@ -447,6 +448,11 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {/* Quote Management */}
+          {lead && (
+            <QuoteManagement lead={lead} />
           )}
 
           {/* Actions */}

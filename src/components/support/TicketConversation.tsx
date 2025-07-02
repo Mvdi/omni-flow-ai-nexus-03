@@ -18,6 +18,7 @@ import { TicketReminders } from './TicketReminders';
 import { formatDanishDistance, formatDanishDateTime, debugTimeConversion } from '@/utils/danishTime';
 import { Send, Bot, User, Clock, Mail, Tag, Loader2, Download, Plus, X } from 'lucide-react';
 import { useTicketTags, useAddTicketTag, useRemoveTicketTag } from '@/hooks/useTicketTags';
+import { useAIResponseImprover } from '@/hooks/useAIResponseImprover';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -67,6 +68,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const { sendEmail, isSending } = useOffice365EmailSender();
   const addTicketTag = useAddTicketTag();
   const removeTicketTag = useRemoveTicketTag();
+  const improveResponse = useAIResponseImprover();
 
   useEffect(() => {
     const loadSignature = async () => {
@@ -142,6 +144,26 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const handleUseSuggestion = (content: string) => {
     setNewMessage(content);
     setActiveTab('compose');
+  };
+
+  const handleImproveResponse = async () => {
+    if (!newMessage.trim()) return;
+    
+    try {
+      const improvedText = await improveResponse.mutateAsync({
+        originalText: newMessage,
+        context: `Support ticket: ${ticket.subject}`,
+        tone: 'professional'
+      });
+      
+      setNewMessage(improvedText);
+      toast({
+        title: "Svar forbedret",
+        description: "Dit svar er blevet forbedret med AI.",
+      });
+    } catch (error) {
+      // Error handling is done in the hook
+    }
   };
 
   const handleAddTag = async () => {
@@ -366,8 +388,6 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
           </Card>
           )}
 
-          {/* Ticket Reminders */}
-          <TicketReminders ticketId={ticket.id} />
 
       {/* Messages */}
       <Card className="flex-1 flex flex-col">
@@ -487,25 +507,49 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
               </TabsList>
               
               <TabsContent value="compose" className="space-y-3">
-                <div className="flex gap-2">
-                  <Textarea
-                    placeholder="Skriv dit professionelle svar..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    className="flex-1 min-h-[200px] resize-y"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                        handleSendMessage();
-                      }
-                    }}
+                <div className="space-y-3">
+                  <Input
+                    placeholder="CC: emailadresser@gmail.com (komma-separeret)"
+                    value={ccEmails}
+                    onChange={(e) => setCcEmails(e.target.value)}
+                    className="text-sm"
                   />
-                  <Button 
-                    onClick={handleSendMessage}
-                    disabled={!newMessage.trim() || isSending}
-                    className="self-end"
-                  >
-                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Textarea
+                      placeholder="Skriv dit professionelle svar..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      className="flex-1 min-h-[200px] resize-y"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                          handleSendMessage();
+                        }
+                      }}
+                    />
+                    <div className="flex flex-col gap-2">
+                      <Button 
+                        onClick={handleImproveResponse}
+                        disabled={!newMessage.trim() || improveResponse.isPending}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                      >
+                        {improveResponse.isPending ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Bot className="h-3 w-3" />
+                        )}
+                        <span className="ml-1">Forbedre</span>
+                      </Button>
+                      <Button 
+                        onClick={handleSendMessage}
+                        disabled={!newMessage.trim() || isSending}
+                        className="self-end"
+                      >
+                        {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
               
