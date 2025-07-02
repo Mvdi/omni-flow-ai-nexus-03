@@ -37,7 +37,7 @@ const handler = async (req: Request): Promise<Response> => {
         to: [to],
         subject: subject || `Tilbud ${quoteNumber} fra MM Multipartner`,
         htmlContent: quoteHtml,
-        fromAddress: 'info@mmmultipartner.dk' // eller den email de bruger til Office365
+        fromAddress: 'salg@mmmultipartner.dk' // Alle tilbud sendes fra salg@mmmultipartner.dk
       }
     });
 
