@@ -305,8 +305,10 @@ const getAccessToken = async (clientId: string, clientSecret: string, tenantId: 
 const processEmail = async (supabase: any, message: GraphMessage, mailboxAddress: string, facebookLeadDetection = false) => {
   const senderEmail = message.from.emailAddress.address.toLowerCase();
   
-  // Skip internal emails immediately
-  const internalDomains = ['@mmmultipartner.dk', 'mmmultipartner.dk'];
+  console.log(`🔍 PROCESSING EMAIL: From=${senderEmail}, Subject=${message.subject}, Mailbox=${mailboxAddress}`);
+  
+  // Skip internal emails immediately - CRITICAL: Only skip emails FROM mmmultipartner.dk, not TO them!
+  const internalDomains = ['@mmmultipartner.dk'];
   if (internalDomains.some(domain => senderEmail.includes(domain))) {
     console.log(`⏭️ SKIPPED internal email from ${senderEmail}`);
     return { type: 'internal_skip' };
