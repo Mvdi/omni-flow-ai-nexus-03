@@ -81,7 +81,7 @@ export const InternalNotesConversation = ({ ticketId }: InternalNotesConversatio
         .insert({
           ticket_id: ticketId,
           sender_email: user.email || 'unknown@mmmultipartner.dk',
-          sender_name: profile?.navn || profile?.email?.split('@')[0] || 'Support',
+          sender_name: profile?.navn || user.email?.split('@')[0] || 'Support',
           message_content: newNote,
           message_type: 'internal',
           is_internal: true,
