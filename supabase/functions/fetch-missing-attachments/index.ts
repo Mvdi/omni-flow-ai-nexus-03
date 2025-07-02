@@ -130,7 +130,7 @@ const processMessageAttachments = async (messageId: string, mailboxAddress: stri
             .getPublicUrl(filePath);
 
           processedAttachments.push({
-            id: crypto.randomUUID(),
+            id: `attachment_${timestamp}_${Math.random().toString(36).substr(2, 9)}`,
             name: fileName,
             size: size,
             contentType: contentType,
