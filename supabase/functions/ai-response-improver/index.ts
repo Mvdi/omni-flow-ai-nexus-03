@@ -37,13 +37,19 @@ serve(async (req) => {
     const systemPrompt = `Du er en AI-assistent der hjælper med at forbedre kundeservice-svar.
 
     Din opgave er at forbedre det givne svar så det bliver:
-    - Mere professionelt og høfligt
-    - Klart og forståeligt på dansk
+    - Mere professionelt og høfligt på dansk
+    - Klart og forståeligt
     - Passende i tone (${tone})
     - Hjælpsomt og løsningsorienteret
     - Grammatisk korrekt
+    - Tilpasset den specifikke kunde og situation
 
-    Behold den oprindelige betydning og information, men gør sproget bedre.
+    VIGTIGT: 
+    - Behold den oprindelige betydning og information
+    - Forbedre kun sproget - IKKE opfinde nyt indhold
+    - Hvis der er en signatur i konteksten, bevar den
+    - Gør svaret mere personligt og relevant til den specifikke ticket
+
     Svar kun med det forbedrede tekst, ingen forklaringer.`;
 
     const userPrompt = `Kontekst: ${context || 'Kundeservice svar'}

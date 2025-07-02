@@ -150,16 +150,32 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
     if (!newMessage.trim()) return;
     
     try {
+      // Build proper context with ticket info and customer details
+      const ticketContext = `
+Support ticket: ${ticket.subject}
+Customer: ${ticket.customer_name || ticket.customer_email}
+Priority: ${ticket.priority || 'Normal'}
+Status: ${ticket.status}
+Original issue: ${ticket.content || 'No details'}
+
+Recent messages context:
+${messages.slice(-3).map(msg => 
+  `${msg.sender_name}: ${msg.message_content.substring(0, 200)}...`
+).join('\n')}
+
+Current signature to preserve: ${signatureHtml || 'No signature set'}
+      `.trim();
+
       const improvedText = await improveResponse.mutateAsync({
         originalText: newMessage,
-        context: `Support ticket: ${ticket.subject}`,
+        context: ticketContext,
         tone: 'professional'
       });
       
       setNewMessage(improvedText);
       toast({
         title: "Svar forbedret",
-        description: "Dit svar er blevet forbedret med AI.",
+        description: "Dit svar er blevet forbedret med AI baseret på ticket context.",
       });
     } catch (error) {
       // Error handling is done in the hook
