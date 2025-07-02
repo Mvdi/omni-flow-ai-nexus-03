@@ -307,7 +307,14 @@ const processEmail = async (supabase: any, message: GraphMessage, mailboxAddress
   
   console.log(`🔍 PROCESSING EMAIL: From=${senderEmail}, Subject=${message.subject}, Mailbox=${mailboxAddress}`);
   
-  // Skip internal emails immediately - CRITICAL: Only skip emails FROM mmmultipartner.dk, not TO them!
+  // CRITICAL: Special handling for Facebook lead emails from moba@mmmultipartner.dk
+  if (senderEmail === 'moba@mmmultipartner.dk') {
+    console.log(`🎯 FACEBOOK LEAD SOURCE DETECTED: ${senderEmail} - Processing as lead regardless of subject`);
+    const newLead = await createFacebookLead(supabase, message, mailboxAddress);
+    return { type: 'facebook_lead_created', leadId: newLead.id };
+  }
+  
+  // Skip internal emails immediately - but NOT moba@ (handled above)
   const internalDomains = ['@mmmultipartner.dk'];
   if (internalDomains.some(domain => senderEmail.includes(domain))) {
     console.log(`⏭️ SKIPPED internal email from ${senderEmail}`);
