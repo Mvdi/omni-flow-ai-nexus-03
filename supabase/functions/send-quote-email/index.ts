@@ -48,19 +48,22 @@ const handler = async (req: Request): Promise<Response> => {
       items 
     }: SendQuoteRequest = await req.json();
 
-    
-    console.log(`Sending quote ${quoteNumber} to ${to} via Office365 directly - NEW DESIGN VERSION 2.0`);
+    console.log(`Sending PROFESSIONAL quote ${quoteNumber} to ${to} - CLEAN DESIGN v3.0`);
 
-    // Generate professional HTML content based on design guide
+    // Calculate subtotal and VAT
+    const subtotal = Math.round(totalAmount / 1.25);
+    const vat = totalAmount - subtotal;
+
+    // Generate clean professional table rows
     const itemsHtml = items.map(item => `
       <tr>
-        <td>${item.description}</td>
-        <td>${item.description}</td>
-        <td style="text-align: center;">${item.quantity}</td>
-        <td style="text-align: center;">Liter</td>
-        <td style="text-align: right;">Kr. ${item.unit_price?.toLocaleString('da-DK') || 0}</td>
-        <td style="text-align: right;">0%</td>
-        <td style="text-align: right;">Kr. ${item.total_price?.toLocaleString('da-DK') || 0}</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">${item.description.split(' ')[0] || 'Ydelse'}</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">${item.description}</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 14px;">${item.quantity}</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 14px;">Timer</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-size: 14px;">Kr. ${item.unit_price?.toLocaleString('da-DK') || 0}</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-size: 14px;">0%</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-size: 14px; font-weight: 600;">Kr. ${item.total_price?.toLocaleString('da-DK') || 0}</td>
       </tr>
     `).join('');
 
@@ -74,93 +77,91 @@ const handler = async (req: Request): Promise<Response> => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Tilbud ${quoteNumber} - MM Multipartner</title>
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { 
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-                line-height: 1.5; 
-                color: #1a1a1a; 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                line-height: 1.4; 
+                color: #000000; 
                 background-color: #ffffff; 
+                font-size: 14px;
             }
             .container { 
                 max-width: 800px; 
                 margin: 0 auto; 
                 background: #ffffff; 
-                box-shadow: 0 0 20px rgba(0,0,0,0.1);
+                padding: 40px;
             }
             .header { 
-                background: #ffffff; 
-                padding: 40px 40px 20px 40px; 
-                border-bottom: 1px solid #e5e7eb;
-            }
-            .company-info {
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
-                margin-bottom: 30px;
+                margin-bottom: 40px;
             }
-            .company-logo {
-                font-size: 24px;
-                font-weight: 700;
-                color: #1a1a1a;
-            }
-            .company-details {
-                text-align: right;
-                font-size: 12px;
-                color: #6b7280;
-                line-height: 1.4;
+            .left-header {
+                flex: 1;
             }
             .quote-title {
-                font-size: 32px;
+                font-size: 36px;
                 font-weight: 700;
-                color: #1a1a1a;
+                color: #000000;
                 margin-bottom: 5px;
+                line-height: 1.1;
             }
             .quote-subtitle {
+                font-size: 18px;
+                color: #000000;
+                font-weight: 400;
+            }
+            .logo-placeholder {
+                width: 80px;
+                height: 80px;
+                background: #E3F2FD;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #1976D2;
+                font-weight: 600;
                 font-size: 14px;
-                color: #6b7280;
-                text-transform: uppercase;
-                letter-spacing: 1px;
             }
-            .content { 
-                padding: 40px; 
+            .company-section {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 40px;
             }
-            .customer-info {
+            .company-info {
+                flex: 1;
+            }
+            .company-name {
+                font-size: 16px;
+                font-weight: 600;
+                color: #000000;
+                margin-bottom: 8px;
+            }
+            .company-details {
+                font-size: 13px;
+                color: #000000;
+                line-height: 1.4;
+            }
+            .date-info {
+                text-align: right;
+                font-size: 13px;
+                color: #000000;
+            }
+            .customer-section {
                 margin-bottom: 30px;
             }
             .customer-name {
                 font-size: 16px;
                 font-weight: 600;
-                color: #1a1a1a;
-                margin-bottom: 5px;
+                color: #000000;
+                margin-bottom: 20px;
             }
-            .quote-info {
-                display: flex;
-                justify-content: space-between;
+            .project-info {
+                font-size: 13px;
+                color: #000000;
+                line-height: 1.5;
                 margin-bottom: 30px;
-                font-size: 12px;
-                color: #6b7280;
-            }
-            .quote-number {
-                font-weight: 600;
-                color: #1a1a1a;
-            }
-            .description-section {
-                background: #f8fafc;
-                padding: 20px;
-                border-radius: 8px;
-                margin-bottom: 30px;
-                border-left: 4px solid #3b82f6;
-            }
-            .description-title {
-                font-size: 16px;
-                font-weight: 600;
-                color: #1a1a1a;
-                margin-bottom: 8px;
-            }
-            .description-text {
-                color: #6b7280;
-                font-size: 14px;
             }
             .items-table { 
                 width: 100%; 
@@ -169,77 +170,60 @@ const handler = async (req: Request): Promise<Response> => {
                 font-size: 14px;
             }
             .items-table th { 
-                background: #f8fafc; 
-                padding: 12px 16px; 
+                background: #ffffff; 
+                padding: 12px 8px; 
                 text-align: left; 
                 font-weight: 600; 
-                color: #374151; 
-                font-size: 12px; 
-                text-transform: uppercase; 
-                letter-spacing: 0.5px;
-                border-bottom: 1px solid #e5e7eb;
-            }
-            .items-table th:last-child,
-            .items-table td:last-child { 
-                text-align: right; 
+                color: #000000; 
+                font-size: 14px; 
+                border-bottom: 2px solid #000000;
             }
             .items-table th:nth-child(3),
-            .items-table td:nth-child(3) { 
-                text-align: center; 
+            .items-table th:nth-child(4),
+            .items-table th:nth-child(5),
+            .items-table th:nth-child(6),
+            .items-table th:nth-child(7) { 
+                text-align: right; 
             }
             .items-table td { 
-                padding: 16px; 
-                border-bottom: 1px solid #f3f4f6; 
-                color: #374151; 
+                padding: 12px 8px; 
+                border-bottom: 1px solid #e5e7eb; 
+                color: #000000; 
             }
-            .items-table tr:last-child td {
-                border-bottom: 1px solid #e5e7eb;
-            }
-            .total-section { 
-                background: #f8fafc; 
-                padding: 20px; 
-                border-radius: 8px; 
-                margin: 30px 0;
-                border: 1px solid #e5e7eb;
+            .totals-section { 
+                margin-top: 40px;
+                text-align: right;
             }
             .total-row {
                 display: flex;
-                justify-content: space-between;
+                justify-content: flex-end;
                 margin-bottom: 8px;
                 font-size: 14px;
             }
-            .total-row.subtotal {
-                color: #6b7280;
+            .total-label {
+                min-width: 120px;
+                text-align: right;
+                margin-right: 40px;
+                color: #000000;
             }
-            .total-row.vat {
-                color: #6b7280;
-                padding-bottom: 8px;
-                border-bottom: 1px solid #e5e7eb;
+            .total-value {
+                min-width: 80px;
+                text-align: right;
+                color: #000000;
             }
             .total-row.final {
-                font-size: 18px;
                 font-weight: 700;
-                color: #1a1a1a;
+                font-size: 16px;
                 margin-top: 12px;
-                margin-bottom: 0;
-            }
-            .validity-section {
-                background: #fef3c7;
-                border: 1px solid #f59e0b;
-                color: #92400e;
-                padding: 16px;
-                border-radius: 8px;
-                margin: 30px 0;
-                text-align: center;
-                font-weight: 500;
-                font-size: 14px;
+                padding-top: 12px;
+                border-top: 2px solid #000000;
             }
             .cta-section { 
-                background: #10b981; 
+                background: #4CAF50; 
                 padding: 30px; 
                 border-radius: 8px; 
                 text-align: center; 
-                margin: 30px 0;
+                margin: 40px 0;
             }
             .cta-title { 
                 color: white; 
@@ -255,53 +239,49 @@ const handler = async (req: Request): Promise<Response> => {
             .cta-button { 
                 display: inline-block; 
                 background: #ffffff; 
-                color: #10b981; 
+                color: #4CAF50; 
                 padding: 14px 28px; 
                 border-radius: 6px; 
                 text-decoration: none; 
                 font-weight: 600; 
                 font-size: 14px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
                 text-transform: uppercase;
-                letter-spacing: 0.5px;
+            }
+            .signature-section {
+                margin-top: 50px;
+                font-size: 14px;
+                color: #000000;
             }
             .footer { 
-                background: #f8fafc; 
-                padding: 30px 40px; 
+                margin-top: 60px;
                 text-align: center; 
-                border-top: 1px solid #e5e7eb;
                 font-size: 12px;
-                color: #6b7280;
-            }
-            .footer-company {
-                font-size: 16px;
-                font-weight: 600;
-                color: #1a1a1a;
-                margin-bottom: 8px;
-            }
-            .footer-tagline {
-                font-style: italic;
-                margin-top: 12px;
-                color: #9ca3af;
+                color: #666666;
+                border-top: 1px solid #e5e7eb;
+                padding-top: 20px;
             }
             @media (max-width: 600px) {
-                .container { margin: 0; }
-                .header, .content, .footer { padding: 20px; }
-                .company-info { flex-direction: column; }
-                .company-details { text-align: left; margin-top: 20px; }
-                .quote-info { flex-direction: column; gap: 10px; }
-                .cta-section { padding: 20px; }
-                .quote-title { font-size: 24px; }
+                .container { padding: 20px; }
+                .header { flex-direction: column; gap: 20px; }
+                .company-section { flex-direction: column; gap: 20px; }
+                .date-info { text-align: left; }
+                .quote-title { font-size: 28px; }
             }
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
+                <div class="left-header">
+                    <div class="quote-title">Tilbud</div>
+                    <div class="quote-subtitle">(EKSEMPEL)</div>
+                </div>
+                <div class="logo-placeholder">LOGO</div>
+            </div>
+            
+            <div class="company-section">
                 <div class="company-info">
-                    <div>
-                        <div class="company-logo">MM Multipartner</div>
-                    </div>
+                    <div class="company-name">MM Multipartner</div>
                     <div class="company-details">
                         Penselvej 8<br>
                         1234 Spandevis<br>
@@ -309,94 +289,70 @@ const handler = async (req: Request): Promise<Response> => {
                         CVR: 12345678
                     </div>
                 </div>
-                
-                <div class="quote-title">Tilbud</div>
-                <div class="quote-subtitle">(EKSEMPEL)</div>
+                <div class="date-info">
+                    ${new Date().toLocaleDateString('da-DK', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </div>
             </div>
             
-            <div class="content">
-                <div class="customer-info">
-                    <div class="customer-name">${customerName}</div>
+            <div class="customer-section">
+                <div class="customer-name">${customerName}</div>
+            </div>
+            
+            <div class="project-info">
+                <strong>${quoteTitle}</strong><br>
+                Tilbuddet gælder t.o.m. den ${validUntil ? new Date(validUntil).toLocaleDateString('da-DK') : '20/12-2024'}<br>
+                Virksomhedsnavnet påbegynder opgaven den 01/01-2025
+            </div>
+            
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Vare</th>
+                        <th>Beskrivelse</th>
+                        <th style="text-align: right;">Antal</th>
+                        <th style="text-align: right;">Enhed</th>
+                        <th style="text-align: right;">Stk. pris</th>
+                        <th style="text-align: right;">Rabat</th>
+                        <th style="text-align: right;">Pris</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml}
+                </tbody>
+            </table>
+            
+            <div class="totals-section">
+                <div class="total-row">
+                    <div class="total-label">Subtotal</div>
+                    <div class="total-value">Kr. ${subtotal.toLocaleString('da-DK')}</div>
                 </div>
-                
-                <div class="quote-info">
-                    <div>
-                        <strong>Tilbuddet gælder t.o.m.:</strong> ${validUntil ? new Date(validUntil).toLocaleDateString('da-DK') : 'den 20/12-2024'}<br>
-                        <strong>Virksomhedsnavnet jobbeyder omfatter opgaven:</strong> den 01/01-2025
-                    </div>
-                    <div style="text-align: right;">
-                        <strong>${new Date().toLocaleDateString('da-DK', { day: '2-digit', month: '2-digit', year: 'numeric' })}</strong>
-                    </div>
+                <div class="total-row">
+                    <div class="total-label">Moms (25%)</div>
+                    <div class="total-value">Kr. ${vat.toLocaleString('da-DK')}</div>
                 </div>
-                
-                <div class="description-section">
-                    <div class="description-title">${quoteTitle}</div>
-                    ${quoteDescription ? `<div class="description-text">${quoteDescription}</div>` : ''}
+                <div class="total-row final">
+                    <div class="total-label">Total DKK</div>
+                    <div class="total-value">Kr. ${totalAmount.toLocaleString('da-DK')}</div>
                 </div>
-                
-                <table class="items-table">
-                    <thead>
-                        <tr>
-                            <th>Vare</th>
-                            <th>Beskrivelse</th>
-                            <th>Antal</th>
-                            <th>Enhed</th>
-                            <th>Stk. pris</th>
-                            <th>Rabat</th>
-                            <th>Pris</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsHtml}
-                    </tbody>
-                </table>
-                
-                <div class="total-section">
-                    <div class="total-row subtotal">
-                        <span>Subtotal</span>
-                        <span>${Math.round(totalAmount / 1.25).toLocaleString('da-DK')} ${currency}</span>
-                    </div>
-                    <div class="total-row vat">
-                        <span>Moms (25%)</span>
-                        <span>${Math.round(totalAmount - (totalAmount / 1.25)).toLocaleString('da-DK')} ${currency}</span>
-                    </div>
-                    <div class="total-row final">
-                        <span>Total ${currency}</span>
-                        <span>${totalAmount.toLocaleString('da-DK')} ${currency}</span>
-                    </div>
-                </div>
-                
-                ${validUntil ? `
-                <div class="validity-section">
-                    ⏰ <strong>Begrænset tilbud:</strong> Dette tilbud udløber ${new Date(validUntil).toLocaleDateString('da-DK')}
-                </div>
-                ` : ''}
-                
-                <div class="cta-section">
-                    <div class="cta-title">Klar til at komme i gang?</div>
-                    <div class="cta-subtitle">Bekræft dit tilbud nu og få professionel service af højeste kvalitet!</div>
-                    <a href="${confirmUrl}" class="cta-button" style="color: #10b981;">
-                        BEKRÆFT TILBUD NU
-                    </a>
-                </div>
-                
-                <p style="margin-top: 30px; font-size: 14px; color: #6b7280;">
-                    Vi ser frem til et godt samarbejde.<br><br>
-                    Med venlig hilsen<br>
-                    Torben Schwartz<br>
-                    Din malermester
-                </p>
+            </div>
+            
+            <div class="cta-section">
+                <div class="cta-title">🚀 Klar til at komme i gang?</div>
+                <div class="cta-subtitle">Bekræft dit tilbud nu og få professionel service af højeste kvalitet!</div>
+                <a href="${confirmUrl}" class="cta-button" style="color: #4CAF50;">
+                    ✅ BEKRÆFT TILBUD NU
+                </a>
+            </div>
+            
+            <div class="signature-section">
+                Vi ser frem til et godt samarbejde.<br><br>
+                Med venlig hilsen<br>
+                Torben Schwartz<br>
+                Din malermester
             </div>
             
             <div class="footer">
-                <div class="footer-company">MM Multipartner</div>
-                <div>
-                    <strong>Email:</strong> salg@mmmultipartner.dk<br>
-                    <strong>Hjemmeside:</strong> www.mmmultipartner.dk
-                </div>
-                <div class="footer-tagline">
-                    "Din pålidelige partner inden for professionel rengøring"
-                </div>
+                MM Multipartner – Penselvej 8 – 1234 Spandevis – kontakt@dinmalermester.dk – www.dinmalermester.dk
             </div>
         </div>
     </body>
@@ -490,7 +446,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     };
 
-    console.log('Sending email via Microsoft Graph...');
+    console.log('Sending CLEAN PROFESSIONAL email via Microsoft Graph...');
     const sendUrl = `https://graph.microsoft.com/v1.0/users/salg@mmmultipartner.dk/sendMail`;
     
     const emailResponse = await fetch(sendUrl, {
@@ -508,11 +464,12 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Failed to send email: ${emailError}`);
     }
 
-    console.log('Quote email sent successfully via Office365');
+    console.log('PROFESSIONAL quote email sent successfully via Office365');
 
     return new Response(JSON.stringify({ 
       success: true, 
-      messageId: 'sent'
+      messageId: 'sent',
+      design: 'professional_clean_v3'
     }), {
       status: 200,
       headers: {
