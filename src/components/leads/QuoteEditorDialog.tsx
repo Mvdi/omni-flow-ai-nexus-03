@@ -38,7 +38,7 @@ export const QuoteEditorDialog = ({
     companyName: 'MM Multipartner',
     companyAddress: 'Penselvej 8',
     companyCity: '1234 Spandevis',
-    companyContact: 'AB: Casper Hvid',
+    companyContact: '',
     companyCvr: 'CVR: 12345678',
     
     // Header
@@ -60,9 +60,9 @@ export const QuoteEditorDialog = ({
       'Ingen skjulte omkostninger'
     ],
     
-    // Call to Action
-    ctaTitle: '🚀 Klar til at komme i gang?',
-    ctaSubtitle: 'Bekræft dit tilbud nu og få professionel service af højeste kvalitet!',
+    // Call to Action - FJERNET
+    ctaTitle: '',
+    ctaSubtitle: '',
     ctaButtonText: '✅ BEKRÆFT TILBUD NU',
     
     // Signature

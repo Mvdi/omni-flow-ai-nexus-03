@@ -61,7 +61,6 @@ export const QuotePreviewDialog = ({
                 <div className="text-sm text-black leading-relaxed">
                   Penselvej 8<br/>
                   1234 Spandevis<br/>
-                  AB: Casper Hvid<br/>
                   CVR: 12345678
                 </div>
               </div>
