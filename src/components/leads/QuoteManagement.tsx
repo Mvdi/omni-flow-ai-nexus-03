@@ -37,10 +37,61 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
     console.log('handleSendQuote received quote:', quote);
     console.log('customEmailData:', quote.customEmailData);
     setSendingQuote(quote.id);
+    
     try {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       
+      // For resend, use stored original data if available
+      let emailData;
+      let storedLogoUrl = quote.logoUrl;
+      
+      if (quote.status === 'sent' && quote.notes) {
+        try {
+          const storedData = JSON.parse(quote.notes);
+          emailData = storedData.originalEmailData || {
+            ...quote.customEmailData,
+            customer_phone: lead.telefon,
+            customer_address: lead.adresse,
+            customer_company: lead.virksomhed,
+            customer_email: lead.email,
+            userId: user?.id || 'system'
+          };
+          storedLogoUrl = storedData.logoUrl || quote.logoUrl;
+        } catch {
+          emailData = {
+            ...quote.customEmailData,
+            customer_phone: lead.telefon,
+            customer_address: lead.adresse,
+            customer_company: lead.virksomhed,
+            customer_email: lead.email,
+            userId: user?.id || 'system'
+          };
+        }
+      } else {
+        emailData = {
+          ...quote.customEmailData,
+          customer_phone: lead.telefon,
+          customer_address: lead.adresse,
+          customer_company: lead.virksomhed,
+          customer_email: lead.email,
+          userId: user?.id || 'system'
+        };
+      }
+
+      // Save the email data to the quote for consistent resending
+      if (quote.status === 'draft') {
+        await updateQuote.mutateAsync({
+          id: quote.id,
+          updates: { 
+            notes: JSON.stringify({
+              originalEmailData: emailData,
+              logoUrl: quote.logoUrl
+            })
+          }
+        });
+      }
+
       const { data, error } = await supabase.functions.invoke('send-quote-email', {
         body: {
           to: lead.email,
@@ -52,15 +103,8 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
           currency: quote.currency,
           validUntil: quote.valid_until,
           items: quote.items || [],
-          customEmailData: {
-            ...quote.customEmailData,
-            customer_phone: lead.telefon,
-            customer_address: lead.adresse,
-            customer_company: lead.virksomhed,
-            customer_email: lead.email,
-            userId: user?.id || 'system'
-          },
-          logoUrl: quote.logoUrl
+          customEmailData: emailData,
+          logoUrl: storedLogoUrl
         }
       });
 

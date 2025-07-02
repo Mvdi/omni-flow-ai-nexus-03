@@ -147,16 +147,18 @@ const handler = async (req: Request): Promise<Response> => {
       // Continue anyway - quote is accepted even if order creation fails
     }
 
-    // Update lead status to "lukket vundet" if quote has lead_id
+    // Update lead status to "closed-won" if quote has lead_id
     if (quote.lead_id) {
       const { error: leadError } = await supabase
         .from('leads')
-        .update({ status: 'lukket vundet' })
+        .update({ status: 'closed-won' })
         .eq('id', quote.lead_id);
 
       if (leadError) {
         console.error('Failed to update lead status:', leadError);
         // Continue anyway - quote acceptance is more important
+      } else {
+        console.log(`Lead ${quote.lead_id} updated to closed-won status`);
       }
     }
 

@@ -64,6 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     let templateData = null;
     let templateHtml = null;
+    let templateText = null;
 
     // If custom email data is provided, use it
     if (customEmailData) {
@@ -75,6 +76,7 @@ const handler = async (req: Request): Promise<Response> => {
         const { data: userTemplate } = await supabaseClient
           .from('quote_email_templates')
           .select('template_data, html_template')
+          .eq('user_id', customEmailData?.userId || 'system')
           .eq('is_default', true)
           .single();
           
@@ -86,6 +88,23 @@ const handler = async (req: Request): Promise<Response> => {
       } catch (error) {
         console.log('No custom template found, using defaults');
       }
+    }
+
+    // Load quote template text if available
+    try {
+      const { data: quoteTemplate } = await supabaseClient
+        .from('quote_templates')
+        .select('template_text')
+        .eq('user_id', customEmailData?.userId || 'system')
+        .eq('is_default', true)
+        .single();
+        
+      if (quoteTemplate && quoteTemplate.template_text) {
+        templateText = quoteTemplate.template_text;
+        console.log('Using quote template text');
+      }
+    } catch (error) {
+      console.log('No quote template found');
     }
 
     // Calculate subtotal and VAT
@@ -320,6 +339,7 @@ const handler = async (req: Request): Promise<Response> => {
             
             <div class="project-info">
                 <strong>${quoteTitle}</strong>
+                ${templateText ? `<div style="margin-top: 15px; font-size: 14px; line-height: 1.6; color: #333;">${templateText}</div>` : ''}
             </div>
             
             <table class="items-table">
