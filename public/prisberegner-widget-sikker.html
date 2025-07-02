@@ -86,15 +86,25 @@
 <script>
 // Simpel funktioner direkte i global scope for WordPress
 function toggleM2InputSimple() {
+  console.log('toggleM2InputSimple kaldt');
   var ddl = document.getElementById('arealValg-wp');
   var m2Input = document.getElementById('m2Input-wp');
   
+  console.log('Dropdown element:', ddl);
+  console.log('M2Input element:', m2Input);
+  console.log('Dropdown værdi:', ddl ? ddl.value : 'ikke fundet');
+  
   if (ddl && m2Input) {
     if (ddl.value === '2') {
+      console.log('Viser m2Input - sætter display til block');
       m2Input.style.display = 'block';
+      m2Input.style.visibility = 'visible';
     } else {
+      console.log('Skjuler m2Input - sætter display til none');
       m2Input.style.display = 'none';
     }
+  } else {
+    console.log('Kunne ikke finde dropdown eller m2Input element');
   }
   updatePriceSimple();
 }
