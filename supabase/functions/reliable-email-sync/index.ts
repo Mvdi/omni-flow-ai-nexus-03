@@ -135,13 +135,26 @@ const extractCustomerData = (content: string) => {
   };
 };
 
-// BULLETPROOF FACEBOOK LEAD CREATION: Create lead instead of ticket
+  // BULLETPROOF FACEBOOK LEAD CREATION: Create lead instead of ticket
 const createFacebookLead = async (supabase: any, message: GraphMessage, mailboxAddress: string) => {
   console.log(`🎯 FACEBOOK LEAD DETECTED: Creating lead for ${message.subject}`);
   
   const messageContent = message.body?.content || message.bodyPreview || '';
   const senderEmail = message.from.emailAddress.address;
   const senderName = message.from.emailAddress.name || senderEmail.split('@')[0];
+  
+  // CRITICAL: Check if lead already exists for this sender email
+  const { data: existingLead } = await supabase
+    .from('leads')
+    .select('id, email')
+    .eq('email', senderEmail)
+    .eq('kilde', 'Facebook Lead')
+    .single();
+  
+  if (existingLead) {
+    console.log(`⏭️ FACEBOOK LEAD ALREADY EXISTS: ${senderEmail} - Skipping creation`);
+    return existingLead;
+  }
   
   // Intelligent service detection
   const detectedService = detectServiceFromContent(messageContent);
