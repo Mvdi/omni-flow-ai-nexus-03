@@ -20,7 +20,7 @@
     <!-- Beregner -->
     <div style="padding:1rem;">
       <label for="arealValg-wp" style="display:block;font-weight:500;margin-bottom:.5rem;font-size:.95rem;">Vælg interval</label>
-      <select id="arealValg-wp" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:0;margin-bottom:1.25rem;">
+      <select id="arealValg-wp" onchange="window.wpPrisberegner.toggleM2Input()" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:0;margin-bottom:1.25rem;">
         <option value="0">Op til 100 m²</option>
         <option value="1">101‑250 m²</option>
         <option value="2">Over 250 m² (indtast præcist areal)</option>
@@ -28,10 +28,10 @@
       <!-- M² input for over 250 -->
       <div id="m2Input-wp" style="display:none;margin-bottom:1.25rem;">
         <label style="display:block;font-weight:500;margin-bottom:.5rem;font-size:.95rem;">Indtast antal m²</label>
-        <input type="number" id="customM2-wp" min="251" value="251" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+        <input type="number" id="customM2-wp" min="251" value="251" oninput="window.wpPrisberegner.updatePrice()" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
       </div>
       <label style="display:flex;align-items:flex-start;margin-bottom:1.25rem;font-weight:500;font-size:.95rem;">
-        <input type="checkbox" id="vedligehold-wp" style="margin-right:8px;margin-top:4px;">Tilføj årlig vedligeholdelsesaftale <span style="font-size:.9rem;color:#555;font-weight:400;">(Pris: <span id="vedlPris-wp">795</span> kr.)</span>
+        <input type="checkbox" id="vedligehold-wp" onchange="window.wpPrisberegner.updatePrice()" style="margin-right:8px;margin-top:4px;">Tilføj årlig vedligeholdelsesaftale <span style="font-size:.9rem;color:#555;font-weight:400;">(Pris: <span id="vedlPris-wp">795</span> kr.)</span>
       </label>
       <div style="font-size:.85rem;margin-bottom:1.25rem;line-height:1.5;">
         Vi kan tilbyde en årlig serviceaftale, som inkluderer:
@@ -47,7 +47,7 @@
         <span><s id="førPris-wp" style="opacity:.5;font-size:.85rem;margin-right:.5rem;">995 kr.</s><strong id="prisVisning-wp">795 kr.</strong></span>
       </div>
       <div style="text-align:center;">
-        <button type="button" onclick="window.prisberegnerwp.visKundeoplysninger()" style="background:#2D4B73;color:#fff;padding:.75rem 1.1rem;font-weight:600;border:none;cursor:pointer;border-radius:6px;transition:all 0.3s ease;box-shadow:0 4px 12px rgba(45,75,115,0.3);" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 20px rgba(45,75,115,0.4)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 12px rgba(45,75,115,0.3)'">Næste</button>
+        <button type="button" onclick="window.wpPrisberegner.visKundeoplysninger()" style="background:#2D4B73;color:#fff;padding:.75rem 1.1rem;font-weight:600;border:none;cursor:pointer;border-radius:6px;transition:all 0.3s ease;box-shadow:0 4px 12px rgba(45,75,115,0.3);" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 20px rgba(45,75,115,0.4)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 12px rgba(45,75,115,0.3)'">Næste</button>
       </div>
     </div>
   </div>
@@ -55,13 +55,13 @@
   <!-- TRIN 2: Kundeoplysninger -->
   <div id="trin2-wp" style="display:none;padding:1.5rem;">
     <div style="margin-bottom:1rem;">
-      <button type="button" onclick="window.prisberegnerwp.visPrisberegning()" style="background:none;border:none;color:#2D4B73;cursor:pointer;font-size:.9rem;text-decoration:underline;">
+      <button type="button" onclick="window.wpPrisberegner.visPrisberegning()" style="background:none;border:none;color:#2D4B73;cursor:pointer;font-size:.9rem;text-decoration:underline;">
         ← Tilbage til prisberegning
       </button>
     </div>
     
     <h3 style="margin:0 0 1rem 0;font-size:1.1rem;color:#2D4B73;">Indtast dine oplysninger</h3>
-    <form id="tilbudsform-wp" onsubmit="window.prisberegnerwp.sendTilWebhook(event)" style="display:flex;flex-direction:column;gap:1rem;">
+    <form id="tilbudsform-wp" onsubmit="window.wpPrisberegner.sendTilWebhook(event)" style="display:flex;flex-direction:column;gap:1rem;">
       <div style="display:flex;gap:0.5rem;">
         <input type="text" id="fornavn-wp" placeholder="Fornavn" required style="flex:1;padding:.75rem;border:1px solid #ccc;border-radius:4px;font-size:.95rem;">
         <input type="text" id="efternavn-wp" placeholder="Efternavn" required style="flex:1;padding:.75rem;border:1px solid #ccc;border-radius:4px;font-size:.95rem;">
@@ -84,119 +84,87 @@
 </div>
 
 <script>
-(function() {
-  'use strict';
-  
-  // WordPress kompatibel namespace
-  window.prisberegnerwp = window.prisberegnerwp || {};
-  
-  let currentStep = 1;
+// WordPress kompatibel prisberegner - Inline event handlers
+window.wpPrisberegner = {
+  toggleM2Input: function() {
+    var ddl = document.getElementById('arealValg-wp');
+    var m2Input = document.getElementById('m2Input-wp');
+    
+    if (ddl && m2Input) {
+      if (ddl.value === '2') {
+        m2Input.style.display = 'block';
+      } else {
+        m2Input.style.display = 'none';
+      }
+    }
+    this.updatePrice();
+  },
 
-  /* ===== Navigation mellem trin ===== */
-  window.prisberegnerwp.visKundeoplysninger = function(){
-    document.getElementById('trin1-wp').style.display = 'none';
-    document.getElementById('trin2-wp').style.display = 'block';
-    currentStep = 2;
-  };
-
-  window.prisberegnerwp.visPrisberegning = function(){
-    document.getElementById('trin2-wp').style.display = 'none';
-    document.getElementById('trin1-wp').style.display = 'block';
-    currentStep = 1;
-    // Clear any messages
-    var beskedEl = document.getElementById('besked-wp');
-    if (beskedEl) beskedEl.textContent = '';
-  };
-
-  /* ===== Prisberegning ===== */
-  function initPrisberegning(){
+  updatePrice: function() {
     var ddl = document.getElementById('arealValg-wp');
     var chk = document.getElementById('vedligehold-wp');
     var out = document.getElementById('prisVisning-wp');
     var før = document.getElementById('førPris-wp');
     var vedlPris = document.getElementById('vedlPris-wp');
-    var m2Input = document.getElementById('m2Input-wp');
     var customM2 = document.getElementById('customM2-wp');
+    var besparelseEl = document.getElementById('besparelse-wp');
     
-    if (!ddl || !chk || !out || !før || !vedlPris || !m2Input || !customM2) {
-      console.log('Prisberegner: Manglende DOM elementer');
-      return;
-    }
+    if (!ddl || !chk || !out || !før || !vedlPris || !customM2 || !besparelseEl) return;
     
-    function toggleM2Input(){
-      console.log('toggleM2Input kaldt, dropdown værdi:', ddl.value);
-      if(ddl.value === '2'){
-        console.log('Viser m2Input');
-        m2Input.style.display = 'block';
-      } else {
-        console.log('Skjuler m2Input');
-        m2Input.style.display = 'none';
+    var sel = ddl.value;
+    var add = chk.checked;
+    var std = 0, ved = 0;
+    var savings = 200;
+    
+    if (sel === '0') {
+      std = 995;
+      ved = 795;
+      vedlPris.textContent = '795';
+    } else if (sel === '1') {
+      std = 1395;
+      ved = 1195;
+      vedlPris.textContent = '1195';
+    } else if (sel === '2') {
+      var m2 = parseInt(customM2.value) || 251;
+      var extraM2 = Math.max(0, m2 - 250);
+      var extraCost = extraM2 * 10;
+      var baseStandardPrice = 1395;
+      var baseMaintenancePrice = 1195;
+      
+      std = baseStandardPrice + extraCost;
+      var discountedExtraCost = extraCost * 0.8;
+      ved = baseMaintenancePrice + discountedExtraCost;
+      
+      vedlPris.textContent = Math.round(ved).toLocaleString('da-DK');
+      
+      if (add) {
+        var extraSavings = extraCost * 0.2;
+        savings = 200 + extraSavings;
       }
     }
     
-    function updatePrice(){
-      var sel = ddl.value;
-      var add = chk.checked;
-      var std = 0, ved = 0;
-      var savings = 200; // Default savings is always 200 kr
-      
-      if(sel === '0'){
-        std = 995;
-        ved = 795;
-        vedlPris.textContent = '795';
-      } else if(sel === '1'){
-        std = 1395;
-        ved = 1195;
-        vedlPris.textContent = '1195';
-      } else if(sel === '2'){
-        // Dynamic pricing for over 250m²
-        var m2 = parseInt(customM2.value) || 251;
-        var extraM2 = Math.max(0, m2 - 250);
-        var extraCost = extraM2 * 10;
-        var baseStandardPrice = 1395;
-        var baseMaintenancePrice = 1195;
-        
-        std = baseStandardPrice + extraCost;
-        
-        // Maintenance price starts from 1195 + 20% discount on extra m²
-        var discountedExtraCost = extraCost * 0.8;
-        ved = baseMaintenancePrice + discountedExtraCost;
-        
-        vedlPris.textContent = Math.round(ved).toLocaleString('da-DK');
-        
-        // Only calculate extra savings if maintenance is checked
-        if (add) {
-          var extraSavings = extraCost * 0.2;
-          savings = 200 + extraSavings;
-        }
-      }
-      
-      // Update savings message
-      var besparelseEl = document.getElementById('besparelse-wp');
-      if (besparelseEl) {
-        besparelseEl.textContent = Math.round(savings) + ' kr.';
-      }
-      
-      var pris = add ? ved : std;
-      out.textContent = Math.round(pris).toLocaleString('da-DK') + ' kr.';
-      før.textContent = Math.round(std).toLocaleString('da-DK') + ' kr.';
-      før.style.textDecoration = add ? 'line-through' : 'none';
-      før.style.opacity = add ? '.5' : '0';
-    }
+    besparelseEl.textContent = Math.round(savings) + ' kr.';
     
-    ddl.addEventListener('change', function() {
-      toggleM2Input();
-      updatePrice();
-    });
-    chk.addEventListener('change', updatePrice);
-    customM2.addEventListener('input', updatePrice);
-    
-    toggleM2Input();
-    updatePrice();
-  }
+    var pris = add ? ved : std;
+    out.textContent = Math.round(pris).toLocaleString('da-DK') + ' kr.';
+    før.textContent = Math.round(std).toLocaleString('da-DK') + ' kr.';
+    før.style.textDecoration = add ? 'line-through' : 'none';
+    før.style.opacity = add ? '.5' : '0';
+  },
 
-  /* ===== SIKKER WEBHOOK SUBMISSION ===== */
-  window.prisberegnerwp.sendTilWebhook = function(e){
+  visKundeoplysninger: function() {
+    document.getElementById('trin1-wp').style.display = 'none';
+    document.getElementById('trin2-wp').style.display = 'block';
+  },
+
+  visPrisberegning: function() {
+    document.getElementById('trin2-wp').style.display = 'none';
+    document.getElementById('trin1-wp').style.display = 'block';
+    var beskedEl = document.getElementById('besked-wp');
+    if (beskedEl) beskedEl.textContent = '';
+  },
+
+  sendTilWebhook: function(e) {
     e.preventDefault();
     
     var beskedEl = document.getElementById('besked-wp');
@@ -204,7 +172,6 @@
     
     if (!beskedEl || !submitBtn) return;
     
-    // Disable knap og vis loading
     submitBtn.disabled = true;
     submitBtn.textContent = 'Sender...';
     beskedEl.textContent = '';
@@ -254,12 +221,11 @@
       beskedEl.textContent = result.message || 'Tak! Vi har modtaget din forespørgsel og vender tilbage hurtigst muligt.';
       document.getElementById('tilbudsform-wp').reset();
       
-      // Reset til trin 1 efter successful submission
       setTimeout(function() {
-        window.prisberegnerwp.visPrisberegning();
+        window.wpPrisberegner.visPrisberegning();
         document.getElementById('arealValg-wp').value = '0';
         document.getElementById('vedligehold-wp').checked = false;
-        initPrisberegning(); // Re-initialize price calculation
+        window.wpPrisberegner.updatePrice();
       }, 2000);
     })
     .catch(function(error) {
@@ -271,22 +237,10 @@
       submitBtn.disabled = false;
       submitBtn.textContent = 'Bestil tid';
     });
-  };
-
-  // Initialize når DOM er ready - WordPress kompatibel
-  function initializeWhenReady() {
-    if (document.getElementById('arealValg-wp')) {
-      initPrisberegning();
-    } else {
-      setTimeout(initializeWhenReady, 100);
-    }
   }
-  
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeWhenReady);
-  } else {
-    initializeWhenReady();
-  }
+};
 
-})();
+// Initialize umiddelbart
+window.wpPrisberegner.updatePrice();
+</script>
 </script>
