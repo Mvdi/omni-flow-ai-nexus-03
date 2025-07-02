@@ -33,6 +33,7 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
     postnummer: '',
     by: '',
     virksomhed: '',
+    services: '',
     vaerdi: '',
     prioritet: 'none' as 'none' | 'Lav' | 'Medium' | 'Høj', // Changed to use 'none' instead of empty string
     status: 'new' as string,
@@ -54,6 +55,7 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
         postnummer: lead.postnummer || '',
         by: lead.by || '',
         virksomhed: lead.virksomhed || '',
+        services: (lead as any).services || '',
         vaerdi: lead.vaerdi?.toString() || '',
         prioritet: lead.prioritet ? (lead.prioritet as 'Lav' | 'Medium' | 'Høj') : 'none', // Handle priority properly
         status: lead.status || 'new',
@@ -70,6 +72,7 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
         postnummer: '',
         by: '',
         virksomhed: '',
+        services: '',
         vaerdi: '',
         prioritet: 'none', // Use 'none' instead of empty string
         status: 'new',
@@ -189,6 +192,16 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
                   id="telefon"
                   value={formData.telefon}
                   onChange={(e) => setFormData(prev => ({ ...prev, telefon: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="services">Services</Label>
+                <Input
+                  id="services"
+                  value={formData.services}
+                  onChange={(e) => setFormData(prev => ({ ...prev, services: e.target.value }))}
+                  placeholder="f.eks. Vinduesvask, Fliserens, Algebehandling"
                 />
               </div>
 

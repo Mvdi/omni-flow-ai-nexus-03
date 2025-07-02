@@ -99,16 +99,39 @@ const isFacebookLead = (subject: string, content: string): boolean => {
   return facebookIndicators.some(indicator => text.includes(indicator));
 };
 
-// INTELLIGENT SERVICE DETECTION: Extract service type from email content
+// INTELLIGENT SERVICE DETECTION: Extract service type from email subject and content
+const detectServiceFromSubject = (subject: string): string | null => {
+  const subjectLower = subject.toLowerCase();
+  
+  // Extract service after "facebook lead" in subject
+  const facebookLeadMatch = subjectLower.match(/facebook\s+lead[^\w]*(.+)/);
+  if (facebookLeadMatch) {
+    const serviceText = facebookLeadMatch[1].trim();
+    
+    // Map common service terms to standardized names
+    if (serviceText.includes('vindues') || serviceText.includes('vinduesvask')) return 'Vinduesvask';
+    if (serviceText.includes('flise') || serviceText.includes('fliserens')) return 'Fliserens';
+    if (serviceText.includes('alge') || serviceText.includes('algebehandling')) return 'Algebehandling';
+    if (serviceText.includes('rengøring')) return 'Rengøring';
+    if (serviceText.includes('have') || serviceText.includes('havearbejde')) return 'Havearbejde';
+    
+    // Return the service text as-is if no specific mapping found
+    return serviceText.charAt(0).toUpperCase() + serviceText.slice(1);
+  }
+  
+  return null;
+};
+
 const detectServiceFromContent = (content: string): string | null => {
   const text = content.toLowerCase();
   
   // Service patterns with priority
   const servicePatterns = [
-    { service: 'Vinduespudsning', patterns: ['vindues', 'window', 'rude', 'glasrengøring', 'facade'], priority: 1 },
+    { service: 'Vinduesvask', patterns: ['vindues', 'window', 'rude', 'glasrengøring', 'facade'], priority: 1 },
     { service: 'Rengøring', patterns: ['rengøring', 'cleaning', 'rens', 'gør rent', 'städning'], priority: 1 },
     { service: 'Havearbejde', patterns: ['have', 'garden', 'græs', 'plæne', 'beskæring', 'hæk'], priority: 2 },
-    { service: 'Byggeri', patterns: ['byg', 'construction', 'renovering', 'ombygning', 'håndværk'], priority: 3 }
+    { service: 'Fliserens', patterns: ['flise', 'fliserens', 'terrasse', 'tile'], priority: 2 },
+    { service: 'Algebehandling', patterns: ['alge', 'algebehandling', 'moss', 'mos'], priority: 2 }
   ];
   
   for (const servicePattern of servicePatterns) {
@@ -258,8 +281,11 @@ const createFacebookLead = async (supabase: any, message: GraphMessage, mailboxA
     }
   }
   
-  // Intelligent service detection
-  const detectedService = detectServiceFromContent(messageContent);
+  // Intelligent service detection - prioritize subject extraction
+  let detectedService = detectServiceFromSubject(message.subject);
+  if (!detectedService) {
+    detectedService = detectServiceFromContent(messageContent);
+  }
   
   // Extract Facebook lead customer data (structured format)
   const facebookCustomerData = extractFacebookLeadData(messageContent);
@@ -314,6 +340,7 @@ ${messageContent}
       email: customerEmail,
       telefon: customerPhone,
       adresse: customerAddress,
+      services: detectedService,
       virksomhed: detectedService ? `${detectedService} kunde` : null,
       status: 'Ny',
       kilde: 'Facebook Lead',

@@ -390,6 +390,7 @@ export type Database = {
           noter: string | null
           postnummer: string | null
           prioritet: string | null
+          services: string | null
           sidste_kontakt: string | null
           status: string | null
           telefon: string | null
@@ -415,6 +416,7 @@ export type Database = {
           noter?: string | null
           postnummer?: string | null
           prioritet?: string | null
+          services?: string | null
           sidste_kontakt?: string | null
           status?: string | null
           telefon?: string | null
@@ -440,6 +442,7 @@ export type Database = {
           noter?: string | null
           postnummer?: string | null
           prioritet?: string | null
+          services?: string | null
           sidste_kontakt?: string | null
           status?: string | null
           telefon?: string | null
