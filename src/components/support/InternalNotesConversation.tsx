@@ -83,7 +83,7 @@ export const InternalNotesConversation = ({ ticketId }: InternalNotesConversatio
           sender_email: user.email || 'unknown@mmmultipartner.dk',
           sender_name: profile?.navn || profile?.email?.split('@')[0] || 'Support',
           message_content: newNote,
-          message_type: 'internal_note',
+          message_type: 'internal',
           is_internal: true,
           is_ai_generated: false,
           attachments: []
