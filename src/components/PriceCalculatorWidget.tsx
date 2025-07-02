@@ -13,18 +13,16 @@ export const PriceCalculatorWidget = () => {
     let standardPrice = 0;
     let maintenancePrice = 0;
     let maintenancePriceText = '';
-    let savings = 0;
+    let savings = 200; // Default savings is always 200 kr
 
     if (selectedInterval === '0') {
       standardPrice = 995;
       maintenancePrice = 795;
       maintenancePriceText = '795';
-      savings = 200;
     } else if (selectedInterval === '1') {
       standardPrice = 1395;
       maintenancePrice = 1195;
       maintenancePriceText = '1195';
-      savings = 200;
     } else if (selectedInterval === '2') {
       // Dynamic pricing for over 250m²
       const extraM2 = Math.max(0, customM2 - 250);
@@ -40,9 +38,11 @@ export const PriceCalculatorWidget = () => {
       
       maintenancePriceText = Math.round(maintenancePrice).toLocaleString('da-DK');
       
-      // Calculate total savings: base 200kr + 20% of extra cost (2kr per extra m²)
-      const extraSavings = extraCost * 0.2;
-      savings = 200 + extraSavings;
+      // Only calculate extra savings if maintenance is checked
+      if (includeMaintenance) {
+        const extraSavings = extraCost * 0.2;
+        savings = 200 + extraSavings;
+      }
     }
 
     const finalPrice = includeMaintenance ? maintenancePrice : standardPrice;
@@ -118,16 +118,29 @@ export const PriceCalculatorWidget = () => {
   const priceInfo = calculatePrice();
 
   return (
-    <div style={{
-      width: '100%',
-      maxWidth: '530px',
-      margin: 'auto',
-      fontFamily: "'Poppins', sans-serif",
-      background: '#fff',
-      border: '1px solid #D6DBDF',
-      boxShadow: '0 2px 6px rgba(0,0,0,.05)',
-      overflow: 'hidden'
-    }}>
+    <div 
+      style={{
+        width: '100%',
+        maxWidth: '530px',
+        margin: 'auto',
+        fontFamily: "'Poppins', sans-serif",
+        background: '#fff',
+        border: '1px solid #D6DBDF',
+        boxShadow: '0 8px 25px rgba(0,0,0,.1)',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        transition: 'all 0.3s ease',
+        transform: 'translateY(0)'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-5px)';
+        e.currentTarget.style.boxShadow = '0 15px 35px rgba(0,0,0,.15)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,.1)';
+      }}
+    >
       {/* Header */}
       <div style={{
         background: '#2D4B73',
@@ -296,7 +309,19 @@ export const PriceCalculatorWidget = () => {
                   padding: '.75rem 1.1rem',
                   fontWeight: '600',
                   border: 'none',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  borderRadius: '6px',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 12px rgba(45,75,115,0.3)',
+                  transform: 'translateY(0)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(45,75,115,0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(45,75,115,0.3)';
                 }}
               >
                 Næste
