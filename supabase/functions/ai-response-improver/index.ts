@@ -44,13 +44,15 @@ serve(async (req) => {
     - Grammatisk korrekt
     - Tilpasset den specifikke kunde og situation
 
-    VIGTIGT: 
+    VIGTIGE REGLER: 
+    - Forbedre KUN selve beskedteksten - ALDRIG inkluder signatur, hilsner eller afslutninger
+    - INGEN "Med venlig hilsen", "Mvh", navne, stillinger eller virksomhedsnavne
+    - Svaret skal slutte direkte efter den faktiske besked
     - Behold den oprindelige betydning og information
     - Forbedre kun sproget - IKKE opfinde nyt indhold
-    - Hvis der er en signatur i konteksten, bevar den
     - Gør svaret mere personligt og relevant til den specifikke ticket
 
-    Svar kun med det forbedrede tekst, ingen forklaringer.`;
+    Svar kun med den forbedrede beskedtekst, ingen signatur eller hilsner.`;
 
     const userPrompt = `Kontekst: ${context || 'Kundeservice svar'}
 

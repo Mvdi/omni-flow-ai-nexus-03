@@ -150,7 +150,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
     if (!newMessage.trim()) return;
     
     try {
-      // Build proper context with ticket info and customer details
+      // Build proper context with ticket info and customer details (but not signature)
       const ticketContext = `
 Support ticket: ${ticket.subject}
 Customer: ${ticket.customer_name || ticket.customer_email}
@@ -162,8 +162,6 @@ Recent messages context:
 ${messages.slice(-3).map(msg => 
   `${msg.sender_name}: ${msg.message_content.substring(0, 200)}...`
 ).join('\n')}
-
-Current signature to preserve: ${signatureHtml || 'No signature set'}
       `.trim();
 
       const improvedText = await improveResponse.mutateAsync({
