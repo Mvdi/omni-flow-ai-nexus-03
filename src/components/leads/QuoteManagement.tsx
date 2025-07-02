@@ -34,6 +34,8 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
   };
 
   const handleSendQuote = async (quote: any) => {
+    console.log('handleSendQuote received quote:', quote);
+    console.log('customEmailData:', quote.customEmailData);
     setSendingQuote(quote.id);
     try {
       const { data, error } = await supabase.functions.invoke('send-quote-email', {

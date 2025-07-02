@@ -167,7 +167,10 @@ export const QuotePreviewDialog = ({
             Luk
           </Button>
           <Button 
-            onClick={() => onSendQuote({ ...quote, customEmailData: templateData })} 
+            onClick={() => {
+              console.log('Sending quote with templateData:', templateData);
+              onSendQuote({ ...quote, customEmailData: templateData });
+            }} 
             disabled={sending} 
             className="bg-green-600 hover:bg-green-700"
           >
