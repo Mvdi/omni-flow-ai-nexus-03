@@ -61,21 +61,30 @@ export const LiveView: React.FC<LiveViewProps> = ({ selectedWeek, selectedEmploy
     return true;
   });
 
-  // Initialize map with working Mapbox token
+// Initialize map with proper Mapbox token
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // Use a working public token for demonstration
+    // Use the public Mapbox token for demonstration
     mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: [9.6229, 55.8144], // Center on vehicle locations (Viborg area)
-      zoom: 12,
+      center: [9.6229, 55.8144], // Center on Denmark/Viborg area
+      zoom: 10,
     });
 
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+    // Ensure map loads properly
+    map.current.on('load', () => {
+      console.log('Map loaded successfully');
+    });
+
+    map.current.on('error', (e) => {
+      console.error('Map error:', e);
+    });
 
     return () => {
       map.current?.remove();

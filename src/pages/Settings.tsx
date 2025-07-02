@@ -20,11 +20,13 @@ import {
   Users,
   Mail,
   Database,
-  Clock
+  Clock,
+  FileText
 } from 'lucide-react';
 import { EmailIntegrationSettings } from '@/components/settings/EmailIntegrationSettings';
 import { EmployeeManagement } from '@/components/settings/EmployeeManagement';
 import { WorkScheduleManagement } from '@/components/settings/WorkScheduleManagement';
+import { QuoteTemplateManagement } from '@/components/settings/QuoteTemplateManagement';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('general');
@@ -104,7 +106,7 @@ const Settings = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="general" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 Generelt
@@ -124,6 +126,10 @@ const Settings = () => {
               <TabsTrigger value="integrations" className="flex items-center gap-2">
                 <Mail className="h-4 w-4" />
                 Integrationer
+              </TabsTrigger>
+              <TabsTrigger value="quotes" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Tilbud
               </TabsTrigger>
             </TabsList>
 
@@ -269,6 +275,10 @@ const Settings = () => {
 
             <TabsContent value="integrations" className="space-y-4">
               <EmailIntegrationSettings />
+            </TabsContent>
+
+            <TabsContent value="quotes" className="space-y-4">
+              <QuoteTemplateManagement />
             </TabsContent>
           </Tabs>
         </div>
