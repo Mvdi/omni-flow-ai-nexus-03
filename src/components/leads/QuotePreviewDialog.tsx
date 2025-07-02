@@ -70,9 +70,23 @@ export const QuotePreviewDialog = ({
               </div>
             </div>
             
-            {/* Customer */}
-            <div className="mb-6">
-              <div className="font-semibold text-black text-lg">{leadName}</div>
+            {/* Customer Information */}
+            <div className="mb-8">
+              <div className="font-semibold text-black text-lg mb-2">{leadName}</div>
+              <div className="text-sm text-black leading-relaxed">
+                {quote.customer_email && (
+                  <div>Email: {quote.customer_email}</div>
+                )}
+                {quote.customer_phone && (
+                  <div>Telefon: {quote.customer_phone}</div>
+                )}
+                {quote.customer_address && (
+                  <div>Adresse: {quote.customer_address}</div>
+                )}
+                {quote.customer_company && (
+                  <div>Virksomhed: {quote.customer_company}</div>
+                )}
+              </div>
             </div>
             
             {/* Project Info */}
@@ -128,11 +142,9 @@ export const QuotePreviewDialog = ({
               </div>
             </div>
             
-            {/* Call to Action */}
-            <div className="bg-green-500 p-8 rounded-lg text-center text-white mb-8">
-              <h3 className="text-xl font-semibold mb-3">🚀 Klar til at komme i gang?</h3>
-              <p className="mb-6">Bekræft dit tilbud nu og få professionel service af højeste kvalitet!</p>
-              <div className="bg-white text-green-500 px-7 py-3 rounded font-semibold text-sm inline-block">
+            {/* Confirmation Button */}
+            <div className="text-center mb-8">
+              <div className="bg-green-600 text-white px-8 py-3 rounded font-semibold text-sm inline-block">
                 ✅ BEKRÆFT TILBUD NU
               </div>
             </div>

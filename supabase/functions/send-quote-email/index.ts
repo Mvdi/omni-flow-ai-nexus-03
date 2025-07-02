@@ -255,34 +255,19 @@ const handler = async (req: Request): Promise<Response> => {
                 padding-top: 12px;
                 border-top: 2px solid #000000;
             }
-            .cta-section { 
-                background: #4CAF50; 
-                padding: 30px; 
-                border-radius: 8px; 
-                text-align: center; 
+            .confirmation-section {
                 margin: 40px 0;
             }
-            .cta-title { 
-                color: white; 
-                font-size: 20px; 
-                font-weight: 600; 
-                margin-bottom: 12px; 
-            }
-            .cta-subtitle { 
-                color: rgba(255,255,255,0.9); 
-                font-size: 14px; 
-                margin-bottom: 20px; 
-            }
-            .cta-button { 
-                display: inline-block; 
-                background: #ffffff; 
-                color: #4CAF50; 
-                padding: 14px 28px; 
-                border-radius: 6px; 
-                text-decoration: none; 
-                font-weight: 600; 
+            .confirm-button {
+                display: inline-block;
+                background: #4CAF50;
+                color: white;
+                padding: 14px 28px;
+                border-radius: 6px;
+                text-decoration: none;
+                font-weight: 600;
                 font-size: 14px;
-                text-transform: uppercase;
+                text-align: center;
             }
             .signature-section {
                 margin-top: 50px;
@@ -333,6 +318,12 @@ const handler = async (req: Request): Promise<Response> => {
             
             <div class="customer-section">
                 <div class="customer-name">${customerName}</div>
+                <div class="customer-details">
+                    ${to}<br>
+                    ${customEmailData?.customer_phone || ''}<br>
+                    ${customEmailData?.customer_address || ''}<br>
+                    ${customEmailData?.customer_company || ''}
+                </div>
             </div>
             
             <div class="project-info">
@@ -373,12 +364,12 @@ const handler = async (req: Request): Promise<Response> => {
                 </div>
             </div>
             
-            <div class="cta-section">
-                <div class="cta-title">🚀 Klar til at komme i gang?</div>
-                <div class="cta-subtitle">Bekræft dit tilbud nu og få professionel service af højeste kvalitet!</div>
-                <a href="${confirmUrl}" class="cta-button" style="color: #4CAF50;">
-                    ✅ BEKRÆFT TILBUD NU
-                </a>
+            <div class="confirmation-section">
+                <div style="text-align: center; margin: 40px 0;">
+                    <a href="${confirmUrl}" class="confirm-button" style="display: inline-block; background: #4CAF50; color: white; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">
+                        ✅ BEKRÆFT TILBUD NU
+                    </a>
+                </div>
             </div>
             
             <div class="signature-section">
