@@ -136,7 +136,9 @@ export type Database = {
           emails_processed: number | null
           error_details: string | null
           errors_count: number | null
+          facebook_leads_created: number | null
           id: string
+          leads_vs_tickets_ratio: number | null
           mailbox_address: string
           status: string | null
           sync_completed_at: string | null
@@ -146,7 +148,9 @@ export type Database = {
           emails_processed?: number | null
           error_details?: string | null
           errors_count?: number | null
+          facebook_leads_created?: number | null
           id?: string
+          leads_vs_tickets_ratio?: number | null
           mailbox_address: string
           status?: string | null
           sync_completed_at?: string | null
@@ -156,7 +160,9 @@ export type Database = {
           emails_processed?: number | null
           error_details?: string | null
           errors_count?: number | null
+          facebook_leads_created?: number | null
           id?: string
+          leads_vs_tickets_ratio?: number | null
           mailbox_address?: string
           status?: string | null
           sync_completed_at?: string | null
@@ -267,6 +273,47 @@ export type Database = {
           work_radius_km?: number | null
         }
         Relationships: []
+      }
+      facebook_leads_processed: {
+        Row: {
+          customer_data: Json | null
+          email_message_id: string
+          id: string
+          lead_id: string | null
+          original_email_content: string | null
+          processed_at: string | null
+          processing_notes: string | null
+          service_detected: string | null
+        }
+        Insert: {
+          customer_data?: Json | null
+          email_message_id: string
+          id?: string
+          lead_id?: string | null
+          original_email_content?: string | null
+          processed_at?: string | null
+          processing_notes?: string | null
+          service_detected?: string | null
+        }
+        Update: {
+          customer_data?: Json | null
+          email_message_id?: string
+          id?: string
+          lead_id?: string | null
+          original_email_content?: string | null
+          processed_at?: string | null
+          processing_notes?: string | null
+          service_detected?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facebook_leads_processed_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       integration_secrets: {
         Row: {
@@ -642,6 +689,30 @@ export type Database = {
           },
         ]
       }
+      service_detection_patterns: {
+        Row: {
+          created_at: string | null
+          detection_patterns: string[]
+          id: string
+          priority: number | null
+          service_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          detection_patterns: string[]
+          id?: string
+          priority?: number | null
+          service_name: string
+        }
+        Update: {
+          created_at?: string | null
+          detection_patterns?: string[]
+          id?: string
+          priority?: number | null
+          service_name?: string
+        }
+        Relationships: []
+      }
       support_tickets: {
         Row: {
           assignee_id: string | null
@@ -906,9 +977,29 @@ export type Database = {
         Args: { customer_email_param: string }
         Returns: number
       }
+      create_facebook_lead: {
+        Args: {
+          email_content: string
+          sender_email: string
+          sender_name?: string
+        }
+        Returns: string
+      }
       generate_ticket_number: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_email_sync_health_detailed: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          status: string
+          last_sync_at: string
+          minutes_since_last_sync: number
+          facebook_leads_today: number
+          total_emails_today: number
+          consecutive_failures: number
+          health_score: number
+        }[]
       }
     }
     Enums: {

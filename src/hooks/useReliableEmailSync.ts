@@ -139,13 +139,14 @@ export const useReliableEmailSync = () => {
         throw new Error('Du skal være logget ind');
       }
 
-      console.log('🚀 Triggering BULLETPROOF email sync with duplicate prevention...');
+      console.log('🚀 Triggering BULLETPROOF email sync with Facebook lead detection...');
 
       const { data, error } = await supabase.functions.invoke('reliable-email-sync', {
         body: { 
           source: 'manual-trigger', 
           priority: 'high',
-          preventDuplicates: true 
+          syncHours: 6,
+          facebookLeadDetection: true
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -164,6 +165,39 @@ export const useReliableEmailSync = () => {
     }
   };
 
+  const triggerEmergencyCatchupSync = async () => {
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session) {
+        throw new Error('Du skal være logget ind');
+      }
+
+      console.log('🆘 Triggering EMERGENCY catch-up sync for missing emails...');
+
+      const { data, error } = await supabase.functions.invoke('reliable-email-sync', {
+        body: { 
+          source: 'emergency-catchup', 
+          priority: 'critical',
+          syncHours: 24, // Last 24 hours for emergency catch-up
+          facebookLeadDetection: true
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      console.log('✅ EMERGENCY catch-up sync completed:', data);
+      return data;
+    } catch (error) {
+      console.error('Failed to trigger emergency sync:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     checkSyncHealth();
     
@@ -177,6 +211,7 @@ export const useReliableEmailSync = () => {
     syncMetrics,
     isLoading,
     refreshHealth: checkSyncHealth,
-    triggerBulletproofSync
+    triggerBulletproofSync,
+    triggerEmergencyCatchupSync
   };
 };

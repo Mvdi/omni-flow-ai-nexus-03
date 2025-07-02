@@ -43,14 +43,19 @@ interface GraphMessage {
   }>;
 }
 
-// SINGLETON PATTERN - Only one sync can run at a time
+interface EmailSyncRequest {
+  source?: string;
+  priority?: 'low' | 'normal' | 'high' | 'critical';
+  syncHours?: number;
+  facebookLeadDetection?: boolean;
+}
+
+// BULLETPROOF: Enhanced configuration for maximum reliability + Facebook lead detection
 let isSyncRunning = false;
 let lastSyncTime: Date | null = null;
 let consecutiveFailures = 0;
 const MAX_CONSECUTIVE_FAILURES = 3;
-const SYNC_LOCK_TIMEOUT = 10 * 60 * 1000; // 10 minutes
-
-// Enhanced error handling and retry logic
+const SYNC_LOCK_TIMEOUT = 3 * 60 * 1000; // Reduced to 3 minutes for faster recovery
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 2000; // 2 seconds
 
@@ -77,7 +82,123 @@ const retryWithExponentialBackoff = async <T>(
   }
 };
 
-// Acquire sync lock to prevent concurrent runs
+// FACEBOOK LEAD DETECTION: Intelligent categorization
+const isFacebookLead = (subject: string, content: string): boolean => {
+  const text = `${subject} ${content}`.toLowerCase();
+  const facebookIndicators = [
+    'facebook lead',
+    'facebook form',
+    'lead from facebook',
+    'facebook inquiry',
+    'via facebook',
+    'facebook contact'
+  ];
+  
+  return facebookIndicators.some(indicator => text.includes(indicator));
+};
+
+// INTELLIGENT SERVICE DETECTION: Extract service type from email content
+const detectServiceFromContent = (content: string): string | null => {
+  const text = content.toLowerCase();
+  
+  // Service patterns with priority
+  const servicePatterns = [
+    { service: 'Vinduespudsning', patterns: ['vindues', 'window', 'rude', 'glasrengøring', 'facade'], priority: 1 },
+    { service: 'Rengøring', patterns: ['rengøring', 'cleaning', 'rens', 'gør rent', 'städning'], priority: 1 },
+    { service: 'Havearbejde', patterns: ['have', 'garden', 'græs', 'plæne', 'beskæring', 'hæk'], priority: 2 },
+    { service: 'Byggeri', patterns: ['byg', 'construction', 'renovering', 'ombygning', 'håndværk'], priority: 3 }
+  ];
+  
+  for (const servicePattern of servicePatterns) {
+    if (servicePattern.patterns.some(pattern => text.includes(pattern))) {
+      return servicePattern.service;
+    }
+  }
+  
+  return null;
+};
+
+// INTELLIGENT CUSTOMER DATA EXTRACTION: Extract phone, address, etc.
+const extractCustomerData = (content: string) => {
+  const phoneRegex = /(\+45\s?)?[\d\s\-\(\)]{8,}/g;
+  const addressRegex = /\d{1,4}\s+[A-Za-zæøåÆØÅ\s]+,?\s*\d{4}?\s*[A-Za-zæøåÆØÅ]*/g;
+  
+  const phones = content.match(phoneRegex) || [];
+  const addresses = content.match(addressRegex) || [];
+  
+  return {
+    phones: phones.slice(0, 2), // Max 2 phones
+    addresses: addresses.slice(0, 1), // Max 1 address
+    extractedAt: new Date().toISOString()
+  };
+};
+
+// BULLETPROOF FACEBOOK LEAD CREATION: Create lead instead of ticket
+const createFacebookLead = async (supabase: any, message: GraphMessage, mailboxAddress: string) => {
+  console.log(`🎯 FACEBOOK LEAD DETECTED: Creating lead for ${message.subject}`);
+  
+  const messageContent = message.body?.content || message.bodyPreview || '';
+  const senderEmail = message.from.emailAddress.address;
+  const senderName = message.from.emailAddress.name || senderEmail.split('@')[0];
+  
+  // Intelligent service detection
+  const detectedService = detectServiceFromContent(messageContent);
+  
+  // Extract customer data
+  const customerData = extractCustomerData(messageContent);
+  
+  // Create enriched customer data object
+  const enrichedData = {
+    detected_service: detectedService,
+    extracted_phone: customerData.phones[0] || null,
+    extracted_address: customerData.addresses[0] || null,
+    source_email: senderEmail,
+    facebook_lead: true,
+    original_email_id: message.id,
+    processed_at: new Date().toISOString()
+  };
+  
+  // Create lead
+  const { data: newLead, error: leadError } = await supabase
+    .from('leads')
+    .insert({
+      navn: senderName,
+      email: senderEmail,
+      telefon: customerData.phones[0] || null,
+      adresse: customerData.addresses[0] || null,
+      virksomhed: detectedService ? `${detectedService} kunde` : null,
+      status: 'Ny',
+      kilde: 'Facebook Lead',
+      prioritet: detectedService ? 'Høj' : 'Medium',
+      noter: `Automatisk oprettet fra Facebook lead email.\n\nOriginal besked:\n${messageContent.substring(0, 500)}${messageContent.length > 500 ? '...' : ''}`,
+      ai_enriched_data: enrichedData,
+      sidste_kontakt: `Email modtaget: ${new Date(message.receivedDateTime).toLocaleString('da-DK')}`
+    })
+    .select()
+    .single();
+  
+  if (leadError) {
+    console.error('❌ Failed to create Facebook lead:', leadError);
+    throw leadError;
+  }
+  
+  // Track Facebook lead processing
+  await supabase
+    .from('facebook_leads_processed')
+    .insert({
+      email_message_id: message.id,
+      lead_id: newLead.id,
+      service_detected: detectedService,
+      customer_data: enrichedData,
+      original_email_content: messageContent,
+      processing_notes: `Auto-created from ${mailboxAddress}`
+    });
+  
+  console.log(`✅ FACEBOOK LEAD CREATED: ${newLead.id} for ${detectedService || 'General'} service`);
+  return newLead;
+};
+
+// Acquire sync lock with bulletproof timeout handling
 const acquireSyncLock = async (supabase: any): Promise<boolean> => {
   if (isSyncRunning) {
     const timeSinceLastSync = lastSyncTime ? Date.now() - lastSyncTime.getTime() : 0;
@@ -90,7 +211,6 @@ const acquireSyncLock = async (supabase: any): Promise<boolean> => {
     }
   }
 
-  // Database-level lock for distributed systems
   try {
     const { error } = await supabase
       .from('email_sync_log')
@@ -102,7 +222,7 @@ const acquireSyncLock = async (supabase: any): Promise<boolean> => {
         errors_count: 0
       });
 
-    if (error && error.code === '23505') { // Unique constraint violation
+    if (error && error.code === '23505') {
       console.log('Another sync process is already running');
       return false;
     }
@@ -161,8 +281,8 @@ const getAccessToken = async (clientId: string, clientSecret: string, tenantId: 
   }, MAX_RETRIES, 'Token acquisition');
 };
 
-// CRITICAL FIX: Enhanced message processing with proper status updates
-const processEmail = async (supabase: any, message: GraphMessage, mailboxAddress: string) => {
+// ENHANCED EMAIL PROCESSING: Facebook lead detection + ticket creation
+const processEmail = async (supabase: any, message: GraphMessage, mailboxAddress: string, facebookLeadDetection = false) => {
   const senderEmail = message.from.emailAddress.address.toLowerCase();
   
   // Skip internal emails immediately
@@ -182,6 +302,15 @@ const processEmail = async (supabase: any, message: GraphMessage, mailboxAddress
   if (existingMessage) {
     console.log(`⏭️ DUPLICATE MESSAGE: ${message.id} already exists`);
     return { type: 'duplicate_skip' };
+  }
+
+  // FACEBOOK LEAD DETECTION: Check if this should be a lead instead of ticket
+  if (facebookLeadDetection) {
+    const messageContent = message.body?.content || message.bodyPreview || '';
+    if (isFacebookLead(message.subject, messageContent)) {
+      const newLead = await createFacebookLead(supabase, message, mailboxAddress);
+      return { type: 'facebook_lead_created', leadId: newLead.id };
+    }
   }
 
   // Find existing ticket for this conversation
@@ -285,7 +414,7 @@ const findExistingTicket = async (supabase: any, message: GraphMessage) => {
   return null;
 };
 
-// Create new ticket WITHOUT AI enhancements that set priority
+// Create new ticket WITHOUT automatic priority
 const createNewTicket = async (supabase: any, message: GraphMessage, mailboxAddress: string) => {
   // Upsert customer
   await supabase
@@ -298,17 +427,11 @@ const createNewTicket = async (supabase: any, message: GraphMessage, mailboxAddr
       ignoreDuplicates: false 
     });
 
-  // Generate ticket number
-  const { data: ticketNumber, error: ticketNumError } = await supabase.rpc('generate_ticket_number');
-  if (ticketNumError) throw ticketNumError;
-
-  // CRITICAL: NO AUTOMATIC PRIORITY OR AI ENHANCEMENTS
   const messageContent = message.body?.content || message.bodyPreview || '';
   const basicCategory = autoDetectCategory(message.subject, messageContent);
   const slaDeadline = calculateSLADeadline(message.receivedDateTime);
 
   const ticketData = {
-    ticket_number: ticketNumber,
     subject: message.subject || 'Ingen emne',
     content: messageContent,
     customer_email: message.from.emailAddress.address,
@@ -355,7 +478,7 @@ const createNewTicket = async (supabase: any, message: GraphMessage, mailboxAddr
   return newTicket;
 };
 
-// AI-powered category detection - SIMPLIFIED
+// Simplified category detection
 const autoDetectCategory = (subject: string, content: string): string => {
   const text = `${subject} ${content}`.toLowerCase();
   
@@ -372,31 +495,12 @@ const autoDetectCategory = (subject: string, content: string): string => {
   return 'Generel';
 };
 
-// Calculate SLA deadline - SIMPLIFIED WITHOUT PRIORITY
+// Calculate SLA deadline
 const calculateSLADeadline = (createdAt: string): string => {
   const created = new Date(createdAt);
   const hoursToAdd = 24; // Default 24 hours for ALL tickets
   
   return new Date(created.getTime() + hoursToAdd * 60 * 60 * 1000).toISOString();
-};
-
-// DEAD LETTER QUEUE for failed emails
-const addToDeadLetterQueue = async (supabase: any, message: GraphMessage, error: string) => {
-  try {
-    await supabase
-      .from('email_sync_log')
-      .insert({
-        mailbox_address: 'DEAD_LETTER_QUEUE',
-        status: 'failed',
-        emails_processed: 0,
-        errors_count: 1,
-        error_details: `Message ID: ${message.id}, Error: ${error}`,
-        sync_started_at: new Date().toISOString(),
-        sync_completed_at: new Date().toISOString()
-      });
-  } catch (dlqError) {
-    console.error('Failed to add to dead letter queue:', dlqError);
-  }
 };
 
 // Real-time health monitoring
@@ -410,6 +514,7 @@ const recordSyncHealth = async (supabase: any, status: 'healthy' | 'warning' | '
         emails_processed: details.processed || 0,
         errors_count: details.errors || 0,
         error_details: details.message || null,
+        facebook_leads_created: details.facebookLeads || 0,
         sync_started_at: new Date().toISOString(),
         sync_completed_at: new Date().toISOString()
       });
@@ -437,7 +542,13 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    console.log('🚀 Starting FIXED Email Sync with CORRECT ticket status updates...');
+    // Parse request for enhanced options
+    const requestBody = await req.json().catch(() => ({})) as EmailSyncRequest;
+    const syncHours = requestBody.syncHours || 6; // Default 6 hours, 24 for nightly
+    const facebookLeadDetection = requestBody.facebookLeadDetection || false;
+    const priority = requestBody.priority || 'normal';
+    
+    console.log(`🚀 BULLETPROOF Email Sync starting: ${syncHours}h window, Facebook leads: ${facebookLeadDetection}, Priority: ${priority}`);
     
     // SINGLETON PATTERN - Acquire lock
     if (!(await acquireSyncLock(supabase))) {
@@ -493,27 +604,8 @@ serve(async (req) => {
       });
     }
 
-    // Get access token
-    const tokenUrl = `https://login.microsoftonline.com/${tenant_id}/oauth2/v2.0/token`;
-    const tokenParams = new URLSearchParams({
-      client_id: client_id,
-      client_secret: client_secret,
-      scope: 'https://graph.microsoft.com/.default',
-      grant_type: 'client_credentials'
-    });
-
-    const tokenResponse = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: tokenParams,
-    });
-
-    if (!tokenResponse.ok) {
-      throw new Error(`Token request failed: ${tokenResponse.status}`);
-    }
-
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
+    // Get access token with retry logic
+    const accessToken = await getAccessToken(client_id, client_secret, tenant_id);
 
     // Fetch monitored mailboxes
     const { data: mailboxes, error: mailboxError } = await supabase
@@ -534,23 +626,25 @@ serve(async (req) => {
       });
     }
 
-    console.log(`📧 Processing ${mailboxes.length} monitored mailboxes with FIXED status updates...`);
+    console.log(`📧 BULLETPROOF: Processing ${mailboxes.length} mailboxes with ${syncHours}h window...`);
     
     let totalProcessed = 0;
     let totalErrors = 0;
     let totalMerged = 0;
     let totalCreated = 0;
     let totalSkipped = 0;
+    let totalFacebookLeads = 0;
 
     for (const mailbox of mailboxes) {
       console.log(`📮 Processing mailbox: ${mailbox.email_address}`);
       
       try {
-        // Use 2 hour sync window
-        const syncWindowStart = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+        // Dynamic sync window based on request
+        const syncWindowStart = new Date(Date.now() - syncHours * 60 * 60 * 1000).toISOString();
         
         const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages`;
-        const filter = `?$filter=receivedDateTime gt ${syncWindowStart}&$top=50&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments,internetMessageHeaders`;
+        const maxMessages = priority === 'critical' ? 200 : 50; // More for nightly deep sync
+        const filter = `?$filter=receivedDateTime gt ${syncWindowStart}&$top=${maxMessages}&$orderby=receivedDateTime desc&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,internetMessageId,conversationId,parentFolderId,hasAttachments,internetMessageHeaders`;
 
         const messagesResponse = await fetch(`${messagesUrl}${filter}`, {
           headers: {
@@ -566,13 +660,13 @@ serve(async (req) => {
         const messagesData = await messagesResponse.json();
         const messages: any[] = messagesData.value || [];
         
-        console.log(`📬 Found ${messages.length} messages for ${mailbox.email_address}`);
+        console.log(`📬 Found ${messages.length} messages for ${mailbox.email_address} (${syncHours}h window)`);
 
         for (const message of messages) {
           try {
             console.log(`📝 Processing message ${message.id} from: ${message.from.emailAddress.address}`);
             
-            const result = await processEmail(supabase, message, mailbox.email_address);
+            const result = await processEmail(supabase, message, mailbox.email_address, facebookLeadDetection);
             
             switch (result.type) {
               case 'created':
@@ -583,6 +677,10 @@ serve(async (req) => {
               case 'merged':
                 totalMerged++;
                 console.log(`🔗 Merged message ${message.id} to existing ticket with status "Nyt svar"`);
+                break;
+              case 'facebook_lead_created':
+                totalFacebookLeads++;
+                console.log(`🎯 Created Facebook lead ${result.leadId} for ${message.id}`);
                 break;
               case 'internal_skip':
               case 'duplicate_skip':
@@ -617,18 +715,22 @@ serve(async (req) => {
       processed: totalProcessed,
       created: totalCreated,
       merged: totalMerged,
+      facebookLeads: totalFacebookLeads,
       skipped: totalSkipped,
       errors: totalErrors,
+      syncHours,
+      priority,
       timestamp: new Date().toISOString(),
-      details: `🎯 FIXED sync: ${totalCreated} new tickets, ${totalMerged} merged with "Nyt svar" status, ${totalSkipped} skipped, ${totalErrors} errors`
+      details: `🎯 BULLETPROOF sync (${syncHours}h): ${totalCreated} tickets, ${totalMerged} merged, ${totalFacebookLeads} FB leads, ${totalSkipped} skipped, ${totalErrors} errors`
     };
 
-    console.log('🎉 FIXED email sync completed:', summary.details);
+    console.log('🎉 BULLETPROOF email sync completed:', summary.details);
 
-    // Record health status
-    await recordSyncHealth(supabase, 'healthy', {
+    // Record health status with Facebook lead tracking
+    await recordSyncHealth(supabase, totalErrors > 0 ? 'warning' : 'healthy', {
       processed: totalProcessed,
       errors: totalErrors,
+      facebookLeads: totalFacebookLeads,
       message: summary.details
     });
 

@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useDuplicateCleanup } from '@/hooks/useDuplicateCleanup';
+import { useReliableEmailSync } from '@/hooks/useReliableEmailSync';
 import { 
   Shield, 
   ShieldCheck, 
@@ -46,6 +47,7 @@ export const ReliableEmailSyncMonitor = () => {
   const [isTesting, setIsTesting] = useState(false);
   const { toast } = useToast();
   const { cleanupDuplicateMessages, isCleaningUp } = useDuplicateCleanup();
+  const { triggerBulletproofSync: triggerSync, triggerEmergencyCatchupSync } = useReliableEmailSync();
 
   const fetchSyncHealth = async () => {
     try {
@@ -288,14 +290,23 @@ export const ReliableEmailSyncMonitor = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
               <h4 className="font-medium text-gray-900">Email Sync Kontrol</h4>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button 
-                  onClick={triggerBulletproofSync} 
+                  onClick={triggerSync} 
                   disabled={isTesting}
-                  className="bg-orange-600 hover:bg-orange-700"
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
-                  <Shield className={`h-4 w-4 mr-2 ${isTesting ? 'animate-spin' : ''}`} />
-                  {isTesting ? 'BULLETPROOF Sync kører...' : 'Kør BULLETPROOF Sync'}
+                  <Zap className={`h-4 w-4 mr-2 ${isTesting ? 'animate-spin' : ''}`} />
+                  Manuel Sync (6h)
+                </Button>
+                
+                <Button 
+                  onClick={triggerEmergencyCatchupSync} 
+                  disabled={isTesting}
+                  variant="destructive"
+                >
+                  <AlertTriangle className={`h-4 w-4 mr-2 ${isTesting ? 'animate-spin' : ''}`} />
+                  Nød-Sync (24h)
                 </Button>
                 
                 <Button 
