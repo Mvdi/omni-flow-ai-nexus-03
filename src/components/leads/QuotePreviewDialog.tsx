@@ -10,7 +10,7 @@ interface QuotePreviewDialogProps {
   onOpenChange: (open: boolean) => void;
   quote: any;
   leadName: string;
-  onSendQuote: () => void;
+  onSendQuote: (quoteWithTemplate?: any) => void;
   sending: boolean;
 }
 
@@ -166,7 +166,11 @@ export const QuotePreviewDialog = ({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Luk
           </Button>
-          <Button onClick={onSendQuote} disabled={sending} className="bg-green-600 hover:bg-green-700">
+          <Button 
+            onClick={() => onSendQuote({ ...quote, customEmailData: templateData })} 
+            disabled={sending} 
+            className="bg-green-600 hover:bg-green-700"
+          >
             <Send className="h-4 w-4 mr-2" />
             {sending ? 'Sender...' : 'Send Tilbud'}
           </Button>

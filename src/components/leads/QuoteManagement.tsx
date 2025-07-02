@@ -47,11 +47,12 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
           currency: quote.currency,
           validUntil: quote.valid_until,
           items: quote.items || [],
-          customEmailData: {
+          customEmailData: quote.customEmailData || {
             customer_phone: lead.telefon,
             customer_address: lead.adresse,
             customer_company: lead.virksomhed,
-            customer_email: lead.email
+            customer_email: lead.email,
+            ...quote.customEmailData
           }
         }
       });
@@ -189,9 +190,9 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
         onOpenChange={() => setPreviewQuote(null)}
         quote={previewQuote}
         leadName={lead.navn}
-        onSendQuote={() => {
+        onSendQuote={(quoteWithTemplate) => {
           if (previewQuote) {
-            handleSendQuote(previewQuote);
+            handleSendQuote(quoteWithTemplate || previewQuote);
             setPreviewQuote(null);
           }
         }}
