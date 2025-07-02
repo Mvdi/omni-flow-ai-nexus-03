@@ -128,17 +128,7 @@ export const PriceCalculatorWidget = () => {
         border: '1px solid #D6DBDF',
         boxShadow: '0 8px 25px rgba(0,0,0,.1)',
         borderRadius: '8px',
-        overflow: 'hidden',
-        transition: 'all 0.3s ease',
-        transform: 'translateY(0)'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-5px)';
-        e.currentTarget.style.boxShadow = '0 15px 35px rgba(0,0,0,.15)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,.1)';
+        overflow: 'hidden'
       }}
     >
       {/* Header */}
