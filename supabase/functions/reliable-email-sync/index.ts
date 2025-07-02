@@ -187,7 +187,7 @@ ${messageContent}
       telefon: customerData.phones[0] || null,
       adresse: customerData.addresses[0] || null,
       virksomhed: detectedService ? `${detectedService} kunde` : null,
-      status: 'Ny',
+      status: 'new',
       kilde: 'Facebook Lead',
       prioritet: detectedService ? 'Høj' : 'Medium',
       noter: leadNotes,
