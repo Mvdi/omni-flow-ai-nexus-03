@@ -299,7 +299,9 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
             <DuplicateMessageHandler messages={messages}>
               {(filteredMessages, duplicateCount) => (
                 <>
-                  {filteredMessages.map((message) => {
+                  {filteredMessages
+                    .filter(message => !message.is_internal) // Exclude internal notes from conversation
+                    .map((message) => {
                     const isFromSupport = message.sender_email.includes('@mmmultipartner.dk');
                     
                     return (
