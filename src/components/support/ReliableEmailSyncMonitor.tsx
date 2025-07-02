@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useDuplicateCleanup } from '@/hooks/useDuplicateCleanup';
+import { useLeads } from '@/hooks/useLeads';
 import { useReliableEmailSync } from '@/hooks/useReliableEmailSync';
 import { 
   Shield, 
@@ -47,7 +48,9 @@ export const ReliableEmailSyncMonitor = () => {
   const [isTesting, setIsTesting] = useState(false);
   const { toast } = useToast();
   const { cleanupDuplicateMessages, isCleaningUp } = useDuplicateCleanup();
+  const { refetch: refetchLeads } = useLeads();
   const { triggerBulletproofSync: triggerSync, triggerEmergencyCatchupSync } = useReliableEmailSync();
+  const [isCleaningLeads, setIsCleaningLeads] = useState(false);
 
   const fetchSyncHealth = async () => {
     try {
@@ -142,6 +145,96 @@ export const ReliableEmailSyncMonitor = () => {
     setIsLoading(true);
     await fetchSyncHealth();
     setIsLoading(false);
+  };
+
+  const handleCleanupLeadDuplicates = async () => {
+    setIsCleaningLeads(true);
+    try {
+      console.log('🧹 Starting Facebook lead duplicate cleanup...');
+      
+      const { data: leads, error } = await supabase
+        .from('leads')
+        .select('id, navn, email, telefon, created_at, kilde')
+        .eq('kilde', 'Facebook Lead')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!leads || leads.length === 0) {
+        toast({
+          title: "Ingen duplikater fundet",
+          description: "Der blev ikke fundet duplikerede Facebook leads.",
+        });
+        return;
+      }
+
+      // Group leads by email and phone to find duplicates
+      const duplicatesToDelete: string[] = [];
+      const seenEmails = new Map<string, string>(); // email -> oldest lead id
+      const seenPhones = new Map<string, string>(); // phone -> oldest lead id
+
+      for (const lead of leads) {
+        let isDuplicate = false;
+
+        // Check for email duplicates
+        if (lead.email && seenEmails.has(lead.email)) {
+          duplicatesToDelete.push(lead.id);
+          isDuplicate = true;
+        } else if (lead.email) {
+          seenEmails.set(lead.email, lead.id);
+        }
+
+        // Check for phone duplicates (only if not already marked as duplicate by email)
+        if (!isDuplicate && lead.telefon && seenPhones.has(lead.telefon)) {
+          duplicatesToDelete.push(lead.id);
+          isDuplicate = true;
+        } else if (lead.telefon) {
+          seenPhones.set(lead.telefon, lead.id);
+        }
+      }
+
+      if (duplicatesToDelete.length === 0) {
+        toast({
+          title: "Ingen duplikater fundet",
+          description: "Der blev ikke fundet duplikerede Facebook leads.",
+        });
+        return;
+      }
+
+      console.log(`Found ${duplicatesToDelete.length} duplicate Facebook leads to delete`);
+
+      // Delete duplicates
+      const { error: deleteError } = await supabase
+        .from('leads')
+        .delete()
+        .in('id', duplicatesToDelete);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      // Refresh leads data
+      refetchLeads();
+
+      toast({
+        title: "Facebook lead duplikater ryddet op",
+        description: `${duplicatesToDelete.length} duplikerede Facebook leads blev fjernet.`,
+      });
+
+      console.log(`✅ Cleaned up ${duplicatesToDelete.length} duplicate Facebook leads`);
+
+    } catch (error: any) {
+      console.error('Failed to cleanup Facebook lead duplicates:', error);
+      toast({
+        title: "Oprydning fejlede",
+        description: error.message || "Kunne ikke fjerne duplikerede Facebook leads.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCleaningLeads(false);
+    }
   };
 
   useEffect(() => {
@@ -322,17 +415,30 @@ export const ReliableEmailSyncMonitor = () => {
 
             <div className="space-y-3">
               <h4 className="font-medium text-gray-900">Database Oprydning</h4>
-              <Button 
-                onClick={cleanupDuplicateMessages}
-                disabled={isCleaningUp}
-                variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
-              >
-                <Trash2 className={`h-4 w-4 mr-2 ${isCleaningUp ? 'animate-spin' : ''}`} />
-                {isCleaningUp ? 'Rydder op...' : 'Fjern Duplikerede Beskeder'}
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button 
+                  onClick={cleanupDuplicateMessages}
+                  disabled={isCleaningUp}
+                  variant="outline"
+                  className="text-red-600 border-red-200 hover:bg-red-50"
+                >
+                  <Trash2 className={`h-4 w-4 mr-2 ${isCleaningUp ? 'animate-spin' : ''}`} />
+                  {isCleaningUp ? 'Rydder op...' : 'Fjern Duplikerede Beskeder'}
+                </Button>
+                
+                <Button 
+                  onClick={handleCleanupLeadDuplicates}
+                  disabled={isCleaningLeads}
+                  variant="outline"
+                  className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                >
+                  <Trash2 className={`h-4 w-4 mr-2 ${isCleaningLeads ? 'animate-spin' : ''}`} />
+                  {isCleaningLeads ? 'Rydder Facebook leads...' : 'Fjern Duplikerede Facebook Leads'}
+                </Button>
+              </div>
+              
               <p className="text-xs text-gray-500">
-                Fjerner automatisk duplikerede ticket beskeder fra databasen
+                Fjerner automatisk duplikerede beskeder og Facebook leads fra databasen
               </p>
             </div>
           </div>

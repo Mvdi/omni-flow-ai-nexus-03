@@ -281,19 +281,52 @@ const createFacebookLead = async (supabase: any, message: GraphMessage, mailboxA
     }
   }
   
+  // Extract Facebook lead customer data FIRST for duplicate checking
+  const facebookCustomerData = extractFacebookLeadData(messageContent);
+  const customerName = facebookCustomerData.name || senderName;
+  const customerEmail = facebookCustomerData.email || senderEmail;
+  const customerPhone = facebookCustomerData.phone;
+  
+  // ENHANCED DUPLICATE DETECTION: Check for existing lead with same customer details
+  // This prevents duplicates when emails are forwarded from moba@ to salg@ with different message IDs
+  if (customerEmail && customerEmail !== senderEmail) {
+    const { data: existingLeadByEmail } = await supabase
+      .from('leads')
+      .select('id, navn, email, telefon, created_at')
+      .eq('email', customerEmail)
+      .eq('kilde', 'Facebook Lead')
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
+      .single();
+    
+    if (existingLeadByEmail) {
+      console.log(`⏭️ CUSTOMER EMAIL DUPLICATE: Lead for ${customerEmail} already exists (ID: ${existingLeadByEmail.id}) - Skipping creation`);
+      return existingLeadByEmail;
+    }
+  }
+  
+  // Check for duplicate by phone number if available
+  if (customerPhone) {
+    const { data: existingLeadByPhone } = await supabase
+      .from('leads')
+      .select('id, navn, email, telefon, created_at')
+      .eq('telefon', customerPhone)
+      .eq('kilde', 'Facebook Lead')
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
+      .single();
+    
+    if (existingLeadByPhone) {
+      console.log(`⏭️ CUSTOMER PHONE DUPLICATE: Lead for ${customerPhone} already exists (ID: ${existingLeadByPhone.id}) - Skipping creation`);
+      return existingLeadByPhone;
+    }
+  }
+  
   // Intelligent service detection - prioritize subject extraction
   let detectedService = detectServiceFromSubject(message.subject);
   if (!detectedService) {
     detectedService = detectServiceFromContent(messageContent);
   }
   
-  // Extract Facebook lead customer data (structured format)
-  const facebookCustomerData = extractFacebookLeadData(messageContent);
-  
-  // Use extracted customer data or fallback to sender if extraction failed
-  const customerName = facebookCustomerData.name || senderName;
-  const customerEmail = facebookCustomerData.email || senderEmail;
-  const customerPhone = facebookCustomerData.phone;
+  // Use the already extracted customer data from duplicate checking above
   const customerAddress = facebookCustomerData.address;
   
   console.log(`📋 Using customer data: Name=${customerName}, Email=${customerEmail}, Phone=${customerPhone}`);
