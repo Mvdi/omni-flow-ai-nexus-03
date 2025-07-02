@@ -21,6 +21,9 @@ interface SendQuoteRequest {
     unit_price: number;
     total_price: number;
   }>;
+  // New custom fields
+  customEmailData?: any;
+  logoUrl?: string;
 }
 
 interface GraphTokenResponse {
@@ -45,7 +48,9 @@ const handler = async (req: Request): Promise<Response> => {
       totalAmount,
       currency,
       validUntil,
-      items 
+      items,
+      customEmailData,
+      logoUrl
     }: SendQuoteRequest = await req.json();
 
     console.log(`Sending PROFESSIONAL quote ${quoteNumber} to ${to} - CLEAN DESIGN v3.0`);

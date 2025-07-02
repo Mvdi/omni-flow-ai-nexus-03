@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuotes, useUpdateQuote } from '@/hooks/useQuotes';
-import { FileText, Eye, Send, DollarSign, Calendar, CheckCircle, X, RotateCcw } from 'lucide-react';
+import { FileText, Eye, Send, DollarSign, Calendar, CheckCircle, X, RotateCcw, Edit } from 'lucide-react';
 import { formatDanishDateTime } from '@/utils/danishTime';
 import { Lead } from '@/hooks/useLeads';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { QuotePreviewDialog } from './QuotePreviewDialog';
+import { QuoteEditorDialog } from './QuoteEditorDialog';
 
 interface QuoteManagementProps {
   lead: Lead;
@@ -20,6 +21,7 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
   const updateQuote = useUpdateQuote();
   const [sendingQuote, setSendingQuote] = useState<string | null>(null);
   const [previewQuote, setPreviewQuote] = useState<any>(null);
+  const [editQuote, setEditQuote] = useState<any>(null);
 
   // Filter quotes for this lead
   const leadQuotes = allQuotes.filter(quote => quote.lead_id === lead.id);
@@ -148,6 +150,7 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
                   onStatusChange={handleStatusChange}
                   onSendQuote={handleSendQuote}
                   onPreviewQuote={setPreviewQuote}
+                  onEditQuote={setEditQuote}
                   getStatusColor={getStatusColor}
                   getStatusIcon={getStatusIcon}
                   sendingQuote={sendingQuote}
@@ -164,6 +167,7 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
                   onStatusChange={handleStatusChange}
                   onSendQuote={handleSendQuote}
                   onPreviewQuote={setPreviewQuote}
+                  onEditQuote={setEditQuote}
                   getStatusColor={getStatusColor}
                   getStatusIcon={getStatusIcon}
                   sendingQuote={sendingQuote}
@@ -187,6 +191,20 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
         }}
         sending={sendingQuote === previewQuote?.id}
       />
+
+      <QuoteEditorDialog
+        open={!!editQuote}
+        onOpenChange={() => setEditQuote(null)}
+        quote={editQuote}
+        leadName={lead.navn}
+        onSendQuote={(customQuote) => {
+          if (customQuote) {
+            handleSendQuote(customQuote);
+            setEditQuote(null);
+          }
+        }}
+        sending={sendingQuote === editQuote?.id}
+      />
     </Card>
   );
 };
@@ -196,12 +214,13 @@ interface QuoteCardProps {
   onStatusChange: (quoteId: string, status: 'sent' | 'accepted' | 'rejected') => void;
   onSendQuote: (quote: any) => void;
   onPreviewQuote: (quote: any) => void;
+  onEditQuote?: (quote: any) => void;
   getStatusColor: (status: string) => string;
   getStatusIcon: (status: string) => JSX.Element;
   sendingQuote: string | null;
 }
 
-const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, getStatusColor, getStatusIcon, sendingQuote }: QuoteCardProps) => {
+const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, onEditQuote, getStatusColor, getStatusIcon, sendingQuote }: QuoteCardProps) => {
   return (
     <div className="p-3 border rounded-lg bg-gray-50">
       <div className="flex items-start justify-between">
@@ -254,6 +273,18 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, getStat
             <Eye className="h-3 w-3 mr-1" />
             Preview
           </Button>
+          {onEditQuote && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onEditQuote(quote)}
+              className="text-xs text-purple-600 border-purple-200"
+            >
+              <Edit className="h-3 w-3 mr-1" />
+              Rediger
+            </Button>
+          )}
           {quote.status === 'draft' && (
             <Button
               type="button"
