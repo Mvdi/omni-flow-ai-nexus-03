@@ -20,7 +20,7 @@ export const NotificationBell = () => {
   const unreadCount = activeReminders.length;
 
   const handleNotificationClick = (ticketId: string) => {
-    navigate(`/support?ticket=${ticketId}`);
+    window.location.href = `/support?ticket=${ticketId}`;
   };
 
   return (

@@ -84,12 +84,8 @@ export const Navigation = () => {
 
           {/* User Menu */}
           <div className="hidden md:flex items-center space-x-4">
-            {!loading && user && (
-              <>
-                <NotificationBell />
-                <UserMenu />
-              </>
-            )}
+            <NotificationBell />
+            {!loading && user && <UserMenu />}
           </div>
 
           {/* Mobile menu button */}
