@@ -442,7 +442,41 @@ const handler = async (req: Request): Promise<Response> => {
     const tokenData: GraphTokenResponse = await tokenResponse.json();
     console.log('Successfully obtained Office 365 token');
 
-    // Send email via Microsoft Graph
+    // Generate PDF attachment
+    console.log('Generating PDF attachment...');
+    const pdfResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-quote-pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify({
+        quoteId: 'temp',
+        customerName,
+        quoteNumber,
+        quoteTitle,
+        totalAmount,
+        items,
+        templateData
+      })
+    });
+
+    let pdfAttachment = null;
+    if (pdfResponse.ok) {
+      const pdfBuffer = await pdfResponse.arrayBuffer();
+      const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+      pdfAttachment = {
+        "@odata.type": "#microsoft.graph.fileAttachment",
+        name: `tilbud-${quoteNumber}.pdf`,
+        contentType: "application/pdf",
+        contentBytes: base64Pdf
+      };
+      console.log('PDF attachment generated successfully');
+    } else {
+      console.error('Failed to generate PDF attachment:', await pdfResponse.text());
+    }
+
+    // Send email via Microsoft Graph with PDF attachment
     const emailMessage = {
       message: {
         subject: `${templateData?.documentTitle || 'Tilbud'} ${quoteNumber} fra ${templateData?.companyName || 'Virksomhed'}`,
@@ -457,7 +491,8 @@ const handler = async (req: Request): Promise<Response> => {
               name: customerName
             }
           }
-        ]
+        ],
+        attachments: pdfAttachment ? [pdfAttachment] : []
       }
     };
 

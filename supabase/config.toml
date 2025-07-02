@@ -6,3 +6,6 @@ verify_jwt = true
 
 [functions.cleanup-lead-duplicates]
 verify_jwt = false
+
+[functions.generate-quote-pdf]
+verify_jwt = true
