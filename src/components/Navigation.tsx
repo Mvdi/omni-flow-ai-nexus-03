@@ -3,10 +3,14 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { LayoutDashboard, Users, Ticket, Calendar, Database, Bot, Settings, Menu, X, ChevronDown, ShoppingCart } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import UserMenu from '@/components/UserMenu';
+import { NotificationBell } from '@/components/NotificationBell';
 export const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const location = useLocation();
+  const { user, loading } = useAuth();
 
   // Load logo from localStorage on component mount
   useEffect(() => {
@@ -80,12 +84,12 @@ export const Navigation = () => {
 
           {/* User Menu */}
           <div className="hidden md:flex items-center space-x-4">
-            <Button variant="outline" size="sm" className="relative">
-              <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                JD
-              </div>
-              <ChevronDown className="h-3 w-3 ml-2" />
-            </Button>
+            {!loading && user && (
+              <>
+                <NotificationBell />
+                <UserMenu />
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}

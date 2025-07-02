@@ -74,6 +74,26 @@ export const useAddTicketReminder = () => {
   });
 };
 
+export const useAllTicketReminders = () => {
+  return useQuery({
+    queryKey: ['all-ticket-reminders'],
+    queryFn: async () => {
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase
+        .from('ticket_reminders')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_completed', false)
+        .order('remind_at', { ascending: true });
+      
+      if (error) throw error;
+      return data as TicketReminder[];
+    },
+  });
+};
+
 export const useCompleteReminder = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -92,6 +112,7 @@ export const useCompleteReminder = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket-reminders'] });
+      queryClient.invalidateQueries({ queryKey: ['all-ticket-reminders'] });
       toast({
         title: "Påmindelse afsluttet",
         description: "Påmindelsen er markeret som afsluttet.",
