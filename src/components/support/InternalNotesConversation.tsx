@@ -69,19 +69,28 @@ export const InternalNotesConversation = ({ ticketId }: InternalNotesConversatio
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error('Not authenticated');
 
-      // Get user profile for name
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('navn, email')
-        .eq('id', user.id)
-        .single();
+      // Get user name from profile settings in localStorage
+      const profileSettings = localStorage.getItem('profile-settings');
+      let displayName = user.email?.split('@')[0] || 'Support';
+      
+      if (profileSettings) {
+        try {
+          const profile = JSON.parse(profileSettings);
+          const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
+          if (fullName.trim()) {
+            displayName = fullName;
+          }
+        } catch (e) {
+          console.warn('Could not parse profile settings:', e);
+        }
+      }
 
       const { error } = await supabase
         .from('ticket_messages')
         .insert({
           ticket_id: ticketId,
           sender_email: user.email || 'unknown@mmmultipartner.dk',
-          sender_name: profile?.navn || user.email?.split('@')[0] || 'Support',
+          sender_name: displayName,
           message_content: newNote,
           message_type: 'internal',
           is_internal: true,
