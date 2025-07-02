@@ -1,34 +1,34 @@
 <!-- === WORDPRESS KOMPATIBEL PRISBEREGNER === -->
 <!-- Kopiér hele denne blok ind i en WordPress side/indlæg eller Custom HTML block -->
 <meta charset="UTF-8">
-<div id="prisboks-wp" style="width:100%;max-width:530px;margin:auto;font-family:'Poppins',sans-serif;background:#fff;border:1px solid #D6DBDF;box-shadow:0 8px 25px rgba(0,0,0,.1);border-radius:8px;overflow:hidden;">
+<div id="prisboks-wp" style="width:100%;max-width:530px;margin:auto;font-family:'Poppins',sans-serif;background:linear-gradient(145deg, #ffffff, #f8fafc);border:1px solid #E2E8F0;box-shadow:0 10px 40px rgba(0,0,0,.08), 0 2px 8px rgba(0,0,0,.04);border-radius:12px;overflow:hidden;transform:translateY(0);transition:all 0.4s cubic-bezier(0.4, 0, 0.2, 1);" onmouseover="this.style.transform='translateY(-4px) scale(1.02)';this.style.boxShadow='0 20px 60px rgba(0,0,0,.12), 0 4px 16px rgba(0,0,0,.08)'" onmouseout="this.style.transform='translateY(0) scale(1)';this.style.boxShadow='0 10px 40px rgba(0,0,0,.08), 0 2px 8px rgba(0,0,0,.04)'">
   <!-- Header -->
-  <div style="background:#2D4B73;color:#fff;padding:1rem;font-weight:600;font-size:1.1rem;">Algebehandling af tag</div>
+  <div style="background:linear-gradient(135deg, #2D4B73 0%, #1e3a5f 100%);color:#fff;padding:1.25rem;font-weight:600;font-size:1.1rem;box-shadow:0 2px 10px rgba(45, 75, 115, 0.15);transition:all 0.3s ease;">Algebehandling af tag</div>
   
   <!-- TRIN 1: Prisberegning -->
   <div id="trin1-wp">
     <!-- Ikoner -->
-    <div style="display:flex;justify-content:space-around;padding:.75rem 1rem;font-size:.85rem;border-bottom:1px solid #eee;text-align:center;">
-      <div>&#x1F9FD;<br>Stopper mos & alger</div>
-      <div>&#x1F6E1;&#xFE0F;<br>Forebygger genvækst</div>
-      <div>&#x2728;<br>Fornyet tagoverflade</div>
+    <div style="display:flex;justify-content:space-around;padding:1rem;font-size:.85rem;border-bottom:1px solid #f1f5f9;text-align:center;background:linear-gradient(to bottom, #ffffff, #fafbfc);">
+      <div style="color:#64748b;transition:transform 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">&#x1F9FD;<br>Stopper mos & alger</div>
+      <div style="color:#64748b;transition:transform 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">&#x1F6E1;&#xFE0F;<br>Forebygger genvækst</div>
+      <div style="color:#64748b;transition:transform 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">&#x2728;<br>Fornyet tagoverflade</div>
     </div>
     <!-- Gul rabatboks -->
-    <div id="rabatboks-wp" style="background:#FFE86E;color:#1C1C1C;padding:.75rem 1rem;font-weight:600;text-align:center;font-size:.95rem;">
+    <div id="rabatboks-wp" style="background:linear-gradient(135deg, #FFE86E 0%, #FFDF47 100%);color:#1C1C1C;padding:1rem;font-weight:600;text-align:center;font-size:.95rem;box-shadow:0 2px 8px rgba(255, 232, 110, 0.3);border-top:1px solid rgba(255, 223, 71, 0.5);border-bottom:1px solid rgba(255, 223, 71, 0.5);">
       Ved at tegne aftalen sparer du <span style="color:#00539B;font-weight:700;" id="besparelse-wp">200 kr.</span> på første behandling!
     </div>
     <!-- Beregner -->
-    <div style="padding:1rem;">
-      <label for="arealValg-wp" style="display:block;font-weight:500;margin-bottom:.5rem;font-size:.95rem;">Vælg interval</label>
-      <select id="arealValg-wp" onchange="toggleM2InputSimple();updatePriceSimple();" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:0;margin-bottom:1.25rem;">
+    <div style="padding:1.5rem;">
+      <label for="arealValg-wp" style="display:block;font-weight:500;margin-bottom:.75rem;font-size:.95rem;color:#374151;">Vælg interval</label>
+      <select id="arealValg-wp" onchange="toggleM2InputSimple();updatePriceSimple();" style="width:100%;padding:.75rem;border:2px solid #e5e7eb;border-radius:8px;margin-bottom:1.5rem;font-size:.95rem;background:#fafbfc;outline:none;transition:all 0.3s ease;" onfocus="this.style.borderColor='#3b82f6';this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.2)'" onblur="this.style.borderColor='#e5e7eb';this.style.boxShadow='none'" onmouseover="this.style.borderColor='#60a5fa'" onmouseout="this.style.borderColor='#e5e7eb'">
         <option value="0">Op til 100 m²</option>
         <option value="1">101‑250 m²</option>
         <option value="2">Over 250 m² (indtast præcist areal)</option>
       </select>
       <!-- M² input for over 250 -->
-      <div id="m2Input-wp" style="display:none;margin-bottom:1.25rem;">
-        <label style="display:block;font-weight:500;margin-bottom:.5rem;font-size:.95rem;">Indtast antal m²</label>
-        <input type="number" id="customM2-wp" min="251" value="251" oninput="updatePriceSimple()" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+      <div id="m2Input-wp" style="display:none;margin-bottom:1.5rem;opacity:0;transform:scale(0.95);transition:all 0.3s ease;">
+        <label style="display:block;font-weight:500;margin-bottom:.75rem;font-size:.95rem;color:#374151;">Indtast antal m²</label>
+        <input type="number" id="customM2-wp" min="251" value="251" oninput="updatePriceSimple()" style="width:100%;padding:.75rem;border:2px solid #e5e7eb;border-radius:8px;font-size:.95rem;background:#fafbfc;outline:none;transition:all 0.3s ease;" onfocus="this.style.borderColor='#3b82f6';this.style.boxShadow='0 0 0 2px rgba(59, 130, 246, 0.2)'" onblur="this.style.borderColor='#e5e7eb';this.style.boxShadow='none'" onmouseover="this.style.borderColor='#60a5fa'" onmouseout="this.style.borderColor='#e5e7eb'">
       </div>
       <label style="display:flex;align-items:flex-start;margin-bottom:1.25rem;font-weight:500;font-size:.95rem;">
         <input type="checkbox" id="vedligehold-wp" onchange="updatePriceSimple()" style="margin-right:8px;margin-top:4px;">Tilføj årlig vedligeholdelsesaftale <span style="font-size:.9rem;color:#555;font-weight:400;">(Pris: <span id="vedlPris-wp">795</span> kr.)</span>
@@ -99,9 +99,18 @@ function toggleM2InputSimple() {
       console.log('Viser m2Input - sætter display til block');
       m2Input.style.display = 'block';
       m2Input.style.visibility = 'visible';
+      // Smooth animation
+      setTimeout(function() {
+        m2Input.style.opacity = '1';
+        m2Input.style.transform = 'scale(1)';
+      }, 10);
     } else {
       console.log('Skjuler m2Input - sætter display til none');
-      m2Input.style.display = 'none';
+      m2Input.style.opacity = '0';
+      m2Input.style.transform = 'scale(0.95)';
+      setTimeout(function() {
+        m2Input.style.display = 'none';
+      }, 300);
     }
   } else {
     console.log('Kunne ikke finde dropdown eller m2Input element');
