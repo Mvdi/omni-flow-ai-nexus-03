@@ -13,15 +13,18 @@ export const PriceCalculatorWidget = () => {
     let standardPrice = 0;
     let maintenancePrice = 0;
     let maintenancePriceText = '';
+    let savings = 0;
 
     if (selectedInterval === '0') {
       standardPrice = 995;
       maintenancePrice = 795;
       maintenancePriceText = '795';
+      savings = 200;
     } else if (selectedInterval === '1') {
       standardPrice = 1395;
       maintenancePrice = 1195;
       maintenancePriceText = '1195';
+      savings = 200;
     } else if (selectedInterval === '2') {
       // Dynamic pricing for over 250m²
       const extraM2 = Math.max(0, customM2 - 250);
@@ -35,6 +38,10 @@ export const PriceCalculatorWidget = () => {
       maintenancePrice = basePrice + discountedExtraCost;
       
       maintenancePriceText = Math.round(maintenancePrice).toLocaleString('da-DK');
+      
+      // Calculate total savings: base 200kr + 16% of extra cost
+      const extraSavings = extraCost * 0.16;
+      savings = 200 + extraSavings;
     }
 
     const finalPrice = includeMaintenance ? maintenancePrice : standardPrice;
@@ -42,7 +49,8 @@ export const PriceCalculatorWidget = () => {
       standardPrice,
       finalPrice,
       maintenancePriceText,
-      showDiscount: includeMaintenance
+      showDiscount: includeMaintenance,
+      totalSavings: savings
     };
   };
 
@@ -156,7 +164,7 @@ export const PriceCalculatorWidget = () => {
             textAlign: 'center',
             fontSize: '.95rem'
           }}>
-            Ved at tegne aftalen sparer du <span style={{ color: '#00539B', fontWeight: '700' }}>200 kr.</span> på første behandling!
+            Ved at tegne aftalen sparer du <span style={{ color: '#00539B', fontWeight: '700' }}>{Math.round(priceInfo.totalSavings)} kr.</span> på første behandling!
           </div>
 
           {/* Beregner */}

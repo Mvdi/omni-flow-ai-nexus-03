@@ -14,8 +14,8 @@
       <div>&#x2728;<br>Fornyet tagoverflade</div>
     </div>
     <!-- Gul rabatboks -->
-    <div style="background:#FFE86E;color:#1C1C1C;padding:.75rem 1rem;font-weight:600;text-align:center;font-size:.95rem;">
-      Ved at tegne aftalen sparer du <span style="color:#00539B;font-weight:700;">200 kr.</span> på første behandling!
+    <div id="rabatboks-wp" style="background:#FFE86E;color:#1C1C1C;padding:.75rem 1rem;font-weight:600;text-align:center;font-size:.95rem;">
+      Ved at tegne aftalen sparer du <span style="color:#00539B;font-weight:700;" id="besparelse-wp">200 kr.</span> på første behandling!
     </div>
     <!-- Beregner -->
     <div style="padding:1rem;">
@@ -132,15 +132,18 @@
       var sel = ddl.value;
       var add = chk.checked;
       var std = 0, ved = 0;
+      var savings = 0;
       
       if(sel === '0'){
         std = 995;
         ved = 795;
         vedlPris.textContent = '795';
+        savings = 200;
       } else if(sel === '1'){
         std = 1395;
         ved = 1195;
         vedlPris.textContent = '1195';
+        savings = 200;
       } else if(sel === '2'){
         // Dynamic pricing for over 250m²
         var m2 = parseInt(customM2.value) || 251;
@@ -155,6 +158,16 @@
         ved = basePrice + discountedExtraCost;
         
         vedlPris.textContent = Math.round(ved).toLocaleString('da-DK');
+        
+        // Calculate total savings: base 200kr + 16% of extra cost
+        var extraSavings = extraCost * 0.16;
+        savings = 200 + extraSavings;
+      }
+      
+      // Update savings message
+      var besparelseEl = document.getElementById('besparelse-wp');
+      if (besparelseEl) {
+        besparelseEl.textContent = Math.round(savings) + ' kr.';
       }
       
       var pris = add ? ved : std;
