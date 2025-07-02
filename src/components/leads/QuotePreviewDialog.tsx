@@ -81,11 +81,13 @@ export const QuotePreviewDialog = ({
                   <p className="text-lg text-black">{templateData.documentSubtitle}</p>
                 )}
               </div>
-              <div className="w-32 h-32 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold">
+              <div className="w-32 h-32 flex items-center justify-center">
                 {templateData?.logoUrl ? (
-                  <img src={templateData.logoUrl} alt="Logo" className="w-full h-full object-contain rounded-full" />
+                  <img src={templateData.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                 ) : (
-                  'LOGO'
+                  <div className="w-32 h-32 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold">
+                    LOGO
+                  </div>
                 )}
               </div>
             </div>
@@ -126,9 +128,7 @@ export const QuotePreviewDialog = ({
             
             {/* Project Info */}
             <div className="mb-8 text-sm text-black leading-relaxed">
-              <strong>{quote.title}</strong><br/>
-              {templateData?.validityText || 'Tilbuddet gælder t.o.m. den'} {quote.valid_until ? new Date(quote.valid_until).toLocaleDateString('da-DK') : '20/12-2024'}<br/>
-              {templateData?.startText || 'Virksomhedsnavnet påbegynder opgaven den 01/01-2025'}
+              <strong>{quote.title}</strong>
             </div>
             
             {/* Items Table */}
@@ -188,8 +188,7 @@ export const QuotePreviewDialog = ({
             <div className="mb-8 text-black">
               {templateData?.signatureText || 'Vi ser frem til et godt samarbejde.'}<br/><br/>
               Med venlig hilsen<br/>
-              {templateData?.signatureName || 'Torben Schwartz'}<br/>
-              {templateData?.signatureTitle || 'Din malermester'}
+              {templateData?.signatureName || 'Mathias Nielsen'}
             </div>
             
             {/* Footer */}
