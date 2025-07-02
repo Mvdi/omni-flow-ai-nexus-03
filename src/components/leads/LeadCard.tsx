@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useUpdateLeadStatus, useUpdateLastContact, useDeleteLead, useLeadSupportTickets } from '@/hooks/useLeads';
-import { MoreVertical, Edit, Trash2, Phone, Calendar, ArrowRight, Building, Mail, MessageSquare } from 'lucide-react';
+import { MoreVertical, Edit, Trash2, Phone, Calendar, ArrowRight, Building, Mail, MessageSquare, Wrench } from 'lucide-react';
 import type { Lead } from '@/hooks/useLeads';
 
 interface LeadCardProps {
@@ -70,6 +70,12 @@ export const LeadCard = ({ lead, onEdit }: LeadCardProps) => {
             <p className="text-xs text-gray-600 truncate flex items-center gap-1 mt-0.5">
               <Building className="h-3 w-3 flex-shrink-0" />
               {lead.virksomhed}
+            </p>
+          )}
+          {(lead as any).services && (
+            <p className="text-xs text-blue-600 truncate flex items-center gap-1 mt-0.5">
+              <Wrench className="h-3 w-3 flex-shrink-0" />
+              {(lead as any).services}
             </p>
           )}
         </div>
