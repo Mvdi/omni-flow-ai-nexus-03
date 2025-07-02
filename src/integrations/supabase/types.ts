@@ -618,6 +618,107 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          template_content: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          template_content: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          template_content?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      quotes: {
+        Row: {
+          created_at: string
+          currency: string | null
+          customer_email: string
+          customer_name: string | null
+          description: string | null
+          id: string
+          items: Json | null
+          lead_id: string | null
+          notes: string | null
+          quote_number: string
+          status: string | null
+          template_used: string | null
+          title: string
+          total_amount: number
+          updated_at: string
+          user_id: string
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          customer_email: string
+          customer_name?: string | null
+          description?: string | null
+          id?: string
+          items?: Json | null
+          lead_id?: string | null
+          notes?: string | null
+          quote_number: string
+          status?: string | null
+          template_used?: string | null
+          title: string
+          total_amount?: number
+          updated_at?: string
+          user_id: string
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          customer_email?: string
+          customer_name?: string | null
+          description?: string | null
+          id?: string
+          items?: Json | null
+          lead_id?: string | null
+          notes?: string | null
+          quote_number?: string
+          status?: string | null
+          template_used?: string | null
+          title?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       routes: {
         Row: {
           actual_distance_km: number | null
@@ -1027,6 +1128,10 @@ export type Database = {
           sender_email: string
           sender_name?: string
         }
+        Returns: string
+      }
+      generate_quote_number: {
+        Args: Record<PropertyKey, never>
         Returns: string
       }
       generate_ticket_number: {
