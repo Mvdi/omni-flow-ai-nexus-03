@@ -49,7 +49,7 @@ serve(async (req) => {
 
     // Calculate numeric price value
     const numericPrice = parseInt(beregnet_pris?.replace(/[^\d]/g, '') || '0') || 0;
-    const serviceDescription = `Tagbehandling - ${interval}${vedligeholdelse ? ' + Vedligeholdelsesaftale' : ''}`;
+    const serviceDescription = `Algebehandling af tag - ${interval}${vedligeholdelse ? ' + Vedligeholdelsesaftale' : ''}`;
 
     // Insert into tilbud table first
     const { error: tilbudError } = await supabase
