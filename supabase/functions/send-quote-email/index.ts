@@ -1,7 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,20 +24,33 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { to, customerName, quoteNumber, quoteHtml, subject }: SendQuoteRequest = await req.json();
 
-    console.log(`Sending quote ${quoteNumber} to ${to}`);
+    console.log(`Sending quote ${quoteNumber} to ${to} via Office365`);
 
-    const emailResponse = await resend.emails.send({
-      from: "MM Multipartner <noreply@mmmultipartner.dk>",
-      to: [to],
-      subject: subject || `Tilbud ${quoteNumber} fra MM Multipartner`,
-      html: quoteHtml,
+    // Use the existing Office365 email integration
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const { data: emailResponse, error } = await supabase.functions.invoke('office365-send-email', {
+      body: {
+        to: [to],
+        subject: subject || `Tilbud ${quoteNumber} fra MM Multipartner`,
+        htmlContent: quoteHtml,
+        fromAddress: 'info@mmmultipartner.dk' // eller den email de bruger til Office365
+      }
     });
 
-    console.log("Quote email sent successfully:", emailResponse);
+    if (error) {
+      console.error("Error sending quote email via Office365:", error);
+      throw error;
+    }
+
+    console.log("Quote email sent successfully via Office365:", emailResponse);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      messageId: emailResponse.data?.id 
+      messageId: emailResponse?.messageId || 'sent'
     }), {
       status: 200,
       headers: {
