@@ -14,7 +14,7 @@ import { LogOut, User, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const UserMenu = () => {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, user } = useAuth();
   const { toast } = useToast();
 
   const handleSignOut = async () => {
@@ -38,7 +38,7 @@ const UserMenu = () => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  if (!profile) return null;
+  if (!profile && !user) return null;
 
   return (
     <DropdownMenu>
@@ -46,7 +46,7 @@ const UserMenu = () => {
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm">
-              {getInitials(profile.full_name)}
+              {getInitials(profile?.full_name || user?.email)}
             </AvatarFallback>
           </Avatar>
         </Button>
@@ -55,10 +55,10 @@ const UserMenu = () => {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
-              {profile.full_name || 'Bruger'}
+              {profile?.full_name || user?.email || 'Bruger'}
             </p>
             <p className="text-xs leading-none text-muted-foreground">
-              {profile.email}
+              {profile?.email || user?.email}
             </p>
           </div>
         </DropdownMenuLabel>

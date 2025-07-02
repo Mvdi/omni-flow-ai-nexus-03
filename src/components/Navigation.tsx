@@ -85,7 +85,13 @@ export const Navigation = () => {
           {/* User Menu */}
           <div className="hidden md:flex items-center space-x-4">
             <NotificationBell />
-            {!loading && user && <UserMenu />}
+            {user ? <UserMenu /> : (
+              <Button variant="outline" size="sm" className="relative">
+                <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                  {user?.email?.substring(0, 2).toUpperCase() || 'U'}
+                </div>
+              </Button>
+            )}
           </div>
 
           {/* Mobile menu button */}
