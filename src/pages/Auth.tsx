@@ -109,12 +109,11 @@ const Auth = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-1">
               <TabsTrigger value="signin" className="flex items-center gap-2">
                 <LogIn className="h-4 w-4" />
                 Log ind
               </TabsTrigger>
-              
             </TabsList>
             
             <TabsContent value="signin">
@@ -139,34 +138,6 @@ const Auth = () => {
               </form>
             </TabsContent>
             
-            <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Fulde navn</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input id="signup-name" name="fullName" type="text" placeholder="Dit fulde navn" className="pl-10" required />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input id="signup-email" name="email" type="email" placeholder="din@email.dk" className="pl-10" required />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Adgangskode</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input id="signup-password" name="password" type="password" placeholder="••••••••" className="pl-10" minLength={6} required />
-                  </div>
-                </div>
-                <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={isLoading}>
-                  {isLoading ? "Opretter konto..." : "Opret konto"}
-                </Button>
-              </form>
-            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
