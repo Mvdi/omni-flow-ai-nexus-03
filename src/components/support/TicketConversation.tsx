@@ -14,6 +14,7 @@ import { useOffice365EmailSender } from '@/hooks/useOffice365EmailSender';
 import { AttachmentViewer } from './AttachmentViewer';
 import { DuplicateMessageHandler } from './DuplicateMessageHandler';
 import { AIResponseSuggestions } from './AIResponseSuggestions';
+import { TicketReminders } from './TicketReminders';
 import { formatDanishDistance, formatDanishDateTime, debugTimeConversion } from '@/utils/danishTime';
 import { Send, Bot, User, Clock, Mail, Tag, Loader2, Download, Plus, X } from 'lucide-react';
 import { useTicketTags, useAddTicketTag, useRemoveTicketTag } from '@/hooks/useTicketTags';
@@ -55,6 +56,7 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const [signatureHtml, setSignatureHtml] = useState('');
   const [activeTab, setActiveTab] = useState('compose');
   const [isFetchingAttachments, setIsFetchingAttachments] = useState(false);
+  const [ccEmails, setCcEmails] = useState('');
   const [newTag, setNewTag] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -363,6 +365,9 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
           </CardContent>
           </Card>
           )}
+
+          {/* Ticket Reminders */}
+          <TicketReminders ticketId={ticket.id} />
 
       {/* Messages */}
       <Card className="flex-1 flex flex-col">

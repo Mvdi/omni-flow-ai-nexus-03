@@ -12,6 +12,7 @@ import { useCreateOrUpdateLead, useLeadSupportTickets } from '@/hooks/useLeads';
 import { Plus, Edit, Upload, FileText, MessageSquare, Calendar, Phone, Mail, MapPin, Building, DollarSign } from 'lucide-react';
 import type { Lead } from '@/hooks/useLeads';
 import { TicketPopup } from './TicketPopup';
+import { CreateQuoteDialog } from './CreateQuoteDialog';
 import type { SupportTicket } from '@/hooks/useTickets';
 
 interface LeadDialogProps {
@@ -449,23 +450,30 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setIsOpen(false);
-                onOpenChange?.(false);
-              }}
-            >
-              Annuller
-            </Button>
-            <Button
-              type="submit"
-              disabled={createOrUpdateLead.isPending}
-            >
-              {createOrUpdateLead.isPending ? 'Gemmer...' : (lead ? 'Opdater' : 'Opret')}
-            </Button>
+          <div className="flex justify-between">
+            <div className="flex gap-2">
+              {lead && (
+                <CreateQuoteDialog lead={lead} />
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsOpen(false);
+                  onOpenChange?.(false);
+                }}
+              >
+                Annuller
+              </Button>
+              <Button
+                type="submit"
+                disabled={createOrUpdateLead.isPending}
+              >
+                {createOrUpdateLead.isPending ? 'Gemmer...' : (lead ? 'Opdater' : 'Opret')}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>
