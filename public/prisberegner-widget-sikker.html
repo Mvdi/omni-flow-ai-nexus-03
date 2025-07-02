@@ -124,9 +124,12 @@
     }
     
     function toggleM2Input(){
+      console.log('toggleM2Input kaldt, dropdown værdi:', ddl.value);
       if(ddl.value === '2'){
+        console.log('Viser m2Input');
         m2Input.style.display = 'block';
       } else {
+        console.log('Skjuler m2Input');
         m2Input.style.display = 'none';
       }
     }
