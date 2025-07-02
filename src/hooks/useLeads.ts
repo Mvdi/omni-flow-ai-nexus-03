@@ -14,6 +14,7 @@ export const useLeads = () => {
       const { data, error } = await supabase
         .from('leads')
         .select('*')
+        .not('status', 'in', '("closed-won","closed-lost")') // Filter out closed leads only
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return data as Lead[];
