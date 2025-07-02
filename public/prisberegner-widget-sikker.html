@@ -118,7 +118,10 @@
     var m2Input = document.getElementById('m2Input-wp');
     var customM2 = document.getElementById('customM2-wp');
     
-    if (!ddl || !chk || !out || !før || !vedlPris || !m2Input || !customM2) return;
+    if (!ddl || !chk || !out || !før || !vedlPris || !m2Input || !customM2) {
+      console.log('Prisberegner: Manglende DOM elementer');
+      return;
+    }
     
     function toggleM2Input(){
       if(ddl.value === '2'){
