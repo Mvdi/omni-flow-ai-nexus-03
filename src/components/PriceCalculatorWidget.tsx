@@ -119,26 +119,32 @@ export const PriceCalculatorWidget = () => {
 
   return (
     <div 
+      className="transition-all duration-500 hover:shadow-2xl hover:scale-[1.02]"
       style={{
         width: '100%',
         maxWidth: '530px',
         margin: 'auto',
         fontFamily: "'Poppins', sans-serif",
-        background: '#fff',
-        border: '1px solid #D6DBDF',
-        boxShadow: '0 8px 25px rgba(0,0,0,.1)',
-        borderRadius: '8px',
-        overflow: 'hidden'
+        background: 'linear-gradient(145deg, #ffffff, #f8fafc)',
+        border: '1px solid #E2E8F0',
+        boxShadow: '0 10px 40px rgba(0,0,0,.08), 0 2px 8px rgba(0,0,0,.04)',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        transform: 'translateY(0)',
+        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
       }}
     >
       {/* Header */}
-      <div style={{
-        background: '#2D4B73',
-        color: '#fff',
-        padding: '1rem',
-        fontWeight: '600',
-        fontSize: '1.1rem'
-      }}>
+      <div 
+        className="transition-all duration-300"
+        style={{
+          background: 'linear-gradient(135deg, #2D4B73 0%, #1e3a5f 100%)',
+          color: '#fff',
+          padding: '1.25rem',
+          fontWeight: '600',
+          fontSize: '1.1rem',
+          boxShadow: '0 2px 10px rgba(45, 75, 115, 0.15)'
+        }}>
         Algebehandling af tag
       </div>
 
@@ -146,50 +152,65 @@ export const PriceCalculatorWidget = () => {
         // TRIN 1: Prisberegning
         <>
           {/* Ikoner */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-around',
-            padding: '.75rem 1rem',
-            fontSize: '.85rem',
-            borderBottom: '1px solid #eee',
-            textAlign: 'center'
-          }}>
-            <div>🧽<br />Stopper mos & alger</div>
-            <div>🛡️<br />Forebygger genvækst</div>
-            <div>✨<br />Fornyet tagoverflade</div>
+          <div 
+            className="animate-fade-in"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-around',
+              padding: '1rem',
+              fontSize: '.85rem',
+              borderBottom: '1px solid #f1f5f9',
+              textAlign: 'center',
+              background: 'linear-gradient(to bottom, #ffffff, #fafbfc)'
+            }}>
+            <div className="transition-transform duration-300 hover:scale-110" style={{ color: '#64748b' }}>🧽<br />Stopper mos & alger</div>
+            <div className="transition-transform duration-300 hover:scale-110" style={{ color: '#64748b' }}>🛡️<br />Forebygger genvækst</div>
+            <div className="transition-transform duration-300 hover:scale-110" style={{ color: '#64748b' }}>✨<br />Fornyet tagoverflade</div>
           </div>
 
           {/* Gul rabatboks */}
-          <div style={{
-            background: '#FFE86E',
-            color: '#1C1C1C',
-            padding: '.75rem 1rem',
-            fontWeight: '600',
-            textAlign: 'center',
-            fontSize: '.95rem'
-          }}>
+          <div 
+            className="animate-pulse"
+            style={{
+              background: 'linear-gradient(135deg, #FFE86E 0%, #FFDF47 100%)',
+              color: '#1C1C1C',
+              padding: '1rem',
+              fontWeight: '600',
+              textAlign: 'center',
+              fontSize: '.95rem',
+              boxShadow: '0 2px 8px rgba(255, 232, 110, 0.3)',
+              borderTop: '1px solid rgba(255, 223, 71, 0.5)',
+              borderBottom: '1px solid rgba(255, 223, 71, 0.5)'
+            }}>
             Ved at tegne aftalen sparer du <span style={{ color: '#00539B', fontWeight: '700' }}>{Math.round(priceInfo.totalSavings)} kr.</span> på første behandling!
           </div>
 
           {/* Beregner */}
-          <div style={{ padding: '1rem' }}>
+          <div 
+            className="animate-fade-in"
+            style={{ padding: '1.5rem' }}>
             <label style={{
               display: 'block',
               fontWeight: '500',
-              marginBottom: '.5rem',
-              fontSize: '.95rem'
+              marginBottom: '.75rem',
+              fontSize: '.95rem',
+              color: '#374151'
             }}>
               Vælg interval
             </label>
             <select
               value={selectedInterval}
               onChange={(e) => setSelectedInterval(e.target.value)}
+              className="transition-all duration-300 hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               style={{
                 width: '100%',
-                padding: '.5rem',
-                border: '1px solid #ccc',
-                borderRadius: '0',
-                marginBottom: '1.25rem'
+                padding: '.75rem',
+                border: '2px solid #e5e7eb',
+                borderRadius: '8px',
+                marginBottom: '1.5rem',
+                fontSize: '.95rem',
+                backgroundColor: '#fafbfc',
+                outline: 'none'
               }}
             >
               <option value="0">Op til 100 m²</option>
@@ -199,12 +220,15 @@ export const PriceCalculatorWidget = () => {
 
             {/* M² input for over 250 */}
             {selectedInterval === '2' && (
-              <div style={{ marginBottom: '1.25rem' }}>
+              <div 
+                className="animate-scale-in transition-all duration-300"
+                style={{ marginBottom: '1.5rem' }}>
                 <label style={{
                   display: 'block',
                   fontWeight: '500',
-                  marginBottom: '.5rem',
-                  fontSize: '.95rem'
+                  marginBottom: '.75rem',
+                  fontSize: '.95rem',
+                  color: '#374151'
                 }}>
                   Indtast antal m²
                 </label>
@@ -213,11 +237,15 @@ export const PriceCalculatorWidget = () => {
                   min="251"
                   value={customM2}
                   onChange={(e) => setCustomM2(parseInt(e.target.value) || 251)}
+                  className="transition-all duration-300 hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   style={{
                     width: '100%',
-                    padding: '.5rem',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px'
+                    padding: '.75rem',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '.95rem',
+                    backgroundColor: '#fafbfc',
+                    outline: 'none'
                   }}
                 />
               </div>
