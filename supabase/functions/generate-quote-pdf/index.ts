@@ -1,7 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { renderToString } from "https://esm.sh/react-dom@18.2.0/server";
-import React from "https://esm.sh/react@18.2.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,16 +9,21 @@ const corsHeaders = {
 interface GeneratePDFRequest {
   quoteId: string;
   customerName: string;
+  customerEmail: string;
   quoteNumber: string;
   quoteTitle: string;
+  quoteDescription?: string;
   totalAmount: number;
+  currency?: string;
+  validUntil?: string;
   items: Array<{
     description: string;
     quantity: number;
     unit_price: number;
     total_price: number;
+    unit?: string;
   }>;
-  templateData?: any;
+  userId: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -31,20 +34,77 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { 
       quoteId,
-      customerName, 
+      customerName,
+      customerEmail,
       quoteNumber, 
       quoteTitle,
+      quoteDescription,
       totalAmount,
+      currency = 'DKK',
+      validUntil,
       items,
-      templateData
+      userId
     }: GeneratePDFRequest = await req.json();
 
     console.log(`Generating PDF for quote ${quoteNumber}`);
+
+    // Initialize Supabase client
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Fetch user's quote template
+    let templateData: any = {
+      documentTitle: 'Tilbud',
+      documentSubtitle: '',
+      companyName: 'MM Multipartner',
+      companyAddress: 'Penselvej 8',
+      companyCity: '1234 Spandevis',
+      companyCvr: 'CVR: 12345678',
+      itemColumnHeader: 'Vare',
+      descriptionColumnHeader: 'Beskrivelse',
+      quantityColumnHeader: 'Antal',
+      unitColumnHeader: 'Enhed',
+      priceColumnHeader: 'Stk. pris',
+      totalColumnHeader: 'Pris',
+      subtotalLabel: 'Subtotal',
+      vatLabel: 'Moms (25%)',
+      totalLabel: 'Total DKK',
+      ctaButtonText: '✅ BEKRÆFT TILBUD NU',
+      signatureText: 'Vi ser frem til et godt samarbejde.',
+      signatureName: 'MM Multipartner',
+      signatureTitle: 'Din partner',
+      footerText: 'MM Multipartner – Penselvej 8 – 1234 Spandevis',
+      logoUrl: '',
+      fontFamily: 'Arial',
+      primaryColor: '#4CAF50',
+      backgroundColor: '#ffffff'
+    };
+
+    try {
+      const { data: template, error } = await supabase
+        .from('quote_email_templates')
+        .select('template_data, html_template')
+        .eq('user_id', userId)
+        .eq('is_default', true)
+        .single();
+        
+      if (template && template.template_data) {
+        templateData = { ...templateData, ...template.template_data };
+        console.log('Using user template data');
+      }
+    } catch (error) {
+      console.log('No custom template found, using defaults');
+    }
 
     // Calculate subtotal and VAT
     const subtotal = Math.round(totalAmount / 1.25);
     const vat = totalAmount - subtotal;
 
+    // Format validity date
+    const formattedValidUntil = validUntil ? new Date(validUntil).toLocaleDateString('da-DK') : 'Se beskrivelse';
+    
     // Generate HTML content for PDF
     const htmlContent = `
     <!DOCTYPE html>
@@ -52,14 +112,14 @@ const handler = async (req: Request): Promise<Response> => {
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${templateData?.documentTitle || 'Tilbud'} ${quoteNumber}</title>
+        <title>${templateData.documentTitle} ${quoteNumber}</title>
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { 
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                font-family: ${templateData.fontFamily}, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
                 line-height: 1.4; 
                 color: #000000; 
-                background-color: #ffffff; 
+                background-color: ${templateData.backgroundColor}; 
                 font-size: 14px;
                 padding: 40px;
             }
@@ -74,6 +134,18 @@ const handler = async (req: Request): Promise<Response> => {
                 font-weight: 700;
                 color: #000000;
                 margin-bottom: 20px;
+            }
+            .subtitle {
+                font-size: 18px;
+                color: #666666;
+                margin-bottom: 20px;
+            }
+            .logo-section {
+                width: 80px;
+                height: 80px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
             .logo-placeholder {
                 width: 80px;
@@ -103,13 +175,15 @@ const handler = async (req: Request): Promise<Response> => {
                 font-weight: 600;
                 margin-bottom: 10px;
             }
-            .customer-email {
-                color: #2563eb;
-                text-decoration: underline;
-            }
             .quote-info {
                 margin-bottom: 30px;
                 font-weight: 600;
+            }
+            .project-description {
+                margin-bottom: 20px;
+                padding: 15px;
+                background: #f8f9fa;
+                border-left: 4px solid ${templateData.primaryColor};
             }
             .items-table { 
                 width: 100%; 
@@ -118,16 +192,17 @@ const handler = async (req: Request): Promise<Response> => {
                 font-size: 14px;
             }
             .items-table th { 
-                padding: 8px; 
+                padding: 12px 8px; 
                 text-align: left; 
                 font-weight: 600; 
                 color: #000000; 
                 border-bottom: 2px solid #000000;
+                background: #f8f9fa;
             }
             .items-table th.center { text-align: center; }
             .items-table th.right { text-align: right; }
             .items-table td { 
-                padding: 8px; 
+                padding: 12px 8px; 
                 border-bottom: 1px solid #cccccc; 
                 color: #000000; 
             }
@@ -159,72 +234,90 @@ const handler = async (req: Request): Promise<Response> => {
                 padding-top: 10px;
                 border-top: 2px solid #000000;
             }
-            .confirmation-button {
-                text-align: center;
+            .validity-section {
                 margin: 30px 0;
-            }
-            .button {
-                background: #4CAF50;
-                color: white;
-                padding: 10px 20px;
+                padding: 15px;
+                background: #fff3cd;
+                border: 1px solid #ffecb5;
                 border-radius: 6px;
-                font-weight: 600;
+            }
+            .signature-section {
+                margin-top: 40px;
                 font-size: 14px;
-                display: inline-block;
+            }
+            .footer {
+                margin-top: 40px;
+                text-align: center;
+                font-size: 12px;
+                color: #666666;
+                border-top: 1px solid #e5e7eb;
+                padding-top: 20px;
             }
         </style>
     </head>
     <body>
         <div class="header">
             <div>
-                <div class="title">${templateData?.documentTitle || 'Tilbud'}</div>
+                <div class="title">${templateData.documentTitle}</div>
+                ${templateData.documentSubtitle ? `<div class="subtitle">${templateData.documentSubtitle}</div>` : ''}
             </div>
-            ${templateData?.logoUrl ? 
-              `<img src="${templateData.logoUrl}" alt="Logo" style="width: 80px; height: 80px; object-fit: contain;" />` : 
-              '<div class="logo-placeholder">LOGO</div>'
-            }
+            <div class="logo-section">
+                ${templateData.logoUrl ? 
+                  `<img src="${templateData.logoUrl}" alt="Logo" style="max-width: 80px; max-height: 80px; object-fit: contain;" />` : 
+                  '<div class="logo-placeholder">LOGO</div>'
+                }
+            </div>
         </div>
         
         <div class="company-section">
             <div>
-                ${templateData?.companyName ? `<div class="company-name">${templateData.companyName}</div>` : ''}
-                ${templateData?.companyAddress ? `<div>${templateData.companyAddress}</div>` : ''}
-                ${templateData?.companyCity ? `<div>${templateData.companyCity}</div>` : ''}
-                ${templateData?.companyCvr ? `<div>${templateData.companyCvr}</div>` : ''}
+                <div class="company-name">${templateData.companyName}</div>
+                ${templateData.companyAddress ? `<div>${templateData.companyAddress}</div>` : ''}
+                ${templateData.companyCity ? `<div>${templateData.companyCity}</div>` : ''}
+                ${templateData.companyCvr ? `<div>${templateData.companyCvr}</div>` : ''}
             </div>
             <div>
-                ${new Date().toLocaleDateString('da-DK')}
+                <strong>Dato:</strong> ${new Date().toLocaleDateString('da-DK')}<br>
+                <strong>Tilbud nr.:</strong> ${quoteNumber}
             </div>
         </div>
         
         <div class="customer-section">
-            <div class="customer-name">${customerName}</div>
+            <div class="customer-name">Til: ${customerName}</div>
+            <div>${customerEmail}</div>
         </div>
         
         <div class="quote-info">
-            ${quoteTitle}
+            <strong>Vedrørende:</strong> ${quoteTitle}
         </div>
+        
+        ${quoteDescription ? `
+        <div class="project-description">
+            <strong>Projektbeskrivelse:</strong><br>
+            ${quoteDescription}
+        </div>
+        ` : ''}
         
         <table class="items-table">
             <thead>
                 <tr>
-                    <th>${templateData?.itemColumnHeader || 'Vare'}</th>
-                    <th>${templateData?.descriptionColumnHeader || 'Beskrivelse'}</th>
-                    <th class="center">${templateData?.quantityColumnHeader || 'Antal'}</th>
-                    <th class="center">${templateData?.unitColumnHeader || 'Enhed'}</th>
-                    <th class="right">${templateData?.priceColumnHeader || 'Stk. pris'}</th>
-                    <th class="right">${templateData?.totalColumnHeader || 'Pris'}</th>
+                    <th>${templateData.itemColumnHeader}</th>
+                    <th>${templateData.descriptionColumnHeader}</th>
+                    <th class="center">${templateData.quantityColumnHeader}</th>
+                    <th class="center">${templateData.unitColumnHeader}</th>
+                    <th class="right">${templateData.priceColumnHeader}</th>
+                    <th class="right">${templateData.totalColumnHeader}</th>
                 </tr>
             </thead>
             <tbody>
                 ${items.map(item => `
                     <tr>
-                        <td>${item.description?.split(' ')[0] || item.description || 'Ydelse'}</td>
+                        <td>${item.description?.split(' ')[0] || 'Ydelse'}</td>
                         <td>${item.description}</td>
                         <td class="center">${item.quantity}</td>
-                        <td class="center">Timer</td>
-                        <td class="right">Kr. ${item.unit_price?.toLocaleString('da-DK') || 0}</td>
-                        <td class="right bold">Kr. ${item.total_price?.toLocaleString('da-DK') || 0}</td>
+                        <td class="center">${item.unit || 'stk'}</td>
+                        <td class="right">${item.unit_price?.toLocaleString('da-DK')} kr.</td>
+                        <td class="right bold">${item.total_price?.toLocaleString('da-DK')} kr.</td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -232,24 +325,35 @@ const handler = async (req: Request): Promise<Response> => {
         
         <div class="totals-section">
             <div class="total-row">
-                <div class="total-label">${templateData?.subtotalLabel || 'Subtotal'}</div>
-                <div class="total-value">Kr. ${subtotal.toLocaleString('da-DK')}</div>
+                <div class="total-label">${templateData.subtotalLabel}</div>
+                <div class="total-value">${subtotal.toLocaleString('da-DK')} kr.</div>
             </div>
             <div class="total-row">
-                <div class="total-label">${templateData?.vatLabel || 'Moms (25%)'}</div>
-                <div class="total-value">Kr. ${vat.toLocaleString('da-DK')}</div>
+                <div class="total-label">${templateData.vatLabel}</div>
+                <div class="total-value">${vat.toLocaleString('da-DK')} kr.</div>
             </div>
             <div class="total-row final">
-                <div class="total-label">${templateData?.totalLabel || 'Total DKK'}</div>
-                <div class="total-value">Kr. ${totalAmount.toLocaleString('da-DK')}</div>
+                <div class="total-label">${templateData.totalLabel}</div>
+                <div class="total-value">${totalAmount.toLocaleString('da-DK')} kr.</div>
             </div>
         </div>
         
-        <div class="confirmation-button">
-            <div class="button">
-                ${templateData?.ctaButtonText || '✅ BEKRÆFT TILBUD NU'}
-            </div>
+        <div class="validity-section">
+            <strong>${templateData.validityText || 'Tilbuddet gælder til'}:</strong> ${formattedValidUntil}
         </div>
+        
+        <div class="signature-section">
+            ${templateData.signatureText}<br><br>
+            Med venlig hilsen<br>
+            <strong>${templateData.signatureName}</strong><br>
+            ${templateData.signatureTitle || ''}
+        </div>
+        
+        ${templateData.footerText ? `
+        <div class="footer">
+            ${templateData.footerText}
+        </div>
+        ` : ''}
     </body>
     </html>
     `;

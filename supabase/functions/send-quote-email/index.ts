@@ -442,7 +442,7 @@ const handler = async (req: Request): Promise<Response> => {
     const tokenData: GraphTokenResponse = await tokenResponse.json();
     console.log('Successfully obtained Office 365 token');
 
-    // Generate PDF attachment
+    // Generate PDF attachment with full quote data
     console.log('Generating PDF attachment...');
     const pdfResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-quote-pdf`, {
       method: 'POST',
@@ -453,11 +453,15 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         quoteId: 'temp',
         customerName,
+        customerEmail: to,
         quoteNumber,
         quoteTitle,
+        quoteDescription,
         totalAmount,
+        currency,
+        validUntil,
         items,
-        templateData
+        userId: customEmailData?.userId || 'system'
       })
     });
 

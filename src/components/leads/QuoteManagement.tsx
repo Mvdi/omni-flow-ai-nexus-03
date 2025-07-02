@@ -38,6 +38,9 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
     console.log('customEmailData:', quote.customEmailData);
     setSendingQuote(quote.id);
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { data, error } = await supabase.functions.invoke('send-quote-email', {
         body: {
           to: lead.email,
@@ -49,13 +52,15 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
           currency: quote.currency,
           validUntil: quote.valid_until,
           items: quote.items || [],
-          customEmailData: quote.customEmailData || {
+          customEmailData: {
+            ...quote.customEmailData,
             customer_phone: lead.telefon,
             customer_address: lead.adresse,
             customer_company: lead.virksomhed,
             customer_email: lead.email,
-            ...quote.customEmailData
-          }
+            userId: user?.id || 'system'
+          },
+          logoUrl: quote.logoUrl
         }
       });
 
