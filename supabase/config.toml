@@ -3,3 +3,6 @@ project_id = "tckynbgheicyqezqprdp"
 # Edge Functions configuration
 [functions.fetch-missing-attachments]
 verify_jwt = true
+
+[functions.cleanup-lead-duplicates]
+verify_jwt = false
