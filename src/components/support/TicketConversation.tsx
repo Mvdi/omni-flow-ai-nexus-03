@@ -141,14 +141,21 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
     
     try {
       console.log('Fetching missing attachments for ticket:', ticket.id);
+      console.log('Calling fetch-missing-attachments edge function...');
       
       const { data, error } = await supabase.functions.invoke('fetch-missing-attachments', {
         body: { ticketId: ticket.id }
       });
 
-      if (error) throw error;
+      console.log('Edge function response:', { data, error });
 
-      if (data.success) {
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
+
+      if (data && data.success) {
+        console.log('Success:', data.message);
         toast({
           title: "Vedhæftninger hentet",
           description: data.message,
@@ -158,13 +165,20 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
         refetch();
         queryClient.invalidateQueries({ queryKey: ['ticket-messages', ticket.id] });
       } else {
-        throw new Error(data.message || 'Failed to fetch attachments');
+        console.error('Data error:', data);
+        throw new Error(data?.message || 'Failed to fetch attachments');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch missing attachments:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        details: error.details
+      });
+      
       toast({
         title: "Fejl",
-        description: "Kunne ikke hente vedhæftninger. Prøv igen.",
+        description: error.message || "Kunne ikke hente vedhæftninger. Prøv igen.",
         variant: "destructive",
       });
     } finally {
