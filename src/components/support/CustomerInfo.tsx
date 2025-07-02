@@ -394,53 +394,6 @@ export const CustomerInfo = ({ ticket, onTicketSelect, currentTicketId }: Custom
           </CardContent>
         </Card>
 
-        {/* Notes */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5" />
-                Noter
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setIsEditingNotes(true)}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Rediger
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isEditingNotes ? (
-              <div className="space-y-3">
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Tilføj noter om kunden..."
-                  className="min-h-[100px]"
-                />
-                <div className="flex gap-2">
-                  <Button onClick={handleSaveNotes} size="sm">
-                    Gem
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setIsEditingNotes(false)}
-                  >
-                    Annuller
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-700">
-                {customer?.noter || 'Ingen noter tilføjet endnu.'}
-              </p>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Recent Tickets */}
         <Card>
