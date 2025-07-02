@@ -31,20 +31,42 @@ serve(async (req) => {
     const webhookData = await req.json();
     console.log('Received prisberegner webhook:', webhookData);
 
-    // Extract data from webhook payload
+    // Extract data from webhook payload (tagbehandling data)
     const {
-      name,
+      navn,
       email,
-      phone,
-      address,
-      service_type,
-      estimated_price,
-      additional_info,
-      form_source = 'Prisberegner'
+      telefon,
+      adresse,
+      interval,
+      vedligeholdelse,
+      beregnet_pris,
+      form_source = 'Prisberegner Widget'
     } = webhookData;
 
-    if (!email || !name) {
-      throw new Error('Missing required fields: email and name');
+    if (!email || !navn) {
+      throw new Error('Missing required fields: email and navn');
+    }
+
+    // Calculate numeric price value
+    const numericPrice = parseInt(beregnet_pris?.replace(/[^\d]/g, '') || '0') || 0;
+    const serviceDescription = `Tagbehandling - ${interval}${vedligeholdelse ? ' + Vedligeholdelsesaftale' : ''}`;
+
+    // Insert into tilbud table first
+    const { error: tilbudError } = await supabase
+      .from('tilbud')
+      .insert({
+        navn,
+        adresse,
+        telefon,
+        email,
+        interval,
+        vedligeholdelse,
+        beregnet_pris
+      });
+
+    if (tilbudError) {
+      console.error('Error inserting tilbud:', tilbudError);
+      // Don't throw error, continue to create lead
     }
 
     // Check if lead already exists
@@ -61,8 +83,9 @@ serve(async (req) => {
         .from('leads')
         .update({
           sidste_kontakt: `Prisberegner besøg: ${new Date().toISOString()}`,
-          noter: additional_info ? `Prisberegner: ${additional_info}` : null,
-          vaerdi: estimated_price || null,
+          noter: `Prisberegning: ${serviceDescription}, beregnet pris: ${beregnet_pris}`,
+          vaerdi: numericPrice,
+          services: serviceDescription,
           updated_at: new Date().toISOString()
         })
         .eq('id', existingLead.id);
@@ -75,7 +98,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: 'Existing lead updated',
+          message: 'Tak! Vi har modtaget din forespørgsel og vender tilbage hurtigst muligt.',
           leadId: existingLead.id 
         }),
         {
@@ -88,21 +111,23 @@ serve(async (req) => {
     const { data: newLead, error: createError } = await supabase
       .from('leads')
       .insert({
-        navn: name,
-        email: email,
-        telefon: phone || null,
-        adresse: address || null,
-        services: service_type || null,
-        vaerdi: estimated_price || null,
+        navn,
+        email,
+        telefon: telefon || null,
+        adresse: adresse || null,
+        services: serviceDescription,
+        vaerdi: numericPrice,
         status: 'new',
         kilde: form_source,
-        prioritet: estimated_price && estimated_price > 5000 ? 'Medium' : 'Lav',
-        noter: additional_info || null,
+        prioritet: numericPrice && numericPrice > 5000 ? 'medium' : 'low',
+        noter: `Prisberegning fra widget: ${interval}, vedligeholdelse: ${vedligeholdelse ? 'Ja' : 'Nej'}, beregnet pris: ${beregnet_pris}`,
         sidste_kontakt: `Prisberegner besøg: ${new Date().toISOString()}`,
         ai_enriched_data: {
-          source: 'prisberegner',
-          estimated_price: estimated_price,
-          service_requested: service_type,
+          source: 'prisberegner_widget',
+          estimated_price: numericPrice,
+          service_requested: serviceDescription,
+          interval: interval,
+          maintenance: vedligeholdelse,
           form_data: webhookData
         }
       })

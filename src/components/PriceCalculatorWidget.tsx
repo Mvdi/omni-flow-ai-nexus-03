@@ -53,40 +53,33 @@ export const PriceCalculatorWidget = () => {
                         selectedInterval === '1' ? '101-250 m²' : 'Over 250 m²';
 
     try {
-      // Gem i tilbud tabellen (som i din originale kode)
-      const { error: tilbudError } = await supabase
-        .from('tilbud')
-        .insert({
+      // Send til sikker webhook
+      const response = await fetch('/functions/v1/prisberegner-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           navn,
-          adresse,
-          telefon,
           email,
+          telefon,
+          adresse,
           interval: intervalText,
           vedligeholdelse: includeMaintenance,
           beregnet_pris: `${priceInfo.finalPrice.toLocaleString('da-DK')} kr.`
-        });
+        })
+      });
 
-      if (tilbudError) throw tilbudError;
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Ukendt fejl');
+      }
 
-      // Opret også som lead (eksisterende funktionalitet)
-      const { error: leadError } = await supabase
-        .from('leads')
-        .insert({
-          navn,
-          email,
-          telefon,
-          adresse,
-          status: 'new',
-          kilde: 'Prisberegner',
-          services: `Tagbehandling - ${intervalText}${includeMaintenance ? ' + Vedligeholdelsesaftale' : ''}`,
-          vaerdi: priceInfo.finalPrice,
-          noter: `Prisberegning fra widget: ${intervalText}, vedligeholdelse: ${includeMaintenance ? 'Ja' : 'Nej'}, beregnet pris: ${priceInfo.finalPrice.toLocaleString('da-DK')} kr.`
-        });
-
-      if (leadError) throw leadError;
-
-      setMessage('Tak! Vi har modtaget din forespørgsel og vender tilbage hurtigst muligt.');
+      setMessage(result.message || 'Tak! Vi har modtaget din forespørgsel og vender tilbage hurtigst muligt.');
       (e.target as HTMLFormElement).reset();
+      setSelectedInterval('0');
+      setIncludeMaintenance(false);
       
     } catch (error) {
       console.error('Fejl ved indsendelse:', error);
