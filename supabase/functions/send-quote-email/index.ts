@@ -91,6 +91,9 @@ const handler = async (req: Request): Promise<Response> => {
     const subtotal = Math.round(totalAmount / 1.25);
     const vat = totalAmount - subtotal;
 
+    // Check if any items have discount to determine if we show discount column
+    const hasDiscount = items.some(item => (item as any).discount_percent > 0);
+
     // Generate clean professional table rows
     const itemsHtml = items.map(item => `
       <tr>
@@ -99,7 +102,7 @@ const handler = async (req: Request): Promise<Response> => {
         <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 14px;">${item.quantity}</td>
         <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 14px;">Timer</td>
         <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-size: 14px;">Kr. ${item.unit_price?.toLocaleString('da-DK') || 0}</td>
-        <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-size: 14px;">0%</td>
+        ${hasDiscount ? `<td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-size: 14px;">${(item as any).discount_percent || 0}%</td>` : ''}
         <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-size: 14px; font-weight: 600;">Kr. ${item.total_price?.toLocaleString('da-DK') || 0}</td>
       </tr>
     `).join('');
@@ -281,19 +284,22 @@ const handler = async (req: Request): Promise<Response> => {
         <div class="container">
             <div class="header">
                 <div class="left-header">
-                    <div class="quote-title">Tilbud</div>
-                    <div class="quote-subtitle">(EKSEMPEL)</div>
+                    <div class="quote-title">${templateData?.documentTitle || 'Tilbud'}</div>
+                    ${templateData?.documentSubtitle ? `<div class="quote-subtitle">${templateData.documentSubtitle}</div>` : ''}
                 </div>
-                <div class="logo-placeholder">LOGO</div>
+                ${templateData?.logoUrl ? 
+                  `<img src="${templateData.logoUrl}" alt="Logo" style="width: 128px; height: 128px; object-fit: contain;" />` : 
+                  '<div class="logo-placeholder">LOGO</div>'
+                }
             </div>
             
             <div class="company-section">
                 <div class="company-info">
-                    <div class="company-name">MM Multipartner</div>
+                    <div class="company-name">${templateData?.companyName || 'MM Multipartner'}</div>
                     <div class="company-details">
-                        Penselvej 8<br>
-                        1234 Spandevis<br>
-                        CVR: 12345678
+                        ${templateData?.companyAddress || 'Penselvej 8'}<br>
+                        ${templateData?.companyCity || '1234 Spandevis'}<br>
+                        ${templateData?.companyCvr || 'CVR: 12345678'}
                     </div>
                 </div>
                 <div class="date-info">
@@ -312,21 +318,19 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             
             <div class="project-info">
-                <strong>${quoteTitle}</strong><br>
-                Tilbuddet gælder t.o.m. den ${validUntil ? new Date(validUntil).toLocaleDateString('da-DK') : '20/12-2024'}<br>
-                Virksomhedsnavnet påbegynder opgaven den 01/01-2025
+                <strong>${quoteTitle}</strong>
             </div>
             
             <table class="items-table">
                 <thead>
                     <tr>
-                        <th>Vare</th>
-                        <th>Beskrivelse</th>
-                        <th style="text-align: right;">Antal</th>
-                        <th style="text-align: right;">Enhed</th>
-                        <th style="text-align: right;">Stk. pris</th>
-                        <th style="text-align: right;">Rabat</th>
-                        <th style="text-align: right;">Pris</th>
+                        <th>${templateData?.itemColumnHeader || 'Vare'}</th>
+                        <th>${templateData?.descriptionColumnHeader || 'Beskrivelse'}</th>
+                        <th style="text-align: right;">${templateData?.quantityColumnHeader || 'Antal'}</th>
+                        <th style="text-align: right;">${templateData?.unitColumnHeader || 'Enhed'}</th>
+                        <th style="text-align: right;">${templateData?.priceColumnHeader || 'Stk. pris'}</th>
+                        ${hasDiscount ? `<th style="text-align: right;">${templateData?.discountColumnHeader || 'Rabat'}</th>` : ''}
+                        <th style="text-align: right;">${templateData?.totalColumnHeader || 'Pris'}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -336,34 +340,33 @@ const handler = async (req: Request): Promise<Response> => {
             
             <div class="totals-section">
                 <div class="total-row">
-                    <div class="total-label">Subtotal</div>
+                    <div class="total-label">${templateData?.subtotalLabel || 'Subtotal'}</div>
                     <div class="total-value">Kr. ${subtotal.toLocaleString('da-DK')}</div>
                 </div>
                 <div class="total-row">
-                    <div class="total-label">Moms (25%)</div>
+                    <div class="total-label">${templateData?.vatLabel || 'Moms (25%)'}</div>
                     <div class="total-value">Kr. ${vat.toLocaleString('da-DK')}</div>
                 </div>
                 <div class="total-row final">
-                    <div class="total-label">Total DKK</div>
+                    <div class="total-label">${templateData?.totalLabel || 'Total DKK'}</div>
                     <div class="total-value">Kr. ${totalAmount.toLocaleString('da-DK')}</div>
                 </div>
             </div>
             
             <div style="text-align: center; margin: 40px 0;">
                 <a href="${confirmUrl}" style="display: inline-block; background: #4CAF50; color: white; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">
-                    ✅ BEKRÆFT TILBUD NU
+                    ${templateData?.ctaButtonText || '✅ BEKRÆFT TILBUD NU'}
                 </a>
             </div>
             
             <div class="signature-section">
-                Vi ser frem til et godt samarbejde.<br><br>
+                ${templateData?.signatureText || 'Vi ser frem til et godt samarbejde.'}<br><br>
                 Med venlig hilsen<br>
-                Torben Schwartz<br>
-                Din malermester
+                ${templateData?.signatureName || 'Mathias Nielsen'}
             </div>
             
             <div class="footer">
-                MM Multipartner – Penselvej 8 – 1234 Spandevis – kontakt@dinmalermester.dk – www.dinmalermester.dk
+                ${templateData?.footerText || 'MM Multipartner – Penselvej 8 – 1234 Spandevis – kontakt@dinmalermester.dk – www.dinmalermester.dk'}
             </div>
         </div>
     </body>
