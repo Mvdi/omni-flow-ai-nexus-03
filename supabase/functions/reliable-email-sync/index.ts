@@ -135,6 +135,99 @@ const extractCustomerData = (content: string) => {
   };
 };
 
+// FACEBOOK LEAD DATA EXTRACTION: Extract structured customer data from Facebook leads
+const extractFacebookLeadData = (content: string) => {
+  console.log('🔍 Extracting Facebook lead data from content:', content.substring(0, 200));
+  
+  // Facebook leads typically have structured data at the beginning
+  // Format: Name\nEmail\nPhone\nAddress\nCity
+  const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  
+  let customerName = '';
+  let customerEmail = '';
+  let customerPhone = '';
+  let customerAddress = '';
+  let customerCity = '';
+  
+  // Enhanced regex patterns
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  const phoneRegex = /^(\+45\s?)?[\d\s\-\(\)]{8,}$/;
+  const nameRegex = /^[A-Za-zæøåÆØÅ\s]{2,50}$/;
+  const addressRegex = /^[A-Za-zæøåÆØÅ\d\s\-,\.]{2,100}$/;
+  
+  // Try to match structured data in the first few lines
+  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+    const line = lines[i];
+    
+    // Skip empty lines or very short lines
+    if (line.length < 2) continue;
+    
+    // Check for email
+    if (emailRegex.test(line) && !customerEmail) {
+      customerEmail = line;
+      console.log('📧 Found email:', customerEmail);
+      continue;
+    }
+    
+    // Check for phone
+    if (phoneRegex.test(line.replace(/\s/g, '')) && !customerPhone) {
+      customerPhone = line;
+      console.log('📞 Found phone:', customerPhone);
+      continue;
+    }
+    
+    // Check for name (if we haven't found one yet and it looks like a name)
+    if (nameRegex.test(line) && !customerName && !customerEmail && !customerPhone) {
+      customerName = line;
+      console.log('👤 Found name:', customerName);
+      continue;
+    }
+    
+    // Check for address/city (after we have other data)
+    if (addressRegex.test(line) && (customerName || customerEmail)) {
+      if (!customerAddress) {
+        customerAddress = line;
+        console.log('📍 Found address:', customerAddress);
+      } else if (!customerCity) {
+        customerCity = line;
+        console.log('🏙️ Found city:', customerCity);
+      }
+    }
+  }
+  
+  // Fallback: extract using traditional regex if structured approach failed
+  if (!customerEmail) {
+    const emailMatch = content.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch) {
+      customerEmail = emailMatch[0];
+      console.log('📧 Fallback email found:', customerEmail);
+    }
+  }
+  
+  if (!customerPhone) {
+    const phoneMatch = content.match(/(\+45\s?)?[\d\s\-\(\)]{8,}/);
+    if (phoneMatch) {
+      customerPhone = phoneMatch[0];
+      console.log('📞 Fallback phone found:', customerPhone);
+    }
+  }
+  
+  // Combine address and city
+  const fullAddress = customerAddress && customerCity ? `${customerAddress}, ${customerCity}` : (customerAddress || customerCity);
+  
+  const result = {
+    name: customerName,
+    email: customerEmail,
+    phone: customerPhone,
+    address: fullAddress,
+    extractedAt: new Date().toISOString(),
+    method: 'facebook_lead_structured'
+  };
+  
+  console.log('✅ Facebook lead data extracted:', result);
+  return result;
+};
+
   // BULLETPROOF FACEBOOK LEAD CREATION: Create lead instead of ticket
 const createFacebookLead = async (supabase: any, message: GraphMessage, mailboxAddress: string) => {
   console.log(`🎯 FACEBOOK LEAD DETECTED: Creating lead for ${message.subject}`);
@@ -168,19 +261,30 @@ const createFacebookLead = async (supabase: any, message: GraphMessage, mailboxA
   // Intelligent service detection
   const detectedService = detectServiceFromContent(messageContent);
   
-  // Extract customer data
-  const customerData = extractCustomerData(messageContent);
+  // Extract Facebook lead customer data (structured format)
+  const facebookCustomerData = extractFacebookLeadData(messageContent);
+  
+  // Use extracted customer data or fallback to sender if extraction failed
+  const customerName = facebookCustomerData.name || senderName;
+  const customerEmail = facebookCustomerData.email || senderEmail;
+  const customerPhone = facebookCustomerData.phone;
+  const customerAddress = facebookCustomerData.address;
+  
+  console.log(`📋 Using customer data: Name=${customerName}, Email=${customerEmail}, Phone=${customerPhone}`);
   
   // Create enriched customer data object
   const enrichedData = {
     detected_service: detectedService,
-    extracted_phone: customerData.phones[0] || null,
-    extracted_address: customerData.addresses[0] || null,
+    extracted_phone: customerPhone,
+    extracted_address: customerAddress,
+    customer_name: customerName,
+    customer_email: customerEmail,
     source_email: senderEmail,
     facebook_lead: true,
     original_email_id: message.id,
     processed_at: new Date().toISOString(),
-    email_content: messageContent
+    email_content: messageContent,
+    extraction_method: facebookCustomerData.method
   };
   
   // Create lead with email content as notes
@@ -195,21 +299,23 @@ Modtaget: ${new Date(message.receivedDateTime).toLocaleString('da-DK')}
 ${messageContent}
 
 🔍 **Detekteret Service:** ${detectedService || 'Ikke detekteret'}
-📞 **Ekstraheret Telefon:** ${customerData.phones[0] || 'Ikke fundet'}
-📍 **Ekstraheret Adresse:** ${customerData.addresses[0] || 'Ikke fundet'}
+👤 **Kunde Navn:** ${customerName}
+📧 **Kunde Email:** ${customerEmail}
+📞 **Ekstraheret Telefon:** ${customerPhone || 'Ikke fundet'}
+📍 **Ekstraheret Adresse:** ${customerAddress || 'Ikke fundet'}
 
 ⚡ **Automatisk behandling:** ${new Date().toLocaleString('da-DK')}`;
   
-  // Create lead
+  // Create lead using EXTRACTED customer data
   const { data: newLead, error: leadError } = await supabase
     .from('leads')
     .insert({
-      navn: senderName,
-      email: senderEmail,
-      telefon: customerData.phones[0] || null,
-      adresse: customerData.addresses[0] || null,
+      navn: customerName,
+      email: customerEmail,
+      telefon: customerPhone,
+      adresse: customerAddress,
       virksomhed: detectedService ? `${detectedService} kunde` : null,
-      status: 'new',
+      status: 'Ny',
       kilde: 'Facebook Lead',
       prioritet: detectedService ? 'Høj' : 'Medium',
       noter: leadNotes,
