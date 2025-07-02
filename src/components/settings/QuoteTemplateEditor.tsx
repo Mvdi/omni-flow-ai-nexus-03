@@ -315,6 +315,13 @@ export const QuoteTemplateEditor = () => {
 
       const templateHtml = generateTemplateHtml();
       
+      // Først sæt alle eksisterende templates til ikke-default
+      await supabase
+        .from('quote_email_templates')
+        .update({ is_default: false })
+        .eq('user_id', user.id);
+      
+      // Derefter upsert den nye template som default
       const { error: upsertError } = await supabase
         .from('quote_email_templates')
         .upsert({
@@ -491,24 +498,6 @@ export const QuoteTemplateEditor = () => {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Opfordrings Sektion</h3>
             <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="ctaTitle">CTA Titel</Label>
-                <Input
-                  id="ctaTitle"
-                  value={templateData.ctaTitle}
-                  onChange={(e) => handleInputChange('ctaTitle', e.target.value)}
-                  placeholder="🚀 Klar til at komme i gang?"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ctaSubtitle">CTA Undertitel</Label>
-                <Input
-                  id="ctaSubtitle"
-                  value={templateData.ctaSubtitle}
-                  onChange={(e) => handleInputChange('ctaSubtitle', e.target.value)}
-                  placeholder="Bekræft dit tilbud nu og få professionel service af højeste kvalitet!"
-                />
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="ctaButtonText">Knap Tekst</Label>
                 <Input
