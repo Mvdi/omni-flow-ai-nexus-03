@@ -9,6 +9,7 @@ import { formatDanishDateTime } from '@/utils/danishTime';
 import { Lead } from '@/hooks/useLeads';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { QuotePreviewDialog } from './QuotePreviewDialog';
 
 interface QuoteManagementProps {
   lead: Lead;
@@ -18,6 +19,7 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
   const { data: allQuotes = [] } = useQuotes();
   const updateQuote = useUpdateQuote();
   const [sendingQuote, setSendingQuote] = useState<string | null>(null);
+  const [previewQuote, setPreviewQuote] = useState<any>(null);
 
   // Filter quotes for this lead
   const leadQuotes = allQuotes.filter(quote => quote.lead_id === lead.id);
@@ -145,6 +147,7 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
                   quote={quote} 
                   onStatusChange={handleStatusChange}
                   onSendQuote={handleSendQuote}
+                  onPreviewQuote={setPreviewQuote}
                   getStatusColor={getStatusColor}
                   getStatusIcon={getStatusIcon}
                   sendingQuote={sendingQuote}
@@ -160,6 +163,7 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
                   quote={quote} 
                   onStatusChange={handleStatusChange}
                   onSendQuote={handleSendQuote}
+                  onPreviewQuote={setPreviewQuote}
                   getStatusColor={getStatusColor}
                   getStatusIcon={getStatusIcon}
                   sendingQuote={sendingQuote}
@@ -169,6 +173,20 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
           ))}
         </Tabs>
       </CardContent>
+
+      <QuotePreviewDialog
+        open={!!previewQuote}
+        onOpenChange={() => setPreviewQuote(null)}
+        quote={previewQuote}
+        leadName={lead.navn}
+        onSendQuote={() => {
+          if (previewQuote) {
+            handleSendQuote(previewQuote);
+            setPreviewQuote(null);
+          }
+        }}
+        sending={sendingQuote === previewQuote?.id}
+      />
     </Card>
   );
 };
@@ -177,12 +195,13 @@ interface QuoteCardProps {
   quote: any;
   onStatusChange: (quoteId: string, status: 'sent' | 'accepted' | 'rejected') => void;
   onSendQuote: (quote: any) => void;
+  onPreviewQuote: (quote: any) => void;
   getStatusColor: (status: string) => string;
   getStatusIcon: (status: string) => JSX.Element;
   sendingQuote: string | null;
 }
 
-const QuoteCard = ({ quote, onStatusChange, onSendQuote, getStatusColor, getStatusIcon, sendingQuote }: QuoteCardProps) => {
+const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, getStatusColor, getStatusIcon, sendingQuote }: QuoteCardProps) => {
   return (
     <div className="p-3 border rounded-lg bg-gray-50">
       <div className="flex items-start justify-between">
@@ -224,8 +243,17 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, getStatusColor, getStat
           )}
         </div>
 
-        {quote.status === 'draft' && (
-          <div className="flex gap-1">
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onPreviewQuote(quote)}
+            className="text-xs"
+          >
+            <Eye className="h-3 w-3 mr-1" />
+            Preview
+          </Button>
+          {quote.status === 'draft' && (
             <Button
               size="sm"
               variant="outline"
@@ -236,8 +264,8 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, getStatusColor, getStat
               <Send className="h-3 w-3 mr-1" />
               {sendingQuote === quote.id ? 'Sender...' : 'Send'}
             </Button>
-          </div>
-        )}
+          )}
+        </div>
 
         {quote.status === 'sent' && (
           <div className="flex gap-1">
