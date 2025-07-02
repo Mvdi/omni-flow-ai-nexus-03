@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { CustomerSearch, Customer } from "@/components/ui/customer-search";
 
 interface OrderDialogProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
   const [orderTypes, setOrderTypes] = useState<string[]>([]);
   const [statusOptions, setStatusOptions] = useState<any[]>([]);
   const [schedulingType, setSchedulingType] = useState<'unplanned' | 'week' | 'date' | 'datetime'>('unplanned');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({
     customer: '',
     customer_email: '',
@@ -130,6 +132,24 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
     }
   }, [order]);
 
+  const handleCustomerSelect = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setFormData(prev => ({
+      ...prev,
+      customer: customer.navn || customer.email,
+      customer_email: customer.email
+    }));
+  };
+
+  const clearSelectedCustomer = () => {
+    setSelectedCustomer(null);
+    setFormData(prev => ({
+      ...prev,
+      customer: '',
+      customer_email: ''
+    }));
+  };
+
   const handleAddressSelect = (addressData: any) => {
     setFormData(prev => ({
       ...prev,
@@ -232,25 +252,62 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="customer">Kunde *</Label>
-              <Input
-                id="customer"
-                value={formData.customer}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="customer_email">Kunde Email</Label>
-              <Input
-                id="customer_email"
-                type="email"
-                value={formData.customer_email}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
-              />
-            </div>
+          {/* Customer Search Section */}
+          <div className="space-y-4">
+            {selectedCustomer ? (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <p className="font-medium text-green-900">
+                        {selectedCustomer.navn || 'Ingen navn'}
+                      </p>
+                      <p className="text-sm text-green-700">{selectedCustomer.email}</p>
+                      {selectedCustomer.telefon && (
+                        <p className="text-sm text-green-700">{selectedCustomer.telefon}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={clearSelectedCustomer}
+                  >
+                    Skift kunde
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <CustomerSearch
+                  onCustomerSelect={handleCustomerSelect}
+                  placeholder="Søg efter eksisterende kunde..."
+                  label="Søg kunde"
+                />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="customer">Kunde *</Label>
+                    <Input
+                      id="customer"
+                      value={formData.customer}
+                      onChange={(e) => setFormData(prev => ({ ...prev, customer: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="customer_email">Kunde Email</Label>
+                    <Input
+                      id="customer_email"
+                      type="email"
+                      value={formData.customer_email}
+                      onChange={(e) => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <div>

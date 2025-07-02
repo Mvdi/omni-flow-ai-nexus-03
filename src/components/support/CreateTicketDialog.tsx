@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CustomerSearch, Customer } from "@/components/ui/customer-search";
 import { useAddTicket } from '@/hooks/useTickets';
-import { Plus } from 'lucide-react';
+import { Plus, UserCheck } from 'lucide-react';
 
 export interface CreateTicketDialogProps {
   isOpen?: boolean;
@@ -16,6 +17,7 @@ export interface CreateTicketDialogProps {
 
 export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps) => {
   const [open, setOpen] = useState(isOpen || false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({
     subject: '',
     content: '',
@@ -25,6 +27,24 @@ export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps)
   });
 
   const addTicket = useAddTicket();
+
+  const handleCustomerSelect = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setFormData(prev => ({
+      ...prev,
+      customer_email: customer.email,
+      customer_name: customer.navn || ''
+    }));
+  };
+
+  const clearSelectedCustomer = () => {
+    setSelectedCustomer(null);
+    setFormData(prev => ({
+      ...prev,
+      customer_email: '',
+      customer_name: ''
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +66,7 @@ export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps)
       customer_name: '',
       priority: ''
     });
+    setSelectedCustomer(null);
     
     setOpen(false);
     onClose?.();
@@ -71,28 +92,66 @@ export const CreateTicketDialog = ({ isOpen, onClose }: CreateTicketDialogProps)
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="customer_name">Kunde navn</Label>
-              <Input
-                id="customer_name"
-                value={formData.customer_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
-                placeholder="Indtast kunde navn"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="customer_email">Email *</Label>
-              <Input
-                id="customer_email"
-                type="email"
-                value={formData.customer_email}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
-                placeholder="kunde@email.dk"
-                required
-              />
-            </div>
+          {/* Customer Search Section */}
+          <div className="space-y-4">
+            {selectedCustomer ? (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <UserCheck className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="font-medium text-green-900">
+                        {selectedCustomer.navn || 'Ingen navn'}
+                      </p>
+                      <p className="text-sm text-green-700">{selectedCustomer.email}</p>
+                      {selectedCustomer.telefon && (
+                        <p className="text-sm text-green-700">{selectedCustomer.telefon}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={clearSelectedCustomer}
+                  >
+                    Skift kunde
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <CustomerSearch
+                  onCustomerSelect={handleCustomerSelect}
+                  placeholder="Søg efter eksisterende kunde eller indtast ny..."
+                  label="Søg kunde"
+                />
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="customer_name">Kunde navn</Label>
+                    <Input
+                      id="customer_name"
+                      value={formData.customer_name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
+                      placeholder="Indtast kunde navn"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="customer_email">Email *</Label>
+                    <Input
+                      id="customer_email"
+                      type="email"
+                      value={formData.customer_email}
+                      onChange={(e) => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
+                      placeholder="kunde@email.dk"
+                      required
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="space-y-2">

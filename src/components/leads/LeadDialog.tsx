@@ -37,6 +37,7 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
     vaerdi: '',
     prioritet: 'none' as 'none' | 'Lav' | 'Medium' | 'Høj', // Changed to use 'none' instead of empty string
     status: 'new' as string,
+    kilde: 'Manual' as string, // Added source tracking
     noter: '',
     uploads: [] as any[]
   });
@@ -59,6 +60,7 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
         vaerdi: lead.vaerdi?.toString() || '',
         prioritet: lead.prioritet ? (lead.prioritet as 'Lav' | 'Medium' | 'Høj') : 'none', // Handle priority properly
         status: lead.status || 'new',
+        kilde: (lead as any).kilde || 'Manual', // Handle source tracking
         noter: lead.noter || '',
         uploads: (lead.uploads as any[]) || []
       });
@@ -76,6 +78,7 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
         vaerdi: '',
         prioritet: 'none', // Use 'none' instead of empty string
         status: 'new',
+        kilde: 'Manual', // Default source for new leads
         noter: '',
         uploads: []
       });
@@ -288,6 +291,27 @@ export const LeadDialog = ({ lead, trigger, open, onOpenChange }: LeadDialogProp
                     <SelectItem value="Lav">Lav</SelectItem>
                     <SelectItem value="Medium">Medium</SelectItem>
                     <SelectItem value="Høj">Høj</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="kilde">Kilde</Label>
+                <Select value={formData.kilde} onValueChange={(value: string) => setFormData(prev => ({ ...prev, kilde: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Manual">Manuel indtastning</SelectItem>
+                    <SelectItem value="Facebook Lead">Facebook Lead</SelectItem>
+                    <SelectItem value="Google Ads">Google Ads</SelectItem>
+                    <SelectItem value="Organisk">Organisk søgning</SelectItem>
+                    <SelectItem value="Henvisning">Henvisning</SelectItem>
+                    <SelectItem value="Email Marketing">Email Marketing</SelectItem>
+                    <SelectItem value="Telefon">Telefonopkald</SelectItem>
+                    <SelectItem value="Website">Website formular</SelectItem>
+                    <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                    <SelectItem value="Andre">Andre kilder</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

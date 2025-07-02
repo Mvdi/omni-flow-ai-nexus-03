@@ -3,6 +3,8 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDanishDate, formatDanishDateTime } from '@/utils/danishTime';
+import { useTicketTags } from '@/hooks/useTicketTags';
+import { Tag } from 'lucide-react';
 
 interface TicketCardProps {
   ticket: any;
@@ -10,6 +12,8 @@ interface TicketCardProps {
 }
 
 export const TicketCard = ({ ticket, onTicketClick }: TicketCardProps) => {
+  const { data: tags = [] } = useTicketTags(ticket.id);
+  
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'Høj': return 'bg-red-100 text-red-800 border-red-200';
@@ -135,6 +139,26 @@ export const TicketCard = ({ ticket, onTicketClick }: TicketCardProps) => {
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Svartid:</span>
               <span>{Math.round(ticket.response_time_hours)}h</span>
+            </div>
+          )}
+          {tags.length > 0 && (
+            <div className="flex items-start justify-between text-sm mt-2">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Tag className="h-3 w-3" />
+                Tags:
+              </span>
+              <div className="flex flex-wrap gap-1 max-w-32">
+                {tags.slice(0, 3).map((tag) => (
+                  <Badge key={tag.id} variant="outline" className="text-xs">
+                    {tag.tag_name}
+                  </Badge>
+                ))}
+                {tags.length > 3 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{tags.length - 3}
+                  </Badge>
+                )}
+              </div>
             </div>
           )}
         </div>

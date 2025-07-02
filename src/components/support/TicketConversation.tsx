@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +15,8 @@ import { AttachmentViewer } from './AttachmentViewer';
 import { DuplicateMessageHandler } from './DuplicateMessageHandler';
 import { AIResponseSuggestions } from './AIResponseSuggestions';
 import { formatDanishDistance, formatDanishDateTime, debugTimeConversion } from '@/utils/danishTime';
-import { Send, Bot, User, Clock, Mail, Tag, Loader2, Download } from 'lucide-react';
+import { Send, Bot, User, Clock, Mail, Tag, Loader2, Download, Plus, X } from 'lucide-react';
+import { useTicketTags, useAddTicketTag, useRemoveTicketTag } from '@/hooks/useTicketTags';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -53,12 +55,16 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const [signatureHtml, setSignatureHtml] = useState('');
   const [activeTab, setActiveTab] = useState('compose');
   const [isFetchingAttachments, setIsFetchingAttachments] = useState(false);
+  const [newTag, setNewTag] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
   const { data: messages = [], isLoading, error, isError, refetch } = useTicketMessages(ticket.id);
+  const { data: tags = [] } = useTicketTags(ticket.id);
   const updateTicket = useUpdateTicket();
   const { sendEmail, isSending } = useOffice365EmailSender();
+  const addTicketTag = useAddTicketTag();
+  const removeTicketTag = useRemoveTicketTag();
 
   useEffect(() => {
     const loadSignature = async () => {
@@ -134,6 +140,21 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
   const handleUseSuggestion = (content: string) => {
     setNewMessage(content);
     setActiveTab('compose');
+  };
+
+  const handleAddTag = async () => {
+    if (!newTag.trim()) return;
+    
+    await addTicketTag.mutateAsync({
+      ticketId: ticket.id,
+      tagName: newTag.trim()
+    });
+    
+    setNewTag('');
+  };
+
+  const handleRemoveTag = async (tagId: string) => {
+    await removeTicketTag.mutateAsync(tagId);
   };
 
   const handleFetchMissingAttachments = async () => {
@@ -308,6 +329,46 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
                   <SelectItem value="Lukket">Lukket</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+          
+          {/* Tags Section */}
+          <div className="mt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Tag className="h-4 w-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">Tags</span>
+            </div>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {tags.map((tag) => (
+                <Badge key={tag.id} variant="outline" className="text-xs flex items-center gap-1">
+                  {tag.tag_name}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-3 w-3 p-0 hover:bg-red-100"
+                    onClick={() => handleRemoveTag(tag.id)}
+                  >
+                    <X className="h-2 w-2" />
+                  </Button>
+                </Badge>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                placeholder="Tilføj nyt tag..."
+                className="flex-1 h-8 text-sm"
+                onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+              />
+              <Button 
+                size="sm" 
+                onClick={handleAddTag}
+                disabled={!newTag.trim() || addTicketTag.isPending}
+                className="h-8"
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
             </div>
           </div>
         </CardHeader>
