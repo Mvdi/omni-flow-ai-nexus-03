@@ -87,8 +87,8 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
         id: Date.now().toString(),
         description: product.name + (product.description ? ` - ${product.description}` : ''),
         quantity: 1,
-        unit_price: product.default_price,
-        total_price: product.default_price
+        unit_price: product.default_price || 0, // Use 0 if no default price
+        total_price: product.default_price || 0
       };
       setItems(prev => [...prev, newItem]);
       toast.success(`${product.name} tilføjet til tilbuddet`);
@@ -470,7 +470,11 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
                           <SelectItem key={product.id} value={product.id}>
                             <div className="flex justify-between items-center w-full">
                               <span>{product.name}</span>
-                              <span className="text-green-600 ml-2">{product.default_price.toLocaleString('da-DK')} kr</span>
+                              {product.default_price ? (
+                                <span className="text-green-600 ml-2">{product.default_price.toLocaleString('da-DK')} kr</span>
+                              ) : (
+                                <span className="text-muted-foreground ml-2 text-xs">Pris varierer</span>
+                              )}
                             </div>
                           </SelectItem>
                         ))}

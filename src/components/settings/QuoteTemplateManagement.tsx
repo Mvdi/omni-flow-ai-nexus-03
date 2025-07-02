@@ -30,7 +30,7 @@ export const QuoteTemplateManagement: React.FC = () => {
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
-    default_price: 0,
+    default_price: null,
     unit: 'stk',
     category: ''
   });
@@ -62,14 +62,14 @@ export const QuoteTemplateManagement: React.FC = () => {
   };
 
   const handleCreateProduct = async () => {
-    if (!newProduct.name || newProduct.default_price <= 0) {
-      toast.error('Navn og pris er påkrævet');
+    if (!newProduct.name) {
+      toast.error('Navn er påkrævet');
       return;
     }
 
     try {
       await createProduct.mutateAsync(newProduct);
-      setNewProduct({ name: '', description: '', default_price: 0, unit: 'stk', category: '' });
+      setNewProduct({ name: '', description: '', default_price: null, unit: 'stk', category: '' });
       setIsCreateProductOpen(false);
       refetchProducts();
       toast.success('Varelinje oprettet');
@@ -360,15 +360,17 @@ salg@mmmultipartner.dk`;
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="price">Standard Pris (DKK) *</Label>
+                        <Label htmlFor="price">Standard Pris (DKK)</Label>
                         <Input
                           id="price"
                           type="number"
                           min="0"
                           step="0.01"
-                          value={newProduct.default_price}
-                          onChange={(e) => setNewProduct({...newProduct, default_price: parseFloat(e.target.value) || 0})}
+                          value={newProduct.default_price || ''}
+                          onChange={(e) => setNewProduct({...newProduct, default_price: e.target.value ? parseFloat(e.target.value) : null})}
+                          placeholder="Valgfri - kan sættes på tilbuddet"
                         />
+                        <p className="text-xs text-muted-foreground mt-1">Lad være tom hvis prisen varierer</p>
                       </div>
                       <div>
                         <Label htmlFor="unit">Enhed</Label>
@@ -445,10 +447,19 @@ salg@mmmultipartner.dk`;
                       <p className="text-sm text-muted-foreground mb-3">{product.description}</p>
                     )}
                     <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold text-green-600">
-                        {product.default_price.toLocaleString('da-DK')} DKK
-                      </span>
-                      <span className="text-sm text-muted-foreground">/ {product.unit}</span>
+                      {product.default_price ? (
+                        <>
+                          <span className="text-lg font-semibold text-green-600">
+                            {product.default_price.toLocaleString('da-DK')} DKK
+                          </span>
+                          <span className="text-sm text-muted-foreground">/ {product.unit}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-sm text-muted-foreground">Pris varierer</span>
+                          <span className="text-sm text-muted-foreground">/ {product.unit}</span>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -563,9 +574,11 @@ salg@mmmultipartner.dk`;
                       type="number"
                       min="0"
                       step="0.01"
-                      value={editingProduct.default_price}
-                      onChange={(e) => setEditingProduct({...editingProduct, default_price: parseFloat(e.target.value) || 0})}
+                      value={editingProduct.default_price || ''}
+                      onChange={(e) => setEditingProduct({...editingProduct, default_price: e.target.value ? parseFloat(e.target.value) : null})}
+                      placeholder="Valgfri - kan sættes på tilbuddet"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Lad være tom hvis prisen varierer</p>
                   </div>
                   <div>
                     <Label htmlFor="edit-unit">Enhed</Label>

@@ -622,7 +622,7 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string
-          default_price: number
+          default_price: number | null
           description: string | null
           id: string
           is_active: boolean | null
@@ -634,7 +634,7 @@ export type Database = {
         Insert: {
           category?: string | null
           created_at?: string
-          default_price?: number
+          default_price?: number | null
           description?: string | null
           id?: string
           is_active?: boolean | null
@@ -646,7 +646,7 @@ export type Database = {
         Update: {
           category?: string | null
           created_at?: string
-          default_price?: number
+          default_price?: number | null
           description?: string | null
           id?: string
           is_active?: boolean | null

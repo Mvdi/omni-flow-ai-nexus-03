@@ -6,7 +6,7 @@ export interface QuoteProduct {
   id: string;
   name: string;
   description: string | null;
-  default_price: number;
+  default_price: number | null;
   unit: string;
   category: string | null;
   is_active: boolean;
