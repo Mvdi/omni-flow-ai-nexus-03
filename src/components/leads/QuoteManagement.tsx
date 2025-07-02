@@ -245,6 +245,7 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, getStat
 
         <div className="flex gap-1">
           <Button
+            type="button"
             size="sm"
             variant="outline"
             onClick={() => onPreviewQuote(quote)}
@@ -255,6 +256,7 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, getStat
           </Button>
           {quote.status === 'draft' && (
             <Button
+              type="button"
               size="sm"
               variant="outline"
               onClick={() => onSendQuote(quote)}
@@ -270,6 +272,7 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, getStat
         {quote.status === 'sent' && (
           <div className="flex gap-1">
             <Button
+              type="button"
               size="sm"
               variant="outline"
               onClick={() => onSendQuote(quote)}
@@ -280,6 +283,7 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, getStat
               {sendingQuote === quote.id ? 'Sender...' : 'Gensend'}
             </Button>
             <Button
+              type="button"
               size="sm"
               variant="outline"
               onClick={() => onStatusChange(quote.id, 'accepted')}
@@ -289,6 +293,7 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, getStat
               Accepter
             </Button>
             <Button
+              type="button"
               size="sm"
               variant="outline"
               onClick={() => onStatusChange(quote.id, 'rejected')}
