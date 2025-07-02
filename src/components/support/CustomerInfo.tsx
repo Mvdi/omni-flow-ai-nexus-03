@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { SupportTicket } from '@/hooks/useTickets';
 import { useCustomerSidebarData, useCreateOrUpdateCustomer, useUpdateCustomerNotes } from '@/hooks/useCustomers';
+import { InternalNotesConversation } from './InternalNotesConversation';
 import { User, Phone, Calendar, Ticket, TrendingUp, AlertCircle, Edit, MapPin, Building, Hash } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { da } from 'date-fns/locale';
@@ -394,6 +395,8 @@ export const CustomerInfo = ({ ticket, onTicketSelect, currentTicketId }: Custom
           </CardContent>
         </Card>
 
+        {/* Internal Notes - positioned between Tags and Recent Tickets */}
+        <InternalNotesConversation ticketId={ticket.id} />
 
         {/* Recent Tickets */}
         <Card>
