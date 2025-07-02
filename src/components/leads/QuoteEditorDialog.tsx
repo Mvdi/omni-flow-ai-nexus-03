@@ -32,23 +32,21 @@ export const QuoteEditorDialog = ({
   const { data: templates = [] } = useQuoteTemplates();
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [logoUrl, setLogoUrl] = useState<string>('');
+  const [templateData, setTemplateData] = useState<any>(null);
   
   const [emailData, setEmailData] = useState({
-    // Company Info
-    companyName: 'MM Multipartner',
-    companyAddress: 'Penselvej 8',
-    companyCity: '1234 Spandevis',
-    companyContact: '',
-    companyCvr: 'CVR: 12345678',
+    // Company Info - vil blive overskrevet fra skabelon
+    companyName: '',
+    companyAddress: '',
+    companyCity: '',
+    companyCvr: '',
     
     // Header
     documentTitle: 'Tilbud',
-    documentSubtitle: '(EKSEMPEL)',
+    documentSubtitle: '',
     
     // Content
     projectDescription: quote?.title || '',
-    validityText: 'Tilbuddet gælder t.o.m. den',
-    startText: 'Virksomhedsnavnet påbegynder opgaven den 01/01-2025',
     
     // Benefits section
     benefitsTitle: '🏆 Hvad du får med MM Multipartner:',
@@ -60,19 +58,56 @@ export const QuoteEditorDialog = ({
       'Ingen skjulte omkostninger'
     ],
     
-    // Call to Action - FJERNET
-    ctaTitle: '',
-    ctaSubtitle: '',
+    // Call to Action
     ctaButtonText: '✅ BEKRÆFT TILBUD NU',
     
-    // Signature
-    signatureText: 'Vi ser frem til et godt samarbejde.',
-    signatureName: 'Torben Schwartz',
-    signatureTitle: 'Din malermester',
-    
     // Footer
-    footerText: 'MM Multipartner – Penselvej 8 – 1234 Spandevis – kontakt@dinmalermester.dk – www.dinmalermester.dk'
+    footerText: ''
   });
+
+  // Load template data fra database
+  useEffect(() => {
+    const loadTemplate = async () => {
+      try {
+        const user = (await supabase.auth.getUser()).data.user;
+        if (user) {
+          const { data: template } = await supabase
+            .from('quote_email_templates')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_default', true)
+            .single();
+          
+          if (template && template.template_data) {
+            setTemplateData(template.template_data);
+            const data = template.template_data as any;
+            // Opdater emailData med skabelon data
+            setEmailData(prev => ({
+              ...prev,
+              companyName: data?.companyName || '',
+              companyAddress: data?.companyAddress || '',
+              companyCity: data?.companyCity || '',
+              companyCvr: data?.companyCvr || '',
+              documentTitle: data?.documentTitle || 'Tilbud',
+              documentSubtitle: data?.documentSubtitle || '',
+              ctaButtonText: data?.ctaButtonText || '✅ BEKRÆFT TILBUD NU',
+              footerText: data?.footerText || ''
+            }));
+            
+            if (data?.logoUrl) {
+              setLogoUrl(data.logoUrl);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading template:', error);
+      }
+    };
+    
+    if (open) {
+      loadTemplate();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (selectedTemplate && templates.length > 0) {
@@ -257,88 +292,6 @@ export const QuoteEditorDialog = ({
                     rows={3}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="validityText">Gyldighedstekst</Label>
-                  <Input
-                    id="validityText"
-                    value={emailData.validityText}
-                    onChange={(e) => setEmailData(prev => ({ ...prev, validityText: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="startText">Opstarts tekst</Label>
-                  <Input
-                    id="startText"
-                    value={emailData.startText}
-                    onChange={(e) => setEmailData(prev => ({ ...prev, startText: e.target.value }))}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Call to Action */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Opfordrings Sektion</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="ctaTitle">CTA Titel</Label>
-                  <Input
-                    id="ctaTitle"
-                    value={emailData.ctaTitle}
-                    onChange={(e) => setEmailData(prev => ({ ...prev, ctaTitle: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="ctaSubtitle">CTA Undertitel</Label>
-                  <Input
-                    id="ctaSubtitle"
-                    value={emailData.ctaSubtitle}
-                    onChange={(e) => setEmailData(prev => ({ ...prev, ctaSubtitle: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="ctaButtonText">Knap Tekst</Label>
-                  <Input
-                    id="ctaButtonText"
-                    value={emailData.ctaButtonText}
-                    onChange={(e) => setEmailData(prev => ({ ...prev, ctaButtonText: e.target.value }))}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Signature */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Underskrift</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="signatureText">Underskrift Tekst</Label>
-                  <Input
-                    id="signatureText"
-                    value={emailData.signatureText}
-                    onChange={(e) => setEmailData(prev => ({ ...prev, signatureText: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="signatureName">Navn</Label>
-                  <Input
-                    id="signatureName"
-                    value={emailData.signatureName}
-                    onChange={(e) => setEmailData(prev => ({ ...prev, signatureName: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="signatureTitle">Titel</Label>
-                  <Input
-                    id="signatureTitle"
-                    value={emailData.signatureTitle}
-                    onChange={(e) => setEmailData(prev => ({ ...prev, signatureTitle: e.target.value }))}
-                  />
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -398,7 +351,6 @@ export const QuoteEditorDialog = ({
                     <div className="text-sm text-black leading-relaxed">
                       {emailData.companyAddress}<br/>
                       {emailData.companyCity}<br/>
-                      {emailData.companyContact}<br/>
                       {emailData.companyCvr}
                     </div>
                   </div>
@@ -414,9 +366,7 @@ export const QuoteEditorDialog = ({
                 
                 {/* Project Info */}
                 <div className="mb-8 text-sm text-black leading-relaxed">
-                  <strong>{emailData.projectDescription}</strong><br/>
-                  {emailData.validityText} {quote.valid_until ? new Date(quote.valid_until).toLocaleDateString('da-DK') : '20/12-2024'}<br/>
-                  {emailData.startText}
+                  <strong>{emailData.projectDescription}</strong>
                 </div>
                 
                 {/* Rest of preview... */}

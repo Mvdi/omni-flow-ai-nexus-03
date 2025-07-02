@@ -81,7 +81,7 @@ export const QuotePreviewDialog = ({
                   <p className="text-lg text-black">{templateData.documentSubtitle}</p>
                 )}
               </div>
-              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-content center text-blue-600 font-semibold">
+              <div className="w-32 h-32 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold">
                 {templateData?.logoUrl ? (
                   <img src={templateData.logoUrl} alt="Logo" className="w-full h-full object-contain rounded-full" />
                 ) : (
