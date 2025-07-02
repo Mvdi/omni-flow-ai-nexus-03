@@ -270,11 +270,19 @@
     });
   };
 
-  // Initialize når DOM er ready
+  // Initialize når DOM er ready - WordPress kompatibel
+  function initializeWhenReady() {
+    if (document.getElementById('arealValg-wp')) {
+      initPrisberegning();
+    } else {
+      setTimeout(initializeWhenReady, 100);
+    }
+  }
+  
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initPrisberegning);
+    document.addEventListener('DOMContentLoaded', initializeWhenReady);
   } else {
-    initPrisberegning();
+    initializeWhenReady();
   }
 
 })();
