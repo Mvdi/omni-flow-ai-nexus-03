@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prisberegner Widget</title>
+</head>
+<body>
+    <!-- === PRISBEREGNER + KONTAKT (Supabase‑klient v2) === -->
+    <!-- Kopiér HELE denne blok ind i et Divi "Kode"-modul -->
+    <!-- Bruges på både desktop & mobil -->
+    <!-- Supabase JS v2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <div id="prisboks" style="width:100%;max-width:530px;margin:auto;font-family:'Poppins',sans-serif;background:#fff;border:1px solid #D6DBDF;box-shadow:0 2px 6px rgba(0,0,0,.05);overflow:hidden;">
+      <!-- Header -->
+      <div style="background:#2D4B73;color:#fff;padding:1rem;font-weight:600;font-size:1.1rem;">Algebehandling af tag</div>
+      <!-- Ikoner -->
+      <div style="display:flex;justify-content:space-around;padding:.75rem 1rem;font-size:.85rem;border-bottom:1px solid #eee;text-align:center;">
+        <div>🧽<br>Stopper mos & alger</div>
+        <div>🛡️<br>Forebygger genvækst</div>
+        <div>✨<br>Fornyet tagoverflade</div>
+      </div>
+      <!-- Gul rabatboks -->
+      <div style="background:#FFE86E;color:#1C1C1C;padding:.75rem 1rem;font-weight:600;text-align:center;font-size:.95rem;">
+        Ved at tegne aftalen sparer du <span style="color:#00539B;font-weight:700;">200 kr.</span> på første behandling!
+      </div>
+      <!-- Beregner -->
+      <div style="padding:1rem;">
+        <label for="arealValg" style="display:block;font-weight:500;margin-bottom:.5rem;font-size:.95rem;">Vælg interval</label>
+        <select id="arealValg" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:0;margin-bottom:1.25rem;">
+          <option value="0">Op til 100 m²</option>
+          <option value="1">101‑250 m²</option>
+          <option value="2">Over 250 m²</option>
+        </select>
+        <label style="display:flex;align-items:flex-start;margin-bottom:1.25rem;font-weight:500;font-size:.95rem;">
+          <input type="checkbox" id="vedligehold" style="margin-right:8px;margin-top:4px;">Tilføj årlig vedligeholdelsesaftale <span style="font-size:.9rem;color:#555;font-weight:400;">(Pris: <span id="vedlPris">795</span> kr.)</span>
+        </label>
+        <div style="font-size:.85rem;margin-bottom:1.25rem;line-height:1.5;">
+          Vi kan tilbyde en årlig serviceaftale, som inkluderer:
+          <ul style="margin-top:.5rem;padding-left:1.2rem;">
+            <li>Årlig forebyggende behandling, der holder taget rent og flot.</li>
+            <li>Beskytter mod genvækst og forlænger tagets levetid.</li>
+          </ul>
+          <em style="display:block;margin-top:.75rem;color:#777;font-style:italic;">Første servicebehandling finder sted i efteråret næste år og gentages hvert år.</em>
+        </div>
+        <!-- Prisfelt + Bestil tid -->
+        <div style="background:#2D4B73;color:#fff;padding:1rem;display:flex;justify-content:space-between;align-items:center;font-size:.95rem;">
+          <span style="font-weight:500;">Pris første behandling</span>
+          <span><s id="førPris" style="opacity:.5;font-size:.85rem;margin-right:.5rem;">995 kr.</s><strong id="prisVisning">795 kr.</strong></span>
+        </div>
+        <div style="text-align:center;margin-top:1rem;">
+          <button onclick="visKontaktformular()" style="background:#2D4B73;color:#fff;padding:.75rem 1.1rem;font-weight:600;border:none;cursor:pointer;">Bestil tid</button>
+        </div>
+      </div>
+      <!-- Kontaktformular -->
+      <div id="kontaktContainer" style="display:none;padding:1.5rem;border-top:1px solid #eee;">
+        <h3 style="margin:0 0 1rem 0;font-size:1rem;color:#2D4B73;">Få tilsendt et tilbud</h3>
+        <form id="tilbudsform" onsubmit="sendTilSupabase(event)" style="display:flex;flex-direction:column;gap:1rem;">
+          <input type="text" id="navn" placeholder="Dit navn" required style="padding:.5rem;border:1px solid #ccc;">
+          <input type="text" id="adresse" placeholder="Adresse" required style="padding:.5rem;border:1px solid #ccc;">
+          <input type="tel" id="telefon" placeholder="Telefonnummer" required style="padding:.5rem;border:1px solid #ccc;">
+          <input type="email" id="email" placeholder="Email" required style="padding:.5rem;border:1px solid #ccc;">
+          <button type="submit" style="background:#2D4B73;color:#fff;padding:.75rem;font-weight:600;border:none;cursor:pointer;">Send og modtag tilbud</button>
+        </form>
+        <div id="besked" style="margin-top:1rem;font-weight:500;"></div>
+      </div>
+    </div>
+    <script>
+    /* ===== Helper: Vis skjult formular ===== */
+    function visKontaktformular(){
+      document.getElementById('kontaktContainer').style.display='block';
+      window.scrollTo({top:document.getElementById('kontaktContainer').offsetTop-50,behavior:'smooth'});
+    }
+    /* ===== Prisberegning ===== */
+    (function(){
+      const ddl=document.getElementById('arealValg');
+      const chk=document.getElementById('vedligehold');
+      const out=document.getElementById('prisVisning');
+      const før=document.getElementById('førPris');
+      const vedlPris=document.getElementById('vedlPris');
+      function updatePrice(){
+        const sel=ddl.value, add=chk.checked;
+        let std=0, ved=0;
+        if(sel==='0'){std=995;ved=795;vedlPris.textContent='795';}
+        else if(sel==='1'){std=1395;ved=1195;vedlPris.textContent='1195';}
+        else {std=1405;ved=1203;vedlPris.textContent='1203';}
+        const pris=add?ved:std;
+        out.textContent=pris.toLocaleString('da-DK')+' kr.';
+        før.textContent=std.toLocaleString('da-DK')+' kr.';
+        før.style.textDecoration=add?'line-through':'none';
+        før.style.opacity=add?'.5':'0';
+      }
+      ddl.addEventListener('change',updatePrice);
+      chk.addEventListener('change',updatePrice);
+      updatePrice();
+    })();
+    /* ===== Supabase konfiguration ===== */
+    const SUPABASE_URL='https://tckynbgheicyqezqprdp.supabase.co';
+    const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRja3luYmdoZWljeXFlenFwcmRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNTE3OTMsImV4cCI6MjA2NTkyNzc5M30.vJoSHaDDJrbXIzoEww4LDg8EynJ38cvUZ0qX1BWNNgM';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    /* ===== Send data til Supabase ===== */
+    async function sendTilSupabase(e){
+      e.preventDefault();
+      const beskedEl = document.getElementById('besked');
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      
+      // Disable knap og vis loading
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sender...';
+      beskedEl.textContent = '';
+      
+      const navn = document.getElementById('navn').value.trim();
+      const adresse = document.getElementById('adresse').value.trim();
+      const telefon = document.getElementById('telefon').value.trim();
+      const email = document.getElementById('email').value.trim();
+      
+      const ddl = document.getElementById('arealValg');
+      const chk = document.getElementById('vedligehold');
+      const prisEl = document.getElementById('prisVisning');
+      
+      const interval = ddl.options[ddl.selectedIndex].text;
+      const vedligeholdelse = chk.checked;
+      const beregnetPris = prisEl.textContent;
+      
+      try {
+        // Gem i tilbud tabellen
+        const { error: tilbudError } = await supabaseClient
+          .from('tilbud')
+          .insert({
+            navn,
+            adresse,
+            telefon,
+            email,
+            interval,
+            vedligeholdelse,
+            beregnet_pris: beregnetPris
+          });
+
+        if (tilbudError) throw tilbudError;
+
+        // Beregn pris som nummer til leads
+        const prisNumber = parseInt(beregnetPris.replace(/[^\d]/g, ''));
+        
+        // Opret også som lead
+        const { error: leadError } = await supabaseClient
+          .from('leads')
+          .insert({
+            navn,
+            email,
+            telefon,
+            adresse,
+            status: 'new',
+            kilde: 'Prisberegner',
+            services: `Tagbehandling - ${interval}${vedligeholdelse ? ' + Vedligeholdelsesaftale' : ''}`,
+            vaerdi: prisNumber,
+            noter: `Prisberegning fra widget: ${interval}, vedligeholdelse: ${vedligeholdelse ? 'Ja' : 'Nej'}, beregnet pris: ${beregnetPris}`
+          });
+
+        if (leadError) throw leadError;
+
+        beskedEl.style.color = '#2D4B73';
+        beskedEl.textContent = 'Tak! Vi har modtaget din forespørgsel og vender tilbage hurtigst muligt.';
+        document.getElementById('tilbudsform').reset();
+        
+        // Reset prisberegning
+        document.getElementById('arealValg').value = '0';
+        document.getElementById('vedligehold').checked = false;
+        const updateEvent = new Event('change');
+        document.getElementById('arealValg').dispatchEvent(updateEvent);
+        
+      } catch (error) {
+        console.error('Fejl ved indsendelse:', error);
+        beskedEl.style.color = '#e74c3c';
+        beskedEl.textContent = 'Der opstod en fejl. Prøv venligst igen.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send og modtag tilbud';
+      }
+    }
+    </script>
+</body>
+</html>

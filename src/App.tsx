@@ -15,6 +15,7 @@ import Customers from "./pages/Customers";
 import AIAssistant from "./pages/AIAssistant";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
+import PriceCalculator from "./pages/PriceCalculator";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -72,6 +73,7 @@ const App = () => (
               <Profile />
             </ProtectedRoute>
           } />
+          <Route path="/prisberegner" element={<PriceCalculator />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
