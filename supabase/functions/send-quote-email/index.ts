@@ -115,7 +115,7 @@ const handler = async (req: Request): Promise<Response> => {
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Tilbud ${quoteNumber} - MM Multipartner</title>
+        <title>${templateData?.documentTitle || 'Tilbud'} ${quoteNumber} - ${templateData?.companyName || 'MM Multipartner'}</title>
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { 
