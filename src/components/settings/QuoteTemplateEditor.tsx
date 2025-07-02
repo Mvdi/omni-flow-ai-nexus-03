@@ -234,34 +234,6 @@ export const QuoteTemplateEditor = () => {
                 color: #000000;
                 line-height: 1.4;
             }
-            .cta-section { 
-                background: ${templateData.primaryColor}; 
-                padding: 30px; 
-                border-radius: 8px; 
-                text-align: center; 
-                margin: 40px 0;
-            }
-            .cta-title { 
-                color: white; 
-                font-size: 20px; 
-                font-weight: 600; 
-                margin-bottom: 12px; 
-            }
-            .cta-subtitle { 
-                color: rgba(255,255,255,0.9); 
-                font-size: 14px; 
-                margin-bottom: 20px; 
-            }
-            .cta-button { 
-                display: inline-block; 
-                background: #ffffff; 
-                color: ${templateData.primaryColor}; 
-                padding: 14px 28px; 
-                border-radius: 6px; 
-                text-decoration: none; 
-                font-weight: 600; 
-                font-size: 14px;
-            }
             .signature-section {
                 margin-top: 50px;
                 font-size: 14px;
@@ -298,7 +270,6 @@ export const QuoteTemplateEditor = () => {
                     <div class="company-details">
                         ${templateData.companyAddress}<br>
                         ${templateData.companyCity}<br>
-                        ${templateData.companyContact}<br>
                         ${templateData.companyCvr}
                     </div>
                 </div>
@@ -312,10 +283,9 @@ export const QuoteTemplateEditor = () => {
                 </div>
             </div>
             
-            <div class="cta-section">
-                <div class="cta-title">${templateData.ctaTitle}</div>
-                <div class="cta-subtitle">${templateData.ctaSubtitle}</div>
-                <a href="#" class="cta-button">${templateData.ctaButtonText}</a>
+            
+            <div style="text-align: center; margin: 40px 0;">
+                <a href="#" style="display: inline-block; background: #4CAF50; color: white; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">${templateData.ctaButtonText}</a>
             </div>
             
             <div class="signature-section">
