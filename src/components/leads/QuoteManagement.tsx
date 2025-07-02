@@ -37,8 +37,12 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
           to: lead.email,
           customerName: lead.navn,
           quoteNumber: quote.quote_number,
-          quoteHtml: generateQuoteHtml(quote),
-          subject: `Tilbud ${quote.quote_number} fra MM Multipartner`
+          quoteTitle: quote.title,
+          quoteDescription: quote.description,
+          totalAmount: quote.total_amount,
+          currency: quote.currency,
+          validUntil: quote.valid_until,
+          items: quote.items || []
         }
       });
 
@@ -59,18 +63,6 @@ export const QuoteManagement = ({ lead }: QuoteManagementProps) => {
     } finally {
       setSendingQuote(null);
     }
-  };
-
-  const generateQuoteHtml = (quote: any) => {
-    // Simple HTML template for now - can be enhanced later
-    return `
-      <h2>Tilbud ${quote.quote_number}</h2>
-      <p><strong>Titel:</strong> ${quote.title}</p>
-      <p><strong>Beskrivelse:</strong> ${quote.description || 'Ingen beskrivelse'}</p>
-      <p><strong>Total beløb:</strong> ${quote.total_amount.toLocaleString('da-DK')} ${quote.currency}</p>
-      <p><strong>Gyldig til:</strong> ${quote.valid_until ? new Date(quote.valid_until).toLocaleDateString('da-DK') : 'Ikke angivet'}</p>
-      <p>Med venlig hilsen,<br>MM Multipartner</p>
-    `;
   };
 
   const getStatusColor = (status: string) => {
