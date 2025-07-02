@@ -266,7 +266,7 @@ const mergeTicketMessage = async (supabase: any, existingTicket: any, message: G
   let attachments = [];
   if (message.hasAttachments) {
     console.log(`Processing attachments for message ${message.id}...`);
-    // Note: Attachment processing would be implemented here
+    attachments = await processMessageAttachments(message.id, mailboxAddress, accessToken, supabase);
   }
   
   const messageContent = message.body?.content || message.bodyPreview || '';
@@ -318,6 +318,91 @@ const mergeTicketMessage = async (supabase: any, existingTicket: any, message: G
   }
 
   return { ...existingTicket, ...updateData };
+};
+
+// Process message attachments from Office 365
+const processMessageAttachments = async (messageId: string, mailboxAddress: string, accessToken: string, supabase: any): Promise<any[]> => {
+  try {
+    const attachmentsUrl = `https://graph.microsoft.com/v1.0/users/${mailboxAddress}/messages/${messageId}/attachments`;
+    
+    const attachmentsResponse = await retryWithExponentialBackoff(() =>
+      fetch(attachmentsUrl, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      })
+    );
+
+    if (!attachmentsResponse.ok) {
+      console.error(`Failed to fetch attachments for message ${messageId}`);
+      return [];
+    }
+
+    const attachmentsData = await attachmentsResponse.json();
+    const attachments = attachmentsData.value || [];
+    
+    console.log(`Found ${attachments.length} attachments for message ${messageId}`);
+
+    const processedAttachments = [];
+
+    for (const attachment of attachments) {
+      try {
+        // Only process file attachments (not inline/embedded ones)
+        if (attachment['@odata.type'] === '#microsoft.graph.fileAttachment') {
+          const fileName = attachment.name;
+          const contentType = attachment.contentType;
+          const size = attachment.size;
+          const contentBytes = attachment.contentBytes;
+
+          // Generate unique file name
+          const timestamp = new Date().getTime();
+          const uniqueFileName = `${timestamp}_${fileName}`;
+          const filePath = `attachments/${uniqueFileName}`;
+
+          // Convert base64 to bytes
+          const fileData = Uint8Array.from(atob(contentBytes), c => c.charCodeAt(0));
+
+          // Upload to Supabase Storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('ticket-attachments')
+            .upload(filePath, fileData, {
+              contentType: contentType,
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error(`Failed to upload attachment ${fileName}:`, uploadError);
+            continue;
+          }
+
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('ticket-attachments')
+            .getPublicUrl(filePath);
+
+          processedAttachments.push({
+            id: crypto.randomUUID(),
+            name: fileName,
+            size: size,
+            contentType: contentType,
+            url: publicUrl,
+            path: filePath,
+            uploaded_at: new Date().toISOString()
+          });
+
+          console.log(`Successfully processed attachment: ${fileName}`);
+        }
+      } catch (attachmentError) {
+        console.error(`Error processing attachment ${attachment.name}:`, attachmentError);
+      }
+    }
+
+    return processedAttachments;
+  } catch (error) {
+    console.error(`Error processing attachments for message ${messageId}:`, error);
+    return [];
+  }
 };
 
 // SYNC HEARTBEAT: Record sync activity for monitoring
@@ -527,6 +612,13 @@ serve(async (req) => {
               continue;
             }
 
+            // Process attachments if present
+            let attachments = [];
+            if (message.hasAttachments) {
+              console.log(`Processing attachments for new ticket from message ${message.id}...`);
+              attachments = await processMessageAttachments(message.id, mailbox.email_address, accessToken, supabase);
+            }
+
             // CRITICAL: NO AUTOMATIC PRIORITY OR AI ENHANCEMENTS
             const messageContent = message.body?.content || message.bodyPreview || '';
             const basicCategory = detectBasicCategory(message.subject, messageContent);
@@ -575,7 +667,7 @@ serve(async (req) => {
                 message_type: 'inbound_email',
                 email_message_id: message.id,
                 is_internal: false,
-                attachments: [],
+                attachments: attachments,
                 created_at: new Date(message.receivedDateTime).toISOString()
               });
 
