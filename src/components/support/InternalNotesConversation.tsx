@@ -103,6 +103,9 @@ export const InternalNotesConversation = ({ ticketId }: InternalNotesConversatio
       setNewNote('');
       await loadInternalNotes();
       
+      // Also refresh the main ticket conversation to show the internal note in correct order
+      queryClient.invalidateQueries({ queryKey: ['ticket-messages', ticketId] });
+      
       toast({
         title: "Note tilføjet",
         description: "Din interne note er blevet gemt.",
