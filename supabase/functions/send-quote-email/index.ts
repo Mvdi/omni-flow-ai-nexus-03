@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -115,7 +116,7 @@ const handler = async (req: Request): Promise<Response> => {
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${templateData?.documentTitle || 'Tilbud'} ${quoteNumber} - ${templateData?.companyName || 'MM Multipartner'}</title>
+        <title>${templateData?.documentTitle || 'Tilbud'} ${quoteNumber} - ${templateData?.companyName || 'Virksomhed'}</title>
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { 
@@ -295,12 +296,11 @@ const handler = async (req: Request): Promise<Response> => {
             
             <div class="company-section">
                 <div class="company-info">
-                    <div class="company-name">${templateData?.companyName || customEmailData?.companyName || 'Virksomhed'}</div>
+                    <div class="company-name">${templateData?.companyName || 'Virksomhed'}</div>
                     <div class="company-details">
-                        ${templateData?.companyAddress || customEmailData?.companyAddress || ''}<br>
-                        ${templateData?.companyCity || customEmailData?.companyCity || ''}<br>
-                        ${templateData?.companyCvr || customEmailData?.companyCvr || ''}
-                    </div>
+                        ${templateData?.companyAddress || ''}<br>
+                        ${templateData?.companyCity || ''}<br>
+                        ${templateData?.companyCvr || ''}
                     </div>
                 </div>
                 <div class="date-info">
@@ -367,7 +367,7 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             
             <div class="footer">
-                ${templateData?.footerText || customEmailData?.footerText || ''}
+                ${templateData?.footerText || ''}
             </div>
         </div>
     </body>
@@ -445,7 +445,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send email via Microsoft Graph
     const emailMessage = {
       message: {
-        subject: `Tilbud ${quoteNumber} fra MM Multipartner`,
+        subject: `${templateData?.documentTitle || 'Tilbud'} ${quoteNumber} fra ${templateData?.companyName || 'Virksomhed'}`,
         body: {
           contentType: 'HTML',
           content: htmlContent

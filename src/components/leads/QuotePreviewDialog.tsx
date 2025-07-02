@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Eye, Send } from "lucide-react";
@@ -54,15 +55,6 @@ export const QuotePreviewDialog = ({
   // Check if any items have discount
   const hasDiscount = quote.items?.some((item: any) => item.discount_percent > 0) || false;
 
-  const itemsHtml = quote.items?.map((item: any, index: number) => (
-    <tr key={index} className="border-b border-gray-200">
-      <td className="p-4 text-gray-700">{item.description}</td>
-      <td className="p-4 text-center text-gray-600">{item.quantity}</td>
-      <td className="p-4 text-right text-gray-600">{item.unit_price?.toLocaleString('da-DK')} {quote.currency}</td>
-      <td className="p-4 text-right text-gray-900 font-semibold">{item.total_price?.toLocaleString('da-DK')} {quote.currency}</td>
-    </tr>
-  )) || [];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -98,11 +90,11 @@ export const QuotePreviewDialog = ({
             {/* Company Info */}
             <div className="flex justify-between mb-8">
               <div>
-                <div className="font-semibold text-black mb-2">{templateData?.companyName || 'MM Multipartner'}</div>
+                <div className="font-semibold text-black mb-2">{templateData?.companyName || 'Virksomhed'}</div>
                 <div className="text-sm text-black leading-relaxed">
-                  {templateData?.companyAddress || 'Penselvej 8'}<br/>
-                  {templateData?.companyCity || '1234 Spandevis'}<br/>
-                  {templateData?.companyCvr || 'CVR: 12345678'}
+                  {templateData?.companyAddress || ''}<br/>
+                  {templateData?.companyCity || ''}<br/>
+                  {templateData?.companyCvr || ''}
                 </div>
               </div>
               <div className="text-sm text-black text-right">
@@ -196,7 +188,7 @@ export const QuotePreviewDialog = ({
             
             {/* Footer */}
             <div className="text-center text-xs text-gray-600 border-t border-gray-200 pt-5">
-              {templateData?.footerText || 'MM Multipartner – Penselvej 8 – 1234 Spandevis – kontakt@dinmalermester.dk – www.dinmalermester.dk'}
+              {templateData?.footerText || ''}
             </div>
           </div>
         </div>
