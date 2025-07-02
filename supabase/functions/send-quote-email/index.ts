@@ -48,7 +48,8 @@ const handler = async (req: Request): Promise<Response> => {
       items 
     }: SendQuoteRequest = await req.json();
 
-    console.log(`Sending quote ${quoteNumber} to ${to} via Office365 directly`);
+    
+    console.log(`Sending quote ${quoteNumber} to ${to} via Office365 directly - NEW DESIGN VERSION 2.0`);
 
     // Generate professional HTML content based on design guide
     const itemsHtml = items.map(item => `
