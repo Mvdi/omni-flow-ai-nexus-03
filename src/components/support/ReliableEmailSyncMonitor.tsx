@@ -46,11 +46,11 @@ export const ReliableEmailSyncMonitor = () => {
   const [recentLogs, setRecentLogs] = useState<SyncLog[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isCleaningLeads, setIsCleaningLeads] = useState(false);
   const { toast } = useToast();
   const { cleanupDuplicateMessages, isCleaningUp } = useDuplicateCleanup();
   const { refetch: refetchLeads } = useLeads();
   const { triggerBulletproofSync: triggerSync, triggerEmergencyCatchupSync } = useReliableEmailSync();
-  const [isCleaningLeads, setIsCleaningLeads] = useState(false);
 
   const fetchSyncHealth = async () => {
     try {
@@ -141,92 +141,31 @@ export const ReliableEmailSyncMonitor = () => {
     }
   };
 
-  const refreshData = async () => {
-    setIsLoading(true);
-    await fetchSyncHealth();
-    setIsLoading(false);
-  };
-
-  const handleCleanupLeadDuplicates = async () => {
+  const triggerLeadCleanup = async () => {
     setIsCleaningLeads(true);
     try {
-      console.log('🧹 Starting Facebook lead duplicate cleanup...');
+      console.log('🧹 Calling lead cleanup edge function...');
       
-      const { data: leads, error } = await supabase
-        .from('leads')
-        .select('id, navn, email, telefon, created_at, kilde')
-        .eq('kilde', 'Facebook Lead')
-        .order('created_at', { ascending: true });
+      const { data, error } = await supabase.functions.invoke('cleanup-lead-duplicates', {
+        body: {}
+      });
 
       if (error) {
         throw error;
       }
 
-      if (!leads || leads.length === 0) {
-        toast({
-          title: "Ingen duplikater fundet",
-          description: "Der blev ikke fundet duplikerede Facebook leads.",
-        });
-        return;
-      }
-
-      // Group leads by email and phone to find duplicates
-      const duplicatesToDelete: string[] = [];
-      const seenEmails = new Map<string, string>(); // email -> oldest lead id
-      const seenPhones = new Map<string, string>(); // phone -> oldest lead id
-
-      for (const lead of leads) {
-        let isDuplicate = false;
-
-        // Check for email duplicates
-        if (lead.email && seenEmails.has(lead.email)) {
-          duplicatesToDelete.push(lead.id);
-          isDuplicate = true;
-        } else if (lead.email) {
-          seenEmails.set(lead.email, lead.id);
-        }
-
-        // Check for phone duplicates (only if not already marked as duplicate by email)
-        if (!isDuplicate && lead.telefon && seenPhones.has(lead.telefon)) {
-          duplicatesToDelete.push(lead.id);
-          isDuplicate = true;
-        } else if (lead.telefon) {
-          seenPhones.set(lead.telefon, lead.id);
-        }
-      }
-
-      if (duplicatesToDelete.length === 0) {
-        toast({
-          title: "Ingen duplikater fundet",
-          description: "Der blev ikke fundet duplikerede Facebook leads.",
-        });
-        return;
-      }
-
-      console.log(`Found ${duplicatesToDelete.length} duplicate Facebook leads to delete`);
-
-      // Delete duplicates
-      const { error: deleteError } = await supabase
-        .from('leads')
-        .delete()
-        .in('id', duplicatesToDelete);
-
-      if (deleteError) {
-        throw deleteError;
-      }
-
+      console.log('✅ Lead cleanup completed:', data);
+      
       // Refresh leads data
       refetchLeads();
 
       toast({
-        title: "Facebook lead duplikater ryddet op",
-        description: `${duplicatesToDelete.length} duplikerede Facebook leads blev fjernet.`,
+        title: "Facebook lead duplikater fjernet",
+        description: `${data.deletedCount} duplikerede leads blev fjernet. ${data.remainingCount} leads tilbage.`,
       });
 
-      console.log(`✅ Cleaned up ${duplicatesToDelete.length} duplicate Facebook leads`);
-
     } catch (error: any) {
-      console.error('Failed to cleanup Facebook lead duplicates:', error);
+      console.error('Failed to cleanup lead duplicates:', error);
       toast({
         title: "Oprydning fejlede",
         description: error.message || "Kunne ikke fjerne duplikerede Facebook leads.",
@@ -235,6 +174,12 @@ export const ReliableEmailSyncMonitor = () => {
     } finally {
       setIsCleaningLeads(false);
     }
+  };
+
+  const refreshData = async () => {
+    setIsLoading(true);
+    await fetchSyncHealth();
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -427,7 +372,7 @@ export const ReliableEmailSyncMonitor = () => {
                 </Button>
                 
                 <Button 
-                  onClick={handleCleanupLeadDuplicates}
+                  onClick={triggerLeadCleanup}
                   disabled={isCleaningLeads}
                   variant="outline"
                   className="text-orange-600 border-orange-200 hover:bg-orange-50"
