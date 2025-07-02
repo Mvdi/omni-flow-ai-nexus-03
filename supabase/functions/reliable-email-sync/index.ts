@@ -342,7 +342,7 @@ ${messageContent}
       adresse: customerAddress,
       services: detectedService,
       virksomhed: detectedService ? `${detectedService} kunde` : null,
-      status: 'Ny',
+      status: 'new',
       kilde: 'Facebook Lead',
       prioritet: detectedService ? 'Høj' : 'Medium',
       noter: leadNotes,
@@ -745,7 +745,7 @@ serve(async (req) => {
     // Parse request for enhanced options
     const requestBody = await req.json().catch(() => ({})) as EmailSyncRequest;
     const syncHours = requestBody.syncHours || 6; // Default 6 hours, 24 for nightly
-    const facebookLeadDetection = requestBody.facebookLeadDetection || false;
+    const facebookLeadDetection = requestBody.facebookLeadDetection !== false; // Enable by default
     const priority = requestBody.priority || 'normal';
     
     console.log(`🚀 BULLETPROOF Email Sync starting: ${syncHours}h window, Facebook leads: ${facebookLeadDetection}, Priority: ${priority}`);
