@@ -285,11 +285,11 @@ const handler = async (req: Request): Promise<Response> => {
             <div class="header">
                 <div class="left-header">
                     <div class="quote-title">${templateData?.documentTitle || 'Tilbud'}</div>
-                    ${templateData?.documentSubtitle ? `<div class="quote-subtitle">${templateData.documentSubtitle}</div>` : ''}
+                     ${templateData?.documentSubtitle ? `<div class="quote-subtitle">${templateData.documentSubtitle}</div>` : ''}
                 </div>
-                ${templateData?.logoUrl ? 
-                  `<img src="${templateData.logoUrl}" alt="Logo" style="width: 128px; height: 128px; object-fit: contain;" />` : 
-                  '<div class="logo-placeholder">LOGO</div>'
+                ${logoUrl ? 
+                  `<img src="${logoUrl}" alt="Logo" style="width: 128px; height: 128px; object-fit: contain;" />` : 
+                  (templateData?.logoUrl ? `<img src="${templateData.logoUrl}" alt="Logo" style="width: 128px; height: 128px; object-fit: contain;" />` : '<div class="logo-placeholder">LOGO</div>')
                 }
             </div>
             
