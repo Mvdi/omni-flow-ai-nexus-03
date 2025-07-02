@@ -51,6 +51,9 @@ export const QuotePreviewDialog = ({
 
   if (!quote) return null;
 
+  // Check if any items have discount
+  const hasDiscount = quote.items?.some((item: any) => item.discount_percent > 0) || false;
+
   const itemsHtml = quote.items?.map((item: any, index: number) => (
     <tr key={index} className="border-b border-gray-200">
       <td className="p-4 text-gray-700">{item.description}</td>
@@ -141,7 +144,7 @@ export const QuotePreviewDialog = ({
                     <th className="text-right py-3 font-semibold text-black">{templateData?.quantityColumnHeader || 'Antal'}</th>
                     <th className="text-right py-3 font-semibold text-black">{templateData?.unitColumnHeader || 'Enhed'}</th>
                     <th className="text-right py-3 font-semibold text-black">{templateData?.priceColumnHeader || 'Stk. pris'}</th>
-                    <th className="text-right py-3 font-semibold text-black">{templateData?.discountColumnHeader || 'Rabat'}</th>
+                    {hasDiscount && <th className="text-right py-3 font-semibold text-black">{templateData?.discountColumnHeader || 'Rabat'}</th>}
                     <th className="text-right py-3 font-semibold text-black">{templateData?.totalColumnHeader || 'Pris'}</th>
                   </tr>
                 </thead>
@@ -153,7 +156,7 @@ export const QuotePreviewDialog = ({
                       <td className="py-3 text-right text-black">{item.quantity}</td>
                       <td className="py-3 text-right text-black">Timer</td>
                       <td className="py-3 text-right text-black">Kr. {item.unit_price?.toLocaleString('da-DK') || 0}</td>
-                      <td className="py-3 text-right text-black">0%</td>
+                      {hasDiscount && <td className="py-3 text-right text-black">{item.discount_percent || 0}%</td>}
                       <td className="py-3 text-right text-black font-semibold">Kr. {item.total_price?.toLocaleString('da-DK') || 0}</td>
                     </tr>
                   )) || []}

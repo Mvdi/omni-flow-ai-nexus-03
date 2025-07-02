@@ -125,7 +125,22 @@ export const QuoteEditorDialog = ({
         }
       }
     }
-  }, [selectedTemplate, templates]);
+    
+    // Hvis der ikke er valgt template, brug template data fra database
+    if (!selectedTemplate && templateData) {
+      setEmailData(prev => ({
+        ...prev,
+        companyName: templateData.companyName || prev.companyName,
+        companyAddress: templateData.companyAddress || prev.companyAddress,
+        companyCity: templateData.companyCity || prev.companyCity,
+        companyCvr: templateData.companyCvr || prev.companyCvr,
+        documentTitle: templateData.documentTitle || prev.documentTitle,
+        documentSubtitle: templateData.documentSubtitle || prev.documentSubtitle,
+        ctaButtonText: templateData.ctaButtonText || prev.ctaButtonText,
+        footerText: templateData.footerText || prev.footerText
+      }));
+    }
+  }, [selectedTemplate, templates, templateData]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

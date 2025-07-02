@@ -21,6 +21,7 @@ interface QuoteItem {
   description: string;
   quantity: number;
   unit_price: number;
+  discount_percent: number;
   total_price: number;
 }
 
@@ -50,7 +51,7 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
   }, [open, formData.title]);
   
   const [items, setItems] = useState<QuoteItem[]>([
-    { id: '1', description: '', quantity: 1, unit_price: 0, total_price: 0 }
+    { id: '1', description: '', quantity: 1, unit_price: 0, discount_percent: 0, total_price: 0 }
   ]);
 
   const { data: templates = [], isLoading: templatesLoading } = useQuoteTemplates();
@@ -60,13 +61,15 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
   // Calculate total amount
   const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
 
-  // Update item total when quantity or unit price changes
+  // Update item total when quantity, unit price or discount changes
   const updateItem = (id: string, field: keyof QuoteItem, value: any) => {
     setItems(prev => prev.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
-        if (field === 'quantity' || field === 'unit_price') {
-          updated.total_price = updated.quantity * updated.unit_price;
+        if (field === 'quantity' || field === 'unit_price' || field === 'discount_percent') {
+          const baseTotal = updated.quantity * updated.unit_price;
+          const discountAmount = baseTotal * (updated.discount_percent / 100);
+          updated.total_price = baseTotal - discountAmount;
         }
         return updated;
       }
@@ -80,6 +83,7 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
       description: '',
       quantity: 1,
       unit_price: 0,
+      discount_percent: 0,
       total_price: 0
     };
     setItems(prev => [...prev, newItem]);
@@ -99,6 +103,7 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
         description: product.name + (product.description ? ` - ${product.description}` : ''),
         quantity: 1,
         unit_price: product.default_price || 0, // Use 0 if no default price
+        discount_percent: 0,
         total_price: product.default_price || 0
       };
       setItems(prev => [...prev, newItem]);
@@ -275,7 +280,7 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
         template_used: '',
         notes: ''
       });
-      setItems([{ id: '1', description: '', quantity: 1, unit_price: 0, total_price: 0 }]);
+      setItems([{ id: '1', description: '', quantity: 1, unit_price: 0, discount_percent: 0, total_price: 0 }]);
     } catch (error: any) {
       toast.error('Fejl ved oprettelse af tilbud: ' + error.message);
     }
@@ -490,7 +495,7 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div className="md:col-span-2 space-y-2">
                       <Label>Beskrivelse *</Label>
                       <Input
@@ -520,6 +525,19 @@ export const CreateQuoteDialog = ({ lead }: CreateQuoteDialogProps) => {
                         step="0.01"
                         value={item.unit_price}
                         onChange={(e) => updateItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Rabat (%)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={item.discount_percent}
+                        onChange={(e) => updateItem(item.id, 'discount_percent', parseFloat(e.target.value) || 0)}
+                        placeholder="0"
                       />
                     </div>
                   </div>
