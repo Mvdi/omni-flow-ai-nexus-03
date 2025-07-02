@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { SupportTicket } from '@/hooks/useTickets';
 import { useCustomerSidebarData, useCreateOrUpdateCustomer, useUpdateCustomerNotes } from '@/hooks/useCustomers';
 import { InternalNotesConversation } from './InternalNotesConversation';
-import { User, Phone, Calendar, Ticket, TrendingUp, AlertCircle, Edit, MapPin, Building, Hash } from 'lucide-react';
+import { User, Phone, Calendar, Ticket, TrendingUp, AlertCircle, Edit, MapPin, Building, Hash, Plus, X } from 'lucide-react';
+import { useTicketTags, useAddTicketTag, useRemoveTicketTag } from '@/hooks/useTicketTags';
 import { formatDistanceToNow } from 'date-fns';
 import { da } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -22,6 +23,7 @@ interface CustomerInfoProps {
 }
 
 export const CustomerInfo = ({ ticket, onTicketSelect, currentTicketId }: CustomerInfoProps) => {
+  const [newTag, setNewTag] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -39,6 +41,9 @@ export const CustomerInfo = ({ ticket, onTicketSelect, currentTicketId }: Custom
 
   // Fetch all sidebar data in one call
   const { data, isLoading, error } = useCustomerSidebarData(ticket.customer_email);
+  const { data: tags = [] } = useTicketTags(ticket.id);
+  const addTicketTag = useAddTicketTag();
+  const removeTicketTag = useRemoveTicketTag();
   const updateCustomer = useCreateOrUpdateCustomer();
   const updateNotes = useUpdateCustomerNotes();
 
@@ -99,6 +104,21 @@ export const CustomerInfo = ({ ticket, onTicketSelect, currentTicketId }: Custom
     } else {
       navigate(`/support?ticket=${ticketId}`);
     }
+  };
+
+  const handleAddTag = async () => {
+    if (!newTag.trim()) return;
+    
+    await addTicketTag.mutateAsync({
+      ticketId: ticket.id,
+      tagName: newTag.trim()
+    });
+    
+    setNewTag('');
+  };
+
+  const handleRemoveTag = async (tagId: string) => {
+    await removeTicketTag.mutateAsync(tagId);
   };
 
   const getScoreColor = (score: number) => {
@@ -387,10 +407,37 @@ export const CustomerInfo = ({ ticket, onTicketSelect, currentTicketId }: Custom
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {/* For now, keep the existing hardcoded tags - this can be enhanced later */}
-              <Badge variant="outline" className="text-xs">Support</Badge>
-              <Badge variant="outline" className="text-xs">Bug Report</Badge>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {tags.map((tag) => (
+                <Badge key={tag.id} variant="outline" className="text-xs flex items-center gap-1">
+                  {tag.tag_name}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-3 w-3 p-0 hover:bg-red-100"
+                    onClick={() => handleRemoveTag(tag.id)}
+                  >
+                    <X className="h-2 w-2" />
+                  </Button>
+                </Badge>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                placeholder="Tilføj nyt tag..."
+                className="flex-1 h-8 text-sm"
+                onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+              />
+              <Button 
+                size="sm" 
+                onClick={handleAddTag}
+                disabled={!newTag.trim() || addTicketTag.isPending}
+                className="h-8"
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
             </div>
           </CardContent>
         </Card>

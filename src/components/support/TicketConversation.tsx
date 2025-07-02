@@ -361,50 +361,8 @@ export const TicketConversation = ({ ticket }: TicketConversationProps) => {
               </Button>
             </div>
           </CardContent>
-            </Card>
-          )}
-
-          {/* Tags Section - moved here under customer statistics */}
-          <Card className="mb-3">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Tag className="h-4 w-4 text-gray-600" />
-                <span className="text-sm font-medium text-gray-700">Tags</span>
-              </div>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {tags.map((tag) => (
-                  <Badge key={tag.id} variant="outline" className="text-xs flex items-center gap-1">
-                    {tag.tag_name}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-3 w-3 p-0 hover:bg-red-100"
-                      onClick={() => handleRemoveTag(tag.id)}
-                    >
-                      <X className="h-2 w-2" />
-                    </Button>
-                  </Badge>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Tilføj nyt tag..."
-                  className="flex-1 h-8 text-sm"
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
-                />
-                <Button 
-                  size="sm" 
-                  onClick={handleAddTag}
-                  disabled={!newTag.trim() || addTicketTag.isPending}
-                  className="h-8"
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
-              </div>
-            </CardContent>
           </Card>
+          )}
 
       {/* Messages */}
       <Card className="flex-1 flex flex-col">
