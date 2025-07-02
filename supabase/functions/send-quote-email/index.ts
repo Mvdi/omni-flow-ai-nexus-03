@@ -295,11 +295,12 @@ const handler = async (req: Request): Promise<Response> => {
             
             <div class="company-section">
                 <div class="company-info">
-                    <div class="company-name">${templateData?.companyName || 'MM Multipartner'}</div>
+                    <div class="company-name">${templateData?.companyName || customEmailData?.companyName || 'Virksomhed'}</div>
                     <div class="company-details">
-                        ${templateData?.companyAddress || 'Penselvej 8'}<br>
-                        ${templateData?.companyCity || '1234 Spandevis'}<br>
-                        ${templateData?.companyCvr || 'CVR: 12345678'}
+                        ${templateData?.companyAddress || customEmailData?.companyAddress || ''}<br>
+                        ${templateData?.companyCity || customEmailData?.companyCity || ''}<br>
+                        ${templateData?.companyCvr || customEmailData?.companyCvr || ''}
+                    </div>
                     </div>
                 </div>
                 <div class="date-info">
@@ -366,7 +367,7 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             
             <div class="footer">
-                ${templateData?.footerText || 'MM Multipartner – Penselvej 8 – 1234 Spandevis – kontakt@dinmalermester.dk – www.dinmalermester.dk'}
+                ${templateData?.footerText || customEmailData?.footerText || ''}
             </div>
         </div>
     </body>
