@@ -7,15 +7,17 @@ const KEATECH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJodHRwczov
 export interface Vehicle {
   id: string;
   name: string;
-  deviceId: string;
-  vehicleCategoryId: string;
-  lastPosition?: {
+  deviceSerialNumber: string;
+  licensePlateNumber: string;
+  make: string;
+  model: string;
+  location?: {
     latitude: number;
     longitude: number;
-    timestamp: string;
-    speed?: number;
-    heading?: number;
   };
+  timestamp: string;
+  isDriving: boolean;
+  mileage: number;
 }
 
 export interface Trip {
