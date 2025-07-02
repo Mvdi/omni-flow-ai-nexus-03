@@ -859,6 +859,47 @@ export type Database = {
           },
         ]
       }
+      ticket_reminders: {
+        Row: {
+          created_at: string
+          id: string
+          is_completed: boolean
+          remind_at: string
+          reminder_text: string
+          ticket_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          remind_at: string
+          reminder_text: string
+          ticket_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          remind_at?: string
+          reminder_text?: string
+          ticket_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_reminders_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_tags: {
         Row: {
           created_at: string | null
