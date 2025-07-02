@@ -321,7 +321,7 @@ const processEmail = async (supabase: any, message: GraphMessage, mailboxAddress
     return { type: 'internal_skip' };
   }
 
-  // Check for exact duplicate by message ID
+  // ENHANCED duplicate check: Check by message ID AND content-based detection
   const { data: existingMessage } = await supabase
     .from('ticket_messages')
     .select('ticket_id, id')
@@ -329,8 +329,24 @@ const processEmail = async (supabase: any, message: GraphMessage, mailboxAddress
     .single();
 
   if (existingMessage) {
-    console.log(`⏭️ DUPLICATE MESSAGE: ${message.id} already exists`);
+    console.log(`⏭️ DUPLICATE MESSAGE ID: ${message.id} already exists`);
     return { type: 'duplicate_skip' };
+  }
+
+  // CRITICAL: Additional duplicate check for same content from same sender (cross-mailbox)
+  const messageContent = message.body?.content || message.bodyPreview || '';
+  const { data: contentDuplicate } = await supabase
+    .from('support_tickets')
+    .select('ticket_number, id')
+    .eq('customer_email', senderEmail)
+    .eq('subject', message.subject)
+    .gte('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString()) // Last 10 minutes
+    .single();
+
+  if (contentDuplicate) {
+    console.log(`⏭️ CONTENT DUPLICATE: Same email from ${senderEmail} with subject "${message.subject}" found within 10 minutes - adding to existing ticket ${contentDuplicate.ticket_number}`);
+    await addMessageToTicket(supabase, contentDuplicate, message);
+    return { type: 'merged', ticketId: contentDuplicate.id };
   }
 
   // FACEBOOK LEAD DETECTION: Check if this should be a lead instead of ticket
