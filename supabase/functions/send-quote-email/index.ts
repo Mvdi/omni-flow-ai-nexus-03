@@ -23,6 +23,12 @@ interface SendQuoteRequest {
   }>;
 }
 
+interface GraphTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -42,7 +48,7 @@ const handler = async (req: Request): Promise<Response> => {
       items 
     }: SendQuoteRequest = await req.json();
 
-    console.log(`Sending quote ${quoteNumber} to ${to} via Office365`);
+    console.log(`Sending quote ${quoteNumber} to ${to} via Office365 directly`);
 
     // Generate HTML content for the email
     const itemsHtml = items.map(item => `
@@ -130,37 +136,103 @@ const handler = async (req: Request): Promise<Response> => {
     </html>
     `;
 
-    // Use the existing Office365 email integration
+    // Get Office 365 credentials directly
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    console.log('Attempting to send quote email via Office365 integration...');
+    const { data: secrets, error: secretsError } = await supabase
+      .from('integration_secrets')
+      .select('key_name, key_value')
+      .eq('provider', 'office365');
 
-    const { data: emailResponse, error } = await supabase.functions.invoke('office365-send-email', {
-      body: {
-        to: [to],
-        subject: `Tilbud ${quoteNumber} fra MM Multipartner`,
-        htmlContent: htmlContent,
-        fromAddress: 'salg@mmmultipartner.dk',
-        // Make it compatible with the office365-send-email function
-        sender_name: 'MM Multipartner Sales',
-        ticket_id: 'quote-' + quoteNumber, // Dummy ticket ID for quotes
-        message_content: htmlContent
-      }
-    });
-
-    if (error) {
-      console.error("Error sending quote email via Office365:", error);
-      throw new Error(`Email sending failed: ${error.message || 'Unknown error'}`);
+    if (secretsError || !secrets || secrets.length === 0) {
+      console.error('Missing Office 365 credentials:', secretsError);
+      throw new Error("Office 365 credentials not configured");
     }
 
-    console.log("Quote email sent successfully via Office365:", emailResponse);
+    const credentialsMap = secrets.reduce((acc, secret) => {
+      acc[secret.key_name] = secret.key_value;
+      return acc;
+    }, {} as Record<string, string>);
+
+    const { client_id, client_secret, tenant_id } = credentialsMap;
+
+    if (!client_id || !client_secret || !tenant_id) {
+      console.error('Incomplete Office 365 credentials');
+      throw new Error("Incomplete Office 365 credentials");
+    }
+
+    // Get access token
+    const tokenUrl = `https://login.microsoftonline.com/${tenant_id}/oauth2/v2.0/token`;
+    const tokenParams = new URLSearchParams({
+      client_id: client_id,
+      client_secret: client_secret,
+      scope: 'https://graph.microsoft.com/.default',
+      grant_type: 'client_credentials'
+    });
+
+    console.log('Getting Office 365 access token...');
+    const tokenResponse = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: tokenParams.toString(),
+    });
+
+    if (!tokenResponse.ok) {
+      const tokenError = await tokenResponse.text();
+      console.error('Token request failed:', tokenError);
+      throw new Error(`Failed to get Office 365 token: ${tokenError}`);
+    }
+
+    const tokenData: GraphTokenResponse = await tokenResponse.json();
+    console.log('Successfully obtained Office 365 token');
+
+    // Send email via Microsoft Graph
+    const emailMessage = {
+      message: {
+        subject: `Tilbud ${quoteNumber} fra MM Multipartner`,
+        body: {
+          contentType: 'HTML',
+          content: htmlContent
+        },
+        toRecipients: [
+          {
+            emailAddress: {
+              address: to,
+              name: customerName
+            }
+          }
+        ]
+      }
+    };
+
+    console.log('Sending email via Microsoft Graph...');
+    const sendUrl = `https://graph.microsoft.com/v1.0/users/salg@mmmultipartner.dk/sendMail`;
+    
+    const emailResponse = await fetch(sendUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(emailMessage),
+    });
+
+    if (!emailResponse.ok) {
+      const emailError = await emailResponse.text();
+      console.error('Email send failed:', emailError);
+      throw new Error(`Failed to send email: ${emailError}`);
+    }
+
+    console.log('Quote email sent successfully via Office365');
 
     return new Response(JSON.stringify({ 
       success: true, 
-      messageId: emailResponse?.messageId || 'sent'
+      messageId: 'sent'
     }), {
       status: 200,
       headers: {
