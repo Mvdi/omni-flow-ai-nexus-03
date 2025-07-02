@@ -149,18 +149,19 @@
         var m2 = parseInt(customM2.value) || 251;
         var extraM2 = Math.max(0, m2 - 250);
         var extraCost = extraM2 * 10;
-        var basePrice = 1395;
+        var baseStandardPrice = 1395;
+        var baseMaintenancePrice = 1195;
         
-        std = basePrice + extraCost;
+        std = baseStandardPrice + extraCost;
         
-        // 20% discount on extra cost for maintenance
+        // Maintenance price starts from 1195 + 20% discount on extra m²
         var discountedExtraCost = extraCost * 0.8;
-        ved = basePrice + discountedExtraCost;
+        ved = baseMaintenancePrice + discountedExtraCost;
         
         vedlPris.textContent = Math.round(ved).toLocaleString('da-DK');
         
-        // Calculate total savings: base 200kr + 16% of extra cost
-        var extraSavings = extraCost * 0.16;
+        // Calculate total savings: base 200kr + 20% of extra cost (2kr per extra m²)
+        var extraSavings = extraCost * 0.2;
         savings = 200 + extraSavings;
       }
       

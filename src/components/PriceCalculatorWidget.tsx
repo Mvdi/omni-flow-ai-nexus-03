@@ -29,18 +29,19 @@ export const PriceCalculatorWidget = () => {
       // Dynamic pricing for over 250m²
       const extraM2 = Math.max(0, customM2 - 250);
       const extraCost = extraM2 * 10;
-      const basePrice = 1395;
+      const baseStandardPrice = 1395;
+      const baseMaintenancePrice = 1195;
       
-      standardPrice = basePrice + extraCost;
+      standardPrice = baseStandardPrice + extraCost;
       
-      // 20% discount on extra cost for maintenance
+      // Maintenance price starts from 1195 + 20% discount on extra m²
       const discountedExtraCost = extraCost * 0.8;
-      maintenancePrice = basePrice + discountedExtraCost;
+      maintenancePrice = baseMaintenancePrice + discountedExtraCost;
       
       maintenancePriceText = Math.round(maintenancePrice).toLocaleString('da-DK');
       
-      // Calculate total savings: base 200kr + 16% of extra cost
-      const extraSavings = extraCost * 0.16;
+      // Calculate total savings: base 200kr + 20% of extra cost (2kr per extra m²)
+      const extraSavings = extraCost * 0.2;
       savings = 200 + extraSavings;
     }
 
