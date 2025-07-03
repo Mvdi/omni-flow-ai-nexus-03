@@ -120,7 +120,7 @@ export const FensterCalendar = () => {
         }
       }
       
-      // Generate 15-minute intervals
+      // Generate 15-minute intervals for proper duration display
       for (let hour = startHour; hour <= endHour; hour++) {
         for (let minute = 0; minute < 60; minute += 15) {
           if (hour === endHour && minute > 0) break;
@@ -276,8 +276,31 @@ export const FensterCalendar = () => {
     return column.orders.find(order => {
       if (!order.scheduled_time) return false;
       const orderTime = order.scheduled_time.substring(0, 5);
-      return orderTime === time;
+      
+      // Check if this time slot is within the order's duration
+      const orderStartMinutes = timeToMinutes(orderTime);
+      const slotMinutes = timeToMinutes(time);
+      const orderDuration = order.estimated_duration || 60;
+      
+      return slotMinutes >= orderStartMinutes && slotMinutes < orderStartMinutes + orderDuration;
     });
+  };
+
+  const timeToMinutes = (timeString: string): number => {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  const isOrderStartSlot = (date: string, time: string, order: any): boolean => {
+    if (!order.scheduled_time) return false;
+    const orderTime = order.scheduled_time.substring(0, 5);
+    return orderTime === time;
+  };
+
+  const getOrderHeight = (order: any): number => {
+    const duration = order.estimated_duration || 60;
+    const slots = Math.ceil(duration / 15); // 15-minute intervals
+    return slots * 60; // 60px per slot
   };
 
   const getBlockedSlotForTime = (date: string, time: string) => {
@@ -379,71 +402,72 @@ export const FensterCalendar = () => {
                     <Droppable 
                       key={`${column.date}_${slot.time}`}
                       droppableId={`${column.date}_${slot.time}`}
-                    >
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          className={`relative p-1 border-l border-border min-h-[60px] ${
-                            snapshot.isDraggingOver ? 'bg-primary/20' : 
-                            isBlocked ? 'bg-blue-100' :
-                            column.isToday ? 'bg-primary/5' : 'bg-background'
-                          }`}
-                          style={{
-                            backgroundImage: order ? 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px)' : 'none'
-                          }}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            if (!order && !isBlocked) {
-                              setSelectedTimeSlot({ date: column.date, time: slot.time });
-                              setBlockDialogOpen(true);
-                            }
-                          }}
                         >
-                          {order && (
-                            <Draggable draggableId={order.id} index={0}>
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                   className={`absolute inset-1 p-3 rounded-lg shadow-sm ${
-                                     snapshot.isDragging ? 'shadow-lg rotate-2' : 'hover:shadow-md'
-                                   } ${
-                                     !order.assigned_employee_id 
-                                       ? 'bg-orange-50 border-2 border-orange-300 border-dashed' 
-                                       : 'bg-white border border-border'
-                                   }`}
-                                 >
-                                   {/* Customer name - prominent at top */}
-                                   <div className="font-semibold text-foreground text-base mb-1">
-                                     {order.customer}
-                                   </div>
-                                   
-                                   {/* Address */}
-                                   <div className="text-sm text-muted-foreground mb-3 leading-tight">
-                                     {order.address || 'Ingen adresse'}
-                                   </div>
-                                   
-                                   {/* Bottom row - price and duration only */}
-                                   <div className="flex justify-between items-center">
-                                     <div className="text-sm font-semibold text-foreground">
-                                       Kr. {order.price.toLocaleString()}
-                                     </div>
-                                     {order.estimated_duration && (
-                                       <div className="text-sm text-muted-foreground">
-                                         {order.estimated_duration} min
-                                       </div>
-                                     )}
-                                   </div>
-                                   
-                                   {!order.assigned_employee_id && (
-                                     <div className="text-xs text-orange-600 font-medium mt-1">Ikke tildelt</div>
-                                   )}
-                                </div>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={`relative p-1 border-l border-border min-h-[60px] ${
+                                snapshot.isDraggingOver ? 'bg-primary/20' : 
+                                isBlocked ? 'bg-blue-100' :
+                                column.isToday ? 'bg-primary/5' : 'bg-background'
+                              }`}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                if (!order && !isBlocked) {
+                                  setSelectedTimeSlot({ date: column.date, time: slot.time });
+                                  setBlockDialogOpen(true);
+                                }
+                              }}
+                            >
+                              {order && isOrderStartSlot(column.date, slot.time, order) && (
+                                <Draggable draggableId={order.id} index={0}>
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      className={`absolute inset-1 p-3 rounded-lg shadow-sm ${
+                                        snapshot.isDragging ? 'shadow-lg rotate-2' : 'hover:shadow-md'
+                                      } ${
+                                        !order.assigned_employee_id 
+                                          ? 'bg-orange-50 border-2 border-orange-300 border-dashed' 
+                                          : 'bg-white border border-border'
+                                      }`}
+                                      style={{
+                                        height: `${getOrderHeight(order)}px`,
+                                        zIndex: 10
+                                      }}
+                                    >
+                                      {/* Customer name - prominent at top */}
+                                      <div className="font-semibold text-foreground text-base mb-1">
+                                        {order.customer}
+                                      </div>
+                                      
+                                      {/* Address */}
+                                      <div className="text-sm text-muted-foreground mb-3 leading-tight">
+                                        {order.address || 'Ingen adresse'}
+                                      </div>
+                                      
+                                      {/* Bottom row - price and duration only */}
+                                      <div className="flex justify-between items-center">
+                                        <div className="text-sm font-semibold text-foreground">
+                                          Kr. {order.price.toLocaleString()}
+                                        </div>
+                                        {order.estimated_duration && (
+                                          <div className="text-sm text-muted-foreground">
+                                            {order.estimated_duration} min
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      {!order.assigned_employee_id && (
+                                        <div className="text-xs text-orange-600 font-medium mt-1">Ikke tildelt</div>
+                                      )}
+                                    </div>
+                                  )}
+                                </Draggable>
                               )}
-                            </Draggable>
-                          )}
                           
                           {isBlocked && blockedSlot && (
                             <div 
