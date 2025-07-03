@@ -313,6 +313,39 @@ export type Database = {
         }
         Relationships: []
       }
+      enhanced_rate_limits: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          endpoint: string
+          id: string
+          identifier: string
+          metadata: Json | null
+          request_count: number | null
+          window_start: string | null
+        }
+        Insert: {
+          action_type?: string
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          identifier: string
+          metadata?: Json | null
+          request_count?: number | null
+          window_start?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          identifier?: string
+          metadata?: Json | null
+          request_count?: number | null
+          window_start?: string | null
+        }
+        Relationships: []
+      }
       facebook_leads_processed: {
         Row: {
           customer_data: Json | null
@@ -1023,6 +1056,10 @@ export type Database = {
           event_type: string
           id: string
           ip_address: unknown | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string | null
+          source: string | null
           user_agent: string | null
           user_id: string | null
         }
@@ -1032,6 +1069,10 @@ export type Database = {
           event_type: string
           id?: string
           ip_address?: unknown | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+          source?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
@@ -1041,6 +1082,10 @@ export type Database = {
           event_type?: string
           id?: string
           ip_address?: unknown | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+          source?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
@@ -1513,6 +1558,20 @@ export type Database = {
       create_subscription_orders: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      enhanced_rate_limit_check: {
+        Args: {
+          p_identifier: string
+          p_endpoint: string
+          p_action_type?: string
+          p_max_requests?: number
+          p_window_minutes?: number
+        }
+        Returns: Json
+      }
+      enhanced_validate_input: {
+        Args: { input_data: Json; validation_rules?: Json }
+        Returns: Json
       }
       generate_quote_number: {
         Args: Record<PropertyKey, never>
