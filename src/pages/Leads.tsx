@@ -6,6 +6,7 @@ import { Users, Plus, Filter, Search, MoreVertical, Brain, TrendingUp, Clock, Ta
 import { useLeads, type Lead, useUpdateLeadStatus, useAIFollowUpSuggestions, useAILeadScoring, useAILeadEnrichment } from '@/hooks/useLeads';
 import { useLeadToOrderConversion } from '@/hooks/useLeadToOrderConversion';
 import { LeadDialog } from '@/components/leads/LeadDialog';
+import { QuoteOverviewDialog } from '@/components/leads/QuoteOverviewDialog';
 import { useState, useCallback, useMemo } from 'react';
 import { LeadCard } from '@/components/leads/LeadCard';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -135,6 +136,7 @@ const Leads = () => {
               <Search className="h-4 w-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Søg</span>
             </Button>
+            <QuoteOverviewDialog />
             <LeadDialog />
           </div>
         </div>
@@ -227,6 +229,7 @@ const Leads = () => {
                                     <LeadCard
                                       lead={lead}
                                       onEdit={openEditDialog}
+                                      onClick={openEditDialog}
                                     />
                                   </div>
                                 )}

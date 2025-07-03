@@ -4,21 +4,27 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useUpdateLeadStatus, useUpdateLastContact, useDeleteLead, useLeadSupportTickets } from '@/hooks/useLeads';
-import { MoreVertical, Edit, Trash2, Phone, Calendar, ArrowRight, Building, Mail, MessageSquare, Wrench } from 'lucide-react';
+import { useLeadQuotesByEmail } from '@/hooks/useLeadQuotes';
+import { MoreVertical, Edit, Trash2, Phone, Calendar, ArrowRight, Building, Mail, MessageSquare, Wrench, FileText } from 'lucide-react';
+import { CreateQuoteDialog } from './CreateQuoteDialog';
 import type { Lead } from '@/hooks/useLeads';
 
 interface LeadCardProps {
   lead: Lead;
   onEdit: (lead: Lead) => void;
+  onClick?: (lead: Lead) => void;
 }
 
-export const LeadCard = ({ lead, onEdit }: LeadCardProps) => {
+export const LeadCard = ({ lead, onEdit, onClick }: LeadCardProps) => {
   const updateStatus = useUpdateLeadStatus();
   const updateLastContact = useUpdateLastContact();
   const deleteLead = useDeleteLead();
   
   // Get support tickets for this lead
   const { data: supportTickets = [] } = useLeadSupportTickets(lead.email);
+  
+  // Get quotes for this lead
+  const { data: quotes = [] } = useLeadQuotesByEmail(lead.email);
 
   const handleStatusChange = async (newStatus: Lead['status']) => {
     await updateStatus.mutateAsync({ id: lead.id, status: newStatus });
@@ -60,8 +66,20 @@ export const LeadCard = ({ lead, onEdit }: LeadCardProps) => {
     }
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger click if clicking on dropdown or buttons
+    if ((e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]') || 
+        (e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    onClick?.(lead);
+  };
+
   return (
-    <div className="p-3 bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-grab select-none group">
+    <div 
+      className="p-3 bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer select-none group"
+      onClick={handleCardClick}
+    >
       {/* Compact Header */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1 min-w-0">
@@ -141,6 +159,12 @@ export const LeadCard = ({ lead, onEdit }: LeadCardProps) => {
           )}
         </div>
         <div className="flex items-center gap-1">
+          {quotes.length > 0 && (
+            <Badge variant="outline" className="text-xs h-5 bg-green-50 text-green-700 border-green-200 px-1">
+              <FileText className="h-2.5 w-2.5 mr-0.5" />
+              {quotes.length}
+            </Badge>
+          )}
           {supportTickets.length > 0 && (
             <Badge variant="outline" className="text-xs h-5 bg-blue-50 text-blue-700 border-blue-200 px-1">
               <MessageSquare className="h-2.5 w-2.5 mr-0.5" />
@@ -158,13 +182,16 @@ export const LeadCard = ({ lead, onEdit }: LeadCardProps) => {
         </div>
       </div>
       
-      {/* Compact Last Contact */}
-      {lead.sidste_kontakt && (
-        <div className="flex items-center gap-1 text-xs text-gray-500 mt-1 pt-1 border-t border-gray-100">
-          <Calendar className="h-3 w-3 flex-shrink-0" />
-          <span className="truncate">Sidste: {new Date(lead.sidste_kontakt).toLocaleDateString('da-DK')}</span>
-        </div>
-      )}
+      {/* Action Buttons */}
+      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-100">
+        <CreateQuoteDialog lead={lead} />
+        {lead.sidste_kontakt && (
+          <div className="flex items-center gap-1 text-xs text-gray-500 ml-auto">
+            <Calendar className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">Sidste: {new Date(lead.sidste_kontakt).toLocaleDateString('da-DK')}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
