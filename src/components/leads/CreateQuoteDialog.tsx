@@ -52,12 +52,14 @@ export const CreateQuoteDialog = ({ lead, children }: CreateQuoteDialogProps) =>
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {children || (
-          <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
-            <FileText className="h-3 w-3 mr-1" />
-            Lav Tilbud
-          </Button>
-        )}
+        <div onClick={(e) => e.stopPropagation()}>
+          {children || (
+            <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
+              <FileText className="h-3 w-3 mr-1" />
+              Lav Tilbud
+            </Button>
+          )}
+        </div>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>

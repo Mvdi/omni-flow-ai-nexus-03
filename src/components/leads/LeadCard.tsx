@@ -67,9 +67,13 @@ export const LeadCard = ({ lead, onEdit, onClick }: LeadCardProps) => {
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Don't trigger click if clicking on dropdown or buttons
+    // Don't trigger click if clicking on dropdown, buttons, dialogs, or input elements
     if ((e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]') || 
-        (e.target as HTMLElement).closest('button')) {
+        (e.target as HTMLElement).closest('button') ||
+        (e.target as HTMLElement).closest('[role="dialog"]') ||
+        (e.target as HTMLElement).closest('.dialog-content') ||
+        (e.target as HTMLElement).tagName === 'INPUT' ||
+        (e.target as HTMLElement).tagName === 'TEXTAREA') {
       return;
     }
     onClick?.(lead);
