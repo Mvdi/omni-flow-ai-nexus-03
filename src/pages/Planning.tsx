@@ -30,102 +30,94 @@ const Planning = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen flex flex-col bg-background">
       <Navigation />
       
-      <div className="container mx-auto p-4 lg:p-6">
-        {/* Integrated Header with AI Info */}
-        <div className="mb-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Ruteplanlægning</h1>
-              <p className="text-muted-foreground">Professionel kalender med AI-optimering</p>
-            </div>
-            
-            {/* AI Quick Actions */}
-            <div className="flex items-center gap-3">
-              {hasOrdersNeedingOptimization && (
-                <Badge variant="default" className="bg-primary">
-                  {stats.ordersNeedingOptimization} nye ordrer
-                </Badge>
-              )}
-              
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowAIPanel(!showAIPanel)}
-              >
-                <Brain className="h-4 w-4 mr-2" />
-                AI Analyse
-              </Button>
-              
-              <Button 
-                onClick={handleQuickOptimization}
-                disabled={isOptimizing}
-                size="sm"
-              >
-                {isOptimizing ? (
-                  <>
-                    <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
-                    Optimerer...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="h-4 w-4 mr-2" />
-                    Smart Optimering
-                  </>
-                )}
-              </Button>
-            </div>
+      {/* Compact Header with AI Integration */}
+      <div className="border-b border-border bg-background px-4 py-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold">Ruteplanlægning</h1>
+            <p className="text-sm text-muted-foreground">Professionel kalender med AI-optimering</p>
           </div>
-
-          {/* AI Panel (collapsible) */}
-          {showAIPanel && (
-            <Card className="border-primary/20 bg-primary/5">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Brain className="h-5 w-5" />
-                  AI Planlægnings-status
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-primary">{stats.totalOrders}</p>
-                    <p className="text-sm text-muted-foreground">Ordrer</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-green-600">{stats.optimizationRate}%</p>
-                    <p className="text-sm text-muted-foreground">Optimeret</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-blue-600">{stats.activeEmployees}</p>
-                    <p className="text-sm text-muted-foreground">Medarbejdere</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-purple-600">
-                      {stats.totalRevenue.toLocaleString()} kr
-                    </p>
-                    <p className="text-sm text-muted-foreground">Omsætning</p>
-                  </div>
-                </div>
-                
-                {lastOptimization && (
-                  <div className="mt-4 p-3 bg-background rounded border">
-                    <p className="text-sm font-medium">Sidste AI optimering:</p>
-                    <p className="text-sm text-muted-foreground">
-                      {lastOptimization.stats.ordersOptimized} ordrer optimeret • 
-                      {lastOptimization.stats.routesCreated} ruter • 
-                      Efficienscore: {lastOptimization.stats.avgEfficiency}
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          
+          {/* AI Quick Actions */}
+          <div className="flex items-center gap-2">
+            {hasOrdersNeedingOptimization && (
+              <Badge variant="default" className="bg-primary text-xs">
+                {stats.ordersNeedingOptimization} nye
+              </Badge>
+            )}
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowAIPanel(!showAIPanel)}
+            >
+              <Brain className="h-4 w-4 mr-1" />
+              AI
+            </Button>
+            
+            <Button 
+              onClick={handleQuickOptimization}
+              disabled={isOptimizing}
+              size="sm"
+            >
+              {isOptimizing ? (
+                <>
+                  <div className="animate-spin h-4 w-4 mr-1 border-2 border-white border-t-transparent rounded-full" />
+                  Optimerer
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4 mr-1" />
+                  Smart Optimering
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
-        {/* Main Calendar */}
+        {/* AI Panel (collapsible) */}
+        {showAIPanel && (
+          <div className="mt-3 p-3 border border-primary/20 bg-primary/5 rounded">
+            <div className="grid grid-cols-4 gap-4 text-center">
+              <div>
+                <p className="text-lg font-bold text-primary">{stats.totalOrders}</p>
+                <p className="text-xs text-muted-foreground">Ordrer</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-green-600">{stats.optimizationRate}%</p>
+                <p className="text-xs text-muted-foreground">Optimeret</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-blue-600">{stats.activeEmployees}</p>
+                <p className="text-xs text-muted-foreground">Medarbejdere</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-purple-600">
+                  {stats.totalRevenue.toLocaleString()} kr
+                </p>
+                <p className="text-xs text-muted-foreground">Omsætning</p>
+              </div>
+            </div>
+            
+            {lastOptimization && (
+              <div className="mt-2 p-2 bg-background rounded border text-xs">
+                <p className="font-medium">Sidste AI optimering:</p>
+                <p className="text-muted-foreground">
+                  {lastOptimization.stats.ordersOptimized} ordrer • 
+                  {lastOptimization.stats.routesCreated} ruter • 
+                  Score: {lastOptimization.stats.avgEfficiency}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Full-screen Calendar */}
+      <div className="flex-1 overflow-hidden">
         <ProfessionalCalendar />
       </div>
     </div>

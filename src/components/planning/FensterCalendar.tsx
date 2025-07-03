@@ -262,55 +262,53 @@ export const FensterCalendar = () => {
   const activeEmployees = employees.filter(e => e.is_active);
 
   return (
-    <div className="space-y-4">
-      {/* Fenster-style Header */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="outline" size="icon" onClick={() => navigateWeek('prev')}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="text-center">
-                <h2 className="text-xl font-bold capitalize">{weekInfo.month}</h2>
-                <p className="text-sm text-muted-foreground">UGE {weekInfo.weekNumber}</p>
-              </div>
-              <Button variant="outline" size="icon" onClick={() => navigateWeek('next')}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" onClick={goToCurrentWeek}>
-                I dag
-              </Button>
-              
-              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alle medarbejdere</SelectItem>
-                  {activeEmployees.map(employee => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+    <div className="h-full flex flex-col">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="text-center">
+            <h2 className="text-lg font-bold capitalize">{weekInfo.month}</h2>
+            <p className="text-xs text-muted-foreground">UGE {weekInfo.weekNumber}</p>
           </div>
-        </CardHeader>
-      </Card>
+          <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={goToCurrentWeek}>
+            I dag
+          </Button>
+          
+          <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle medarbejdere</SelectItem>
+              {activeEmployees.map(employee => (
+                <SelectItem key={employee.id} value={employee.id}>
+                  {employee.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-      {/* Fenster-style Calendar Grid */}
+      {/* Full-width Calendar Grid */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="border border-border rounded-lg overflow-hidden bg-background">
+        <div className="flex-1 bg-background">
           {/* Header Row */}
-          <div className="grid grid-cols-6 border-b border-border">
-            <div className="p-2 bg-muted text-center text-sm font-medium">UGE<br/>{weekInfo.weekNumber}</div>
+          <div className="grid grid-cols-6 border-b border-border sticky top-0 bg-background z-10">
+            <div className="p-2 bg-muted text-center text-sm font-medium border-r border-border">
+              UGE<br/>{weekInfo.weekNumber}
+            </div>
             {weekColumns.map((column) => (
-              <div key={column.date} className={`p-2 text-center border-l border-border ${column.isToday ? 'bg-primary/10' : 'bg-muted'}`}>
+              <div key={column.date} className={`p-2 text-center border-r border-border last:border-r-0 ${column.isToday ? 'bg-primary/10' : 'bg-muted'}`}>
                 <div className="text-sm font-medium">{column.dayName}</div>
                 <div className="text-lg font-bold">{column.dayNumber}</div>
                 <div className="text-xs text-muted-foreground">
@@ -321,7 +319,7 @@ export const FensterCalendar = () => {
           </div>
 
           {/* Time Slots */}
-          <div className="max-h-[600px] overflow-y-auto">
+          <div className="overflow-y-auto" style={{ height: 'calc(100vh - 180px)' }}>
             {timeSlots.map((slot) => (
               <div key={slot.time} className="grid grid-cols-6 border-b border-border min-h-[60px]">
                 {/* Time Label */}
