@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, Calendar, Users, Pause, Play, X, FileText } from 'lucide-react';
 import { SubscriptionDialog } from '@/components/subscriptions/SubscriptionDialog';
 import { useSubscriptions } from '@/hooks/useSubscriptions';
+import { useFixSubscriptionOrders } from '@/hooks/useFixSubscriptionOrders';
 import type { Subscription } from '@/hooks/useSubscriptions';
 
 const Subscriptions = () => {
@@ -27,6 +28,8 @@ const Subscriptions = () => {
     reactivateSubscription,
     createOrderFromSubscription 
   } = useSubscriptions();
+
+  const { fixSubscriptionOrders } = useFixSubscriptionOrders();
 
   // Listen for order-to-subscription conversion events
   React.useEffect(() => {
@@ -319,6 +322,15 @@ const Subscriptions = () => {
                           disabled={subscription.status !== 'active'}
                         >
                           Lav Ordre
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fixSubscriptionOrders(subscription.id)}
+                          className="text-orange-600 border-orange-600"
+                        >
+                          Ret Ordrer
                         </Button>
 
                         {subscription.status === 'active' && (

@@ -106,8 +106,9 @@ serve(async (req) => {
 
         // Create the next 3 orders for planning
         const futureOrders = [];
+        const baseDate = needsStartOrder ? subscription.start_date : subscription.next_due_date;
         for (let i = 1; i <= 3; i++) {
-          const futureDate = new Date(subscription.next_due_date);
+          const futureDate = new Date(baseDate);
           futureDate.setDate(futureDate.getDate() + (subscription.interval_weeks * 7 * i));
           
           futureOrders.push({
