@@ -22,12 +22,13 @@ import { useAIResponseImprover } from '@/hooks/useAIResponseImprover';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import DOMPurify from 'dompurify';
 
 interface TicketConversationProps {
   ticket: SupportTicket;
 }
 
-// Safe HTML content formatter
+// Safe HTML content formatter with comprehensive XSS protection
 const formatMessageContent = (content: string, isFromSupport: boolean) => {
   if (!content) return '';
 
@@ -42,12 +43,15 @@ const formatMessageContent = (content: string, isFromSupport: boolean) => {
   const containsHTML = /<[^>]+>/.test(cleanedContent);
   
   if (containsHTML) {
-    // For HTML content: sanitize and return safe HTML
-    // Remove potentially dangerous scripts and inline event handlers
-    const sanitizedContent = cleanedContent
-      .replace(/<script[^>]*>.*?<\/script>/gi, '')
-      .replace(/on\w+="[^"]*"/gi, '')
-      .replace(/javascript:/gi, '');
+    // Comprehensive HTML sanitization using DOMPurify
+    const sanitizedContent = DOMPurify.sanitize(cleanedContent, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div'],
+      ALLOWED_ATTR: ['class', 'style'],
+      FORBID_TAGS: ['script', 'object', 'embed', 'iframe', 'form', 'input', 'button'],
+      FORBID_ATTR: ['onclick', 'onload', 'onerror', 'onmouseover', 'onmouseout', 'onfocus', 'onblur', 'onchange', 'onsubmit'],
+      KEEP_CONTENT: true,
+      SANITIZE_DOM: true
+    });
     
     return sanitizedContent;
   }

@@ -1,4 +1,6 @@
 
+import { supabase } from '@/integrations/supabase/client';
+
 export interface MapboxGeocodingResponse {
   features: Array<{
     geometry: {
@@ -20,35 +22,28 @@ export interface MapboxDirectionsResponse {
 }
 
 export class MapboxService {
-  private readonly accessToken: string;
   private readonly baseUrl = 'https://api.mapbox.com';
 
   constructor() {
-    // Use environment-specific token - should be moved to Supabase secrets
-    this.accessToken = process.env.NODE_ENV === 'production' 
-      ? 'pk.production_token_here' 
-      : 'pk.eyJ1IjoibG92YWJsZS1kZXYiLCJhIjoiY2x6NHQ4YmZqMGFjeTJycGZpb2VmbGhzZCJ9.qzHLmkYaBHjfJGCGGGfZ3Q';
+    // API key is now securely handled by edge function
   }
 
   async geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
     try {
-      const encodedAddress = encodeURIComponent(`${address}, Denmark`);
-      const url = `${this.baseUrl}/geocoding/v5/mapbox.places/${encodedAddress}.json?access_token=${this.accessToken}&country=dk&limit=1`;
-      
       console.log('🌍 Geocoding address:', address);
-      const response = await fetch(url);
       
-      if (!response.ok) {
-        console.error('Mapbox geocoding error:', response.status, response.statusText);
+      const { data, error } = await supabase.functions.invoke('secure-geocoding', {
+        body: { address }
+      });
+
+      if (error) {
+        console.error('Geocoding error:', error);
         return null;
       }
 
-      const data: MapboxGeocodingResponse = await response.json();
-      
-      if (data.features && data.features.length > 0) {
-        const [lng, lat] = data.features[0].geometry.coordinates;
-        console.log(`✅ Geocoded "${address}" to ${lat}, ${lng}`);
-        return { lat, lng };
+      if (data && data.lat && data.lng) {
+        console.log(`✅ Geocoded "${address}" to ${data.lat}, ${data.lng}`);
+        return { lat: data.lat, lng: data.lng };
       }
       
       console.warn('No geocoding results for:', address);
@@ -137,26 +132,23 @@ export class MapboxService {
     end: { lat: number; lng: number }
   ): Promise<{ distance: number; duration: number } | null> {
     try {
-      const url = `${this.baseUrl}/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?access_token=${this.accessToken}&geometries=geojson&overview=simplified`;
+      // For now, fall back to Haversine calculation since we moved API key to edge function
+      // TODO: Create a secure route calculation edge function if needed
+      const distance = this.calculateHaversineDistance(
+        start.lat, start.lng, end.lat, end.lng
+      );
       
-      const response = await fetch(url);
+      // Better time estimation for Danish roads
+      let timeMultiplier = 2.2; // minutes per km
+      if (distance > 100) timeMultiplier = 1.1; // Highway speeds
+      else if (distance > 50) timeMultiplier = 1.5; // Country roads
+      else if (distance > 20) timeMultiplier = 2.0; // Mixed roads
+      else timeMultiplier = 3.0; // City driving
       
-      if (!response.ok) {
-        console.error('Mapbox directions error:', response.status, response.statusText);
-        return null;
-      }
-
-      const data: MapboxDirectionsResponse = await response.json();
-      
-      if (data.routes && data.routes.length > 0) {
-        const route = data.routes[0];
-        return {
-          distance: route.distance, // meters
-          duration: route.duration  // seconds
-        };
-      }
-      
-      return null;
+      return {
+        distance: Math.round(distance * 1000), // meters
+        duration: Math.round(distance * timeMultiplier * 60) // seconds
+      };
     } catch (error) {
       console.error('Route calculation failed:', error);
       return null;
