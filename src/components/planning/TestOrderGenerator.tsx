@@ -129,47 +129,47 @@ export const TestOrderGenerator: React.FC = () => {
     return weekDates;
   };
 
-  // Real DAWA addresses for testing distance calculation
+  // Real DAWA addresses for your operating area (Vejle, Kolding, Fredericia, Juelsminde, Hedensted, Odense)
   const dawaTestOrders = [
     {
       name: 'Maria Andersen',
       email: 'maria@example.com',
-      address: 'Rådhuspladsen 1, 1550 København V',
-      lat: 55.6760968,
-      lng: 12.5683371,
-      city: 'København'
+      address: 'Store Torv 5, 7100 Vejle',
+      lat: 55.7058,
+      lng: 9.5378,
+      city: 'Vejle'
     },
     {
       name: 'Lars Petersen',
       email: 'lars@example.com', 
-      address: 'Store Torv 1, 8000 Aarhus C',
-      lat: 56.1567,
-      lng: 10.2108,
-      city: 'Aarhus'
+      address: 'Akseltorv 8, 6000 Kolding',
+      lat: 55.4904,
+      lng: 9.4721,
+      city: 'Kolding'
     },
     {
       name: 'Hanne Nielsen',
       email: 'hanne@example.com',
-      address: 'Kongens Nytorv 13, 5000 Odense C', 
-      lat: 55.3959,
-      lng: 10.3883,
-      city: 'Odense'
+      address: 'Torvet 2, 7000 Fredericia', 
+      lat: 55.5661,
+      lng: 9.7516,
+      city: 'Fredericia'
     },
     {
       name: 'Søren Hansen',
       email: 'soeren@example.com',
-      address: 'Danmarksgade 1, 9000 Aalborg',
-      lat: 57.0488,
-      lng: 9.9217,
-      city: 'Aalborg'
+      address: 'Havnen 1, 7130 Juelsminde',
+      lat: 55.7108,
+      lng: 10.0139,
+      city: 'Juelsminde'
     },
     {
       name: 'Anne Larsen',
       email: 'anne@example.com',
-      address: 'Axeltorv 8, 6700 Esbjerg',
-      lat: 55.4719,
-      lng: 8.4512,
-      city: 'Esbjerg'
+      address: 'Centervej 10, 8722 Hedensted',
+      lat: 55.7719,
+      lng: 9.7000,
+      city: 'Hedensted'
     }
   ];
 
@@ -367,8 +367,8 @@ export const TestOrderGenerator: React.FC = () => {
           <div className="bg-blue-50 p-3 rounded-lg">
             <p className="font-semibold text-blue-800">🏙️ DAWA Test Ordre:</p>
             <ul className="text-xs text-blue-700 mt-1 space-y-1">
-              <li>✓ København, Aarhus, Odense, Aalborg, Esbjerg</li>
-              <li>✓ Reelle adresser fra DAWA</li>
+              <li>✓ Vejle, Kolding, Fredericia, Juelsminde, Hedensted</li>
+              <li>✓ Reelle adresser fra DAWA (dit område)</li>
               <li>✓ Spredt over denne uges hverdage</li>
               <li>✓ Tester afstandsberegning mellem byer</li>
             </ul>

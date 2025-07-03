@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, Settings, Filter, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { OrderDialog } from '@/components/orders/OrderDialog';
+import { TestOrderGenerator } from '@/components/planning/TestOrderGenerator';
 import { OrderSettingsDialog } from '@/components/orders/OrderSettingsDialog';
 import { useOrders } from '@/hooks/useOrders';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
@@ -249,6 +250,19 @@ const Orders = () => {
                 </select>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Test Order Generator */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Test Ordre Generator</CardTitle>
+            <CardDescription>
+              Opret test ordre til dit område for at teste planlægningssystemet
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TestOrderGenerator />
           </CardContent>
         </Card>
 
