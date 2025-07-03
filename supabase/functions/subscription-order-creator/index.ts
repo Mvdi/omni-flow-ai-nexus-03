@@ -27,14 +27,18 @@ serve(async (req) => {
   try {
     console.log('🔄 Running subscription order creation check...');
 
-    // Find subscriptions that need orders created (1 week before due date)
+    // Find subscriptions that need orders created 
+    // 1. Subscriptions starting today (start_date = today and no orders exist yet)
+    // 2. Subscriptions due within 1 week
+    const today = new Date().toISOString().split('T')[0];
+    const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
     const { data: subscriptionsToProcess, error: subscriptionsError } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('status', 'active')
       .eq('auto_create_orders', true)
-      .lte('next_due_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-      .gt('next_due_date', new Date().toISOString().split('T')[0]);
+      .or(`start_date.eq.${today},and(next_due_date.lte.${oneWeekFromNow},next_due_date.gt.${today})`);
 
     if (subscriptionsError) {
       console.error('Error fetching subscriptions:', subscriptionsError);
@@ -53,19 +57,23 @@ serve(async (req) => {
       try {
         console.log(`🏗️ Processing subscription ${subscription.id} for ${subscription.customer_name}`);
 
-        // Check if order already exists for this due date
+        // Determine the order date - either start date (if today) or next due date
+        const isStartingToday = subscription.start_date === today;
+        const orderDate = isStartingToday ? subscription.start_date : subscription.next_due_date;
+        
+        // Check if order already exists for this date
         const { data: existingOrders } = await supabase
           .from('orders')
           .select('id')
           .eq('subscription_id', subscription.id)
-          .eq('scheduled_date', subscription.next_due_date);
+          .eq('scheduled_date', orderDate);
 
         if (existingOrders && existingOrders.length > 0) {
-          console.log(`⚠️ Order already exists for subscription ${subscription.id} on ${subscription.next_due_date}`);
+          console.log(`⚠️ Order already exists for subscription ${subscription.id} on ${orderDate}`);
           continue;
         }
 
-        // Create the main order for the due date
+        // Create the main order for the determined date
         const mainOrderData = {
           user_id: subscription.user_id,
           subscription_id: subscription.id,
@@ -73,9 +81,9 @@ serve(async (req) => {
           customer: subscription.customer_name,
           customer_email: subscription.customer_email,
           price: subscription.price,
-          scheduled_date: subscription.next_due_date,
+          scheduled_date: orderDate,
           status: 'Ikke planlagt',
-          comment: `Abonnement: ${subscription.description || subscription.service_type}${subscription.notes ? '\nNoter: ' + subscription.notes : ''}`,
+          comment: `Abonnement${isStartingToday ? ' (start)' : ''}: ${subscription.description || subscription.service_type}${subscription.notes ? '\nNoter: ' + subscription.notes : ''}`,
           address: subscription.customer_address,
           priority: 'Normal',
           estimated_duration: subscription.estimated_duration
@@ -128,23 +136,40 @@ serve(async (req) => {
           }
         }
 
-        // Update subscription with new next due date
-        const nextDueDate = new Date(subscription.next_due_date);
-        nextDueDate.setDate(nextDueDate.getDate() + (subscription.interval_weeks * 7));
+        // Update subscription with new next due date (only if not starting today)
+        if (!isStartingToday) {
+          const nextDueDate = new Date(subscription.next_due_date);
+          nextDueDate.setDate(nextDueDate.getDate() + (subscription.interval_weeks * 7));
 
-        const { error: updateError } = await supabase
-          .from('subscriptions')
-          .update({
-            next_due_date: nextDueDate.toISOString().split('T')[0],
-            last_order_date: subscription.next_due_date,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', subscription.id);
+          const { error: updateError } = await supabase
+            .from('subscriptions')
+            .update({
+              next_due_date: nextDueDate.toISOString().split('T')[0],
+              last_order_date: subscription.next_due_date,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', subscription.id);
 
-        if (updateError) {
-          console.error(`Error updating subscription ${subscription.id}:`, updateError);
+          if (updateError) {
+            console.error(`Error updating subscription ${subscription.id}:`, updateError);
+          } else {
+            console.log(`✅ Updated subscription ${subscription.id} next due date to ${nextDueDate.toISOString().split('T')[0]}`);
+          }
         } else {
-          console.log(`✅ Updated subscription ${subscription.id} next due date to ${nextDueDate.toISOString().split('T')[0]}`);
+          // For starting subscriptions, just update last_order_date
+          const { error: updateError } = await supabase
+            .from('subscriptions')
+            .update({
+              last_order_date: subscription.start_date,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', subscription.id);
+
+          if (updateError) {
+            console.error(`Error updating subscription ${subscription.id}:`, updateError);
+          } else {
+            console.log(`✅ Updated subscription ${subscription.id} with start order`);
+          }
         }
 
         processedSubscriptions.push({

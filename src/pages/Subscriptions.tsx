@@ -116,7 +116,11 @@ const Subscriptions = () => {
 
   const activeSubscriptions = subscriptions.filter(sub => sub.status === 'active');
   const totalMonthlyRevenue = activeSubscriptions.reduce((sum, sub) => {
-    return sum + (sub.price * (4 / sub.interval_weeks) * 4); // Approximate monthly revenue
+    // Calculate monthly revenue: price per interval * (weeks per month / interval weeks)
+    // 52 weeks per year / 12 months = 4.33 weeks per month
+    const weeksPerMonth = 52 / 12;
+    const monthlyRevenue = sub.price * (weeksPerMonth / sub.interval_weeks);
+    return sum + monthlyRevenue;
   }, 0);
 
   return (
