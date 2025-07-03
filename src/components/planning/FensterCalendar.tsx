@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Calendar, 
   ChevronLeft, 
@@ -14,7 +15,10 @@ import {
   Clock, 
   User,
   Ban,
-  Plus
+  Plus,
+  Zap,
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react';
 import { useOrders, Order } from '@/hooks/useOrders';
 import { useEmployees } from '@/hooks/useEmployees';
@@ -23,6 +27,7 @@ import { useBlockedTimeSlots } from '@/hooks/useBlockedTimeSlots';
 import { useAuth } from '@/hooks/useAuth';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TimeSlot {
   time: string;
@@ -52,6 +57,9 @@ export const FensterCalendar = () => {
   const [blockDuration, setBlockDuration] = useState(15);
   const [deleteBlockDialog, setDeleteBlockDialog] = useState(false);
   const [selectedBlockToDelete, setSelectedBlockToDelete] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<'week' | '5day' | 'day'>('week');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [optimizationStatus, setOptimizationStatus] = useState<'idle' | 'running' | 'completed'>('idle');
   
   const { orders, updateOrder, refetch: refetchOrders } = useOrders();
   const { employees } = useEmployees();
@@ -59,34 +67,63 @@ export const FensterCalendar = () => {
   const { blockedSlots, createBlockedSlot, deleteBlockedSlot } = useBlockedTimeSlots();
   const { user } = useAuth();
 
-  // Auto-assign unassigned orders to available employees
-  const autoAssignOrders = async () => {
+  // Enhanced PRP-style optimization
+  const triggerEnhancedOptimization = async () => {
     if (!user) return;
     
+    setOptimizationStatus('running');
     try {
-      const response = await fetch('https://tckynbgheicyqezqprdp.supabase.co/functions/v1/assign-order-to-employee', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRja3luYmdoZWljeXFlenFwcmRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNTE3OTMsImV4cCI6MjA2NTkyNzc5M30.vJoSHaDDJrbXIzoEww4LDg8EynJ38cvUZ0qX1BWNNgM`,
-        },
-        body: JSON.stringify({ userId: user.id }),
+      const response = await supabase.functions.invoke('enhanced-intelligent-planner', {
+        body: { 
+          userId: user.id,
+          triggerType: 'manual',
+          optimizationType: 'weekly'
+        }
       });
       
-      const result = await response.json();
-      if (result.success && result.assigned > 0) {
-        toast.success(`${result.assigned} ordrer tildelt til ${result.employees.join(', ')}`);
+      if (response.data?.success) {
+        toast.success(`✅ PRP Optimering færdig: ${response.data.stats?.ordersOptimized || 0} ordrer optimeret`);
+        setOptimizationStatus('completed');
         refetchOrders();
+      } else {
+        throw new Error(response.data?.error || 'Optimering fejlede');
       }
     } catch (error) {
-      console.error('Auto-assign error:', error);
+      console.error('Enhanced optimization error:', error);
+      toast.error('Optimering fejlede');
+      setOptimizationStatus('idle');
     }
   };
 
-  // Auto-assign on component mount
+  const triggerDailyScheduler = async () => {
+    if (!user) return;
+    
+    try {
+      const response = await supabase.functions.invoke('fenster-daily-scheduler');
+      
+      if (response.data?.success) {
+        toast.success(`🤖 Daglig planlægning: ${response.data.stats?.ordersCreated || 0} nye ordrer oprettet`);
+        refetchOrders();
+      }
+    } catch (error) {
+      console.error('Daily scheduler error:', error);
+      toast.error('Daglig planlægning fejlede');
+    }
+  };
+
+  // Auto-trigger enhanced optimization on mount
   useEffect(() => {
-    autoAssignOrders();
-  }, [user]);
+    if (user && orders.length > 0) {
+      // Check for unplanned orders and auto-optimize
+      const unplannedOrders = orders.filter(order => 
+        order.status === 'Ikke planlagt' || !order.assigned_employee_id
+      );
+      
+      if (unplannedOrders.length > 0) {
+        setTimeout(() => triggerEnhancedOptimization(), 1000);
+      }
+    }
+  }, [user, orders.length]);
 
   // Generate time slots based on work schedules
   useEffect(() => {
@@ -142,52 +179,76 @@ export const FensterCalendar = () => {
     generateTimeSlots();
   }, [selectedEmployee, employees, workSchedules]);
 
-  // Generate week columns
+  // Generate columns based on view mode
   useEffect(() => {
-    const generateWeekColumns = () => {
-      const monday = new Date(selectedWeek);
-      monday.setDate(selectedWeek.getDate() - selectedWeek.getDay() + 1);
-      
-      const columns: DayColumn[] = [];
-      const dayNames = ['MAN.', 'TIR.', 'ONS.', 'TOR.', 'FRE.'];
+    const generateColumns = () => {
+      let columns: DayColumn[] = [];
       const today = new Date();
       
-      for (let i = 0; i < 5; i++) {
-        const currentDate = new Date(monday);
-        currentDate.setDate(monday.getDate() + i);
-        const dateString = currentDate.toISOString().split('T')[0];
-        
-        // Filter orders for this day and employee
+      if (viewMode === 'day') {
+        // Single day view
+        const dateString = selectedDate.toISOString().split('T')[0];
         const dayOrders = orders.filter(order => {
           if (order.scheduled_date !== dateString) return false;
-          // Show unassigned orders when viewing "all employees"
           if (selectedEmployee !== 'all') {
             return order.assigned_employee_id === selectedEmployee;
           }
-          return true; // Show all orders including unassigned when viewing "all"
+          return true;
         }).sort((a, b) => {
           const timeA = a.scheduled_time || '00:00';
           const timeB = b.scheduled_time || '00:00';
           return timeA.localeCompare(timeB);
         });
 
-        const revenue = dayOrders.reduce((sum, order) => sum + order.price, 0);
-        
         columns.push({
           date: dateString,
-          dayName: dayNames[i],
-          dayNumber: currentDate.getDate(),
+          dayName: selectedDate.toLocaleDateString('da-DK', { weekday: 'short' }).toUpperCase(),
+          dayNumber: selectedDate.getDate(),
           isToday: dateString === today.toISOString().split('T')[0],
           orders: dayOrders,
-          revenue
+          revenue: dayOrders.reduce((sum, order) => sum + order.price, 0)
         });
+      } else {
+        // Week or 5-day view
+        const monday = new Date(selectedWeek);
+        monday.setDate(selectedWeek.getDate() - selectedWeek.getDay() + 1);
+        
+        const dayNames = ['MAN.', 'TIR.', 'ONS.', 'TOR.', 'FRE.', 'LØR.', 'SØN.'];
+        const daysToShow = viewMode === '5day' ? 5 : 7;
+        
+        for (let i = 0; i < daysToShow; i++) {
+          const currentDate = new Date(monday);
+          currentDate.setDate(monday.getDate() + i);
+          const dateString = currentDate.toISOString().split('T')[0];
+          
+          const dayOrders = orders.filter(order => {
+            if (order.scheduled_date !== dateString) return false;
+            if (selectedEmployee !== 'all') {
+              return order.assigned_employee_id === selectedEmployee;
+            }
+            return true;
+          }).sort((a, b) => {
+            const timeA = a.scheduled_time || '00:00';
+            const timeB = b.scheduled_time || '00:00';
+            return timeA.localeCompare(timeB);
+          });
+
+          columns.push({
+            date: dateString,
+            dayName: dayNames[i],
+            dayNumber: currentDate.getDate(),
+            isToday: dateString === today.toISOString().split('T')[0],
+            orders: dayOrders,
+            revenue: dayOrders.reduce((sum, order) => sum + order.price, 0)
+          });
+        }
       }
       
       setWeekColumns(columns);
     };
 
-    generateWeekColumns();
-  }, [selectedWeek, selectedEmployee, orders]);
+    generateColumns();
+  }, [selectedWeek, selectedDate, selectedEmployee, orders, viewMode]);
 
   const navigateWeek = (direction: 'prev' | 'next') => {
     const newWeek = new Date(selectedWeek);
@@ -199,7 +260,7 @@ export const FensterCalendar = () => {
     setSelectedWeek(new Date());
   };
 
-  // Drag and drop handler
+  // Enhanced drag and drop with manual edit tracking
   const handleDragEnd = async (result: any) => {
     if (!result.destination) return;
 
@@ -210,13 +271,27 @@ export const FensterCalendar = () => {
     const [destDate, destTime] = destination.droppableId.split('_');
     
     try {
+      // Update order with manual edit flag
       await updateOrder(orderId, {
         scheduled_date: destDate,
         scheduled_time: destTime,
         status: 'Planlagt'
+        // edited_manually will be set automatically by database trigger
       });
       
-      toast.success('Ordre flyttet succesfuldt');
+      toast.success('📍 Ordre flyttet manuelt - vil ikke blive auto-optimeret');
+      
+      // Trigger re-optimization for the affected day (excluding manually edited orders)
+      if (user) {
+        supabase.functions.invoke('enhanced-intelligent-planner', {
+          body: { 
+            userId: user.id,
+            triggerType: 'manual_edit_reoptimize',
+            optimizationType: 'daily',
+            targetDate: destDate
+          }
+        }).catch(console.error);
+      }
     } catch (error) {
       toast.error('Kunne ikke flytte ordre');
       console.error('Drag and drop error:', error);
@@ -329,49 +404,125 @@ export const FensterCalendar = () => {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Compact Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="text-center">
-            <h2 className="text-lg font-bold capitalize">{weekInfo.month}</h2>
-            <p className="text-xs text-muted-foreground">UGE {weekInfo.weekNumber}</p>
+      {/* Enhanced PRP Header with view modes and optimization controls */}
+      <div className="border-b border-border bg-background">
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-4">
+            {/* Navigation */}
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => viewMode === 'day' ? setSelectedDate(new Date(selectedDate.getTime() - 86400000)) : navigateWeek('prev')}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="text-center min-w-[120px]">
+                {viewMode === 'day' ? (
+                  <>
+                    <h2 className="text-lg font-bold">{selectedDate.toLocaleDateString('da-DK', { day: 'numeric', month: 'long' })}</h2>
+                    <p className="text-xs text-muted-foreground">{selectedDate.toLocaleDateString('da-DK', { weekday: 'long' })}</p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-lg font-bold capitalize">{weekInfo.month}</h2>
+                    <p className="text-xs text-muted-foreground">UGE {weekInfo.weekNumber}</p>
+                  </>
+                )}
+              </div>
+              <Button variant="outline" size="sm" onClick={() => viewMode === 'day' ? setSelectedDate(new Date(selectedDate.getTime() + 86400000)) : navigateWeek('next')}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* View Mode Tabs */}
+            <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'week' | '5day' | 'day')}>
+              <TabsList className="grid w-[300px] grid-cols-3">
+                <TabsTrigger value="day">Dag</TabsTrigger>
+                <TabsTrigger value="5day">5-Dage</TabsTrigger>
+                <TabsTrigger value="week">Uge</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
-          <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={goToCurrentWeek}>
-            I dag
-          </Button>
           
-          <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Alle medarbejdere</SelectItem>
-              {activeEmployees.map(employee => (
-                <SelectItem key={employee.id} value={employee.id}>
-                  {employee.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            {/* PRP Optimization Controls */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={triggerDailyScheduler}
+              className="gap-2"
+            >
+              <Calendar className="h-4 w-4" />
+              Daglig Sync
+            </Button>
+            
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={triggerEnhancedOptimization}
+              disabled={optimizationStatus === 'running'}
+              className="gap-2"
+            >
+              {optimizationStatus === 'running' ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                  Optimerer...
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4" />
+                  PRP Optimering
+                </>
+              )}
+            </Button>
+            
+            <Button variant="outline" size="sm" onClick={goToCurrentWeek}>
+              I dag
+            </Button>
+            
+            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle medarbejdere</SelectItem>
+                {activeEmployees.map(employee => (
+                  <SelectItem key={employee.id} value={employee.id}>
+                    {employee.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* PRP Status Bar */}
+        <div className="px-4 py-2 bg-muted/30 border-t">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-4">
+              <span className="text-muted-foreground">📊 PRP Fenster-Style Planning:</span>
+              <Badge variant={optimizationStatus === 'completed' ? 'default' : 'secondary'} className="gap-1">
+                <TrendingUp className="h-3 w-3" />
+                {optimizationStatus === 'completed' ? 'Optimeret' : 'Klar til optimering'}
+              </Badge>
+              {orders.filter(o => o.status === 'Ikke planlagt').length > 0 && (
+                <Badge variant="outline" className="gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {orders.filter(o => o.status === 'Ikke planlagt').length} uplanlagte
+                </Badge>
+              )}
+            </div>
+            <div className="text-muted-foreground">
+              Total omsætning {viewMode === 'day' ? 'i dag' : 'denne uge'}: Kr. {weekColumns.reduce((sum, col) => sum + col.revenue, 0).toLocaleString()}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Full-width Calendar Grid */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex-1 bg-background">
-          {/* Header Row */}
-          <div className="grid grid-cols-6 border-b border-border sticky top-0 bg-background z-10">
+          {/* Dynamic Header Row */}
+          <div className={`grid ${viewMode === 'day' ? 'grid-cols-2' : `grid-cols-${weekColumns.length + 1}`} border-b border-border sticky top-0 bg-background z-10`}>
             <div className="p-2 bg-muted text-center text-sm font-medium border-r border-border">
-              UGE<br/>{weekInfo.weekNumber}
+              {viewMode === 'day' ? 'TID' : `UGE ${weekInfo.weekNumber}`}
             </div>
             {weekColumns.map((column) => (
               <div key={column.date} className={`p-2 text-center border-r border-border last:border-r-0 ${column.isToday ? 'bg-primary/10' : 'bg-muted'}`}>
@@ -380,6 +531,11 @@ export const FensterCalendar = () => {
                 <div className="text-xs text-muted-foreground">
                   Kr. {column.revenue.toLocaleString()}
                 </div>
+                {viewMode === 'day' && column.orders.length > 0 && (
+                  <div className="text-xs text-primary font-medium">
+                    {column.orders.length} ordrer
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -387,7 +543,7 @@ export const FensterCalendar = () => {
           {/* Time Slots */}
           <div className="overflow-y-auto" style={{ height: 'calc(100vh - 180px)' }}>
             {timeSlots.map((slot) => (
-              <div key={slot.time} className="grid grid-cols-6 border-b border-border min-h-[60px]">
+              <div key={slot.time} className={`grid ${viewMode === 'day' ? 'grid-cols-2' : `grid-cols-${weekColumns.length + 1}`} border-b border-border min-h-[60px]`}>
                 {/* Time Label */}
                 <div className="p-2 bg-muted text-center text-sm font-medium border-r border-border">
                   {slot.time}
@@ -445,11 +601,30 @@ export const FensterCalendar = () => {
                                       </div>
                                       
                                       {/* Address */}
-                                      <div className="text-sm text-muted-foreground mb-3 leading-tight">
+                                      <div className="text-sm text-muted-foreground mb-2 leading-tight">
                                         {order.address || 'Ingen adresse'}
                                       </div>
                                       
-                                      {/* Bottom row - price and duration only */}
+                                      {/* PRP Status indicators */}
+                                      <div className="flex gap-1 mb-2">
+                                        {order.edited_manually && (
+                                          <Badge variant="outline" className="text-xs px-1 py-0">
+                                            Manual
+                                          </Badge>
+                                        )}
+                                        {order.optimization_run_id && (
+                                          <Badge variant="secondary" className="text-xs px-1 py-0">
+                                            Auto
+                                          </Badge>
+                                        )}
+                                        {order.subscription_id && (
+                                          <Badge variant="default" className="text-xs px-1 py-0">
+                                            Abon
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Bottom row - price and duration */}
                                       <div className="flex justify-between items-center">
                                         <div className="text-sm font-semibold text-foreground">
                                           Kr. {order.price.toLocaleString()}

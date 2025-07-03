@@ -30,6 +30,11 @@ export interface Order {
   updated_at: string;
   user_id: string;
   subscription_id?: string;
+  // PRP fields
+  edited_manually?: boolean;
+  optimization_run_id?: string;
+  distance_from_previous_km?: number;
+  fuel_cost_estimate?: number;
 }
 
 export interface CreateOrderData {
