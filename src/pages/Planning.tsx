@@ -31,27 +31,35 @@ const Planning = () => {
       const unplannedOrders = orders.filter(order => 
         order.status === 'Ikke planlagt' || 
         !order.assigned_employee_id || 
-        (!order.scheduled_week && order.scheduled_date)
+        !order.scheduled_week
       );
 
       if (unplannedOrders.length > 0) {
         console.log(`🤖 Auto-triggering intelligent planning for ${unplannedOrders.length} unplanned orders`);
         
         try {
-          await supabase.functions.invoke('intelligent-auto-planner', {
+          const response = await supabase.functions.invoke('intelligent-auto-planner', {
             body: { userId: user.id }
           });
-          console.log('✅ Intelligent planning completed automatically');
+          
+          if (response.data?.success) {
+            console.log('✅ Intelligent planning completed:', response.data);
+            // Refresh orders after planning
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+          }
         } catch (error) {
           console.error('❌ Error in automatic intelligent planning:', error);
         }
       }
     };
 
-    // Delay to avoid running on every render
-    const timeoutId = setTimeout(triggerIntelligentPlanning, 2000);
-    return () => clearTimeout(timeoutId);
-  }, [user, orders.length]);
+    // Run immediately and then after a delay
+    if (orders.length > 0) {
+      triggerIntelligentPlanning();
+    }
+  }, [user, orders]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
