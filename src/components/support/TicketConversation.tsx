@@ -27,14 +27,26 @@ interface TicketConversationProps {
   ticket: SupportTicket;
 }
 
-// SECURE FIX: Format messages safely without HTML injection
-const formatMessageWithSignature = (content: string, isFromSupport: boolean) => {
-  if (!isFromSupport) {
-    return content;
+// Safe HTML content formatter
+const formatMessageContent = (content: string, isFromSupport: boolean) => {
+  if (!content) return '';
+
+  // Check if content contains HTML tags
+  const containsHTML = /<[^>]+>/.test(content);
+  
+  if (containsHTML) {
+    // For HTML content: sanitize and return safe HTML
+    // Remove potentially dangerous scripts and inline event handlers
+    const sanitizedContent = content
+      .replace(/<script[^>]*>.*?<\/script>/gi, '')
+      .replace(/on\w+="[^"]*"/gi, '')
+      .replace(/javascript:/gi, '');
+    
+    return sanitizedContent;
   }
 
-  // For support messages: check for signature but return as plain text
-  if (content.includes('---SIGNATUR---')) {
+  // For plain text: handle signatures if it's from support
+  if (isFromSupport && content.includes('---SIGNATUR---')) {
     const parts = content.split('---SIGNATUR---');
     const messageText = parts[0].trim();
     const signatureText = parts[1].trim();
@@ -481,9 +493,25 @@ ${messages.slice(-3).map(msg =>
                                 {formatDanishDistance(message.created_at)} - DANSK TID: {debugTimeConversion(message.created_at)}
                               </span>
                             </div>
-                            <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                              {formatMessageWithSignature(message.message_content, isFromSupport)}
-                            </div>
+                            {(() => {
+                              const formattedContent = formatMessageContent(message.message_content, isFromSupport);
+                              const containsHTML = /<[^>]+>/.test(formattedContent);
+                              
+                              if (containsHTML) {
+                                return (
+                                  <div 
+                                    className="text-sm text-gray-700"
+                                    dangerouslySetInnerHTML={{ __html: formattedContent }}
+                                  />
+                                );
+                              } else {
+                                return (
+                                  <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                                    {formattedContent}
+                                  </div>
+                                );
+                              }
+                            })()}
                             {message.attachments && message.attachments.length > 0 && (
                               <div className="mt-3">
                                 <AttachmentViewer attachments={message.attachments} />
