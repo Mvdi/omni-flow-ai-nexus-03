@@ -101,44 +101,71 @@ export const LiveView: React.FC<LiveViewProps> = ({ selectedWeek, selectedEmploy
     const existingMarkers = document.querySelectorAll('.vehicle-marker, .order-marker');
     existingMarkers.forEach(marker => marker.remove());
 
-    // Add vehicle markers with updated data structure
+    // Add vehicle markers with updated data structure (XSS-safe)
     vehicles.forEach(vehicle => {
       if (vehicle.location) {
         const el = document.createElement('div');
         el.className = 'vehicle-marker';
-        el.innerHTML = `
-          <div style="
-            background-color: #3b82f6;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 12px;
-            border: 3px solid white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          ">
-            🚗
-          </div>
+        
+        // Create secure marker element
+        const markerDiv = document.createElement('div');
+        markerDiv.style.cssText = `
+          background-color: #3b82f6;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-weight: bold;
+          font-size: 12px;
+          border: 3px solid white;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         `;
+        markerDiv.textContent = '🚗';
+        el.appendChild(markerDiv);
+
+        // Create secure popup content
+        const popupDiv = document.createElement('div');
+        popupDiv.className = 'p-3';
+        
+        const title = document.createElement('h3');
+        title.className = 'font-semibold text-lg';
+        title.textContent = vehicle.name || 'Unknown Vehicle';
+        
+        const makeModel = document.createElement('p');
+        makeModel.className = 'text-sm text-gray-600';
+        makeModel.textContent = `${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'Unknown Make/Model';
+        
+        const licensePlate = document.createElement('p');
+        licensePlate.className = 'text-sm';
+        licensePlate.textContent = `Nummerplade: ${vehicle.licensePlateNumber || 'N/A'}`;
+        
+        const updated = document.createElement('p');
+        updated.className = 'text-xs text-gray-500';
+        updated.textContent = `Opdateret: ${new Date(vehicle.timestamp).toLocaleString('da-DK')}`;
+        
+        const status = document.createElement('p');
+        status.className = 'text-xs';
+        status.textContent = vehicle.isDriving ? '🟢 Kører' : '🔴 Parkeret';
+        
+        const mileage = document.createElement('p');
+        mileage.className = 'text-xs';
+        mileage.textContent = `Kilometerstand: ${vehicle.mileage.toLocaleString()} km`;
+        
+        popupDiv.appendChild(title);
+        popupDiv.appendChild(makeModel);
+        popupDiv.appendChild(licensePlate);
+        popupDiv.appendChild(updated);
+        popupDiv.appendChild(status);
+        popupDiv.appendChild(mileage);
 
         const marker = new mapboxgl.Marker(el)
           .setLngLat([vehicle.location.longitude, vehicle.location.latitude])
           .setPopup(
             new mapboxgl.Popup({ offset: 25 })
-              .setHTML(`
-                <div class="p-3">
-                  <h3 class="font-semibold text-lg">${vehicle.name}</h3>
-                  <p class="text-sm text-gray-600">${vehicle.make} ${vehicle.model}</p>
-                  <p class="text-sm">Nummerplade: ${vehicle.licensePlateNumber}</p>
-                  <p class="text-xs text-gray-500">Opdateret: ${new Date(vehicle.timestamp).toLocaleString('da-DK')}</p>
-                  <p class="text-xs">${vehicle.isDriving ? '🟢 Kører' : '🔴 Parkeret'}</p>
-                  <p class="text-xs">Kilometerstand: ${vehicle.mileage.toLocaleString()} km</p>
-                </div>
-              `)
+              .setDOMContent(popupDiv)
           )
           .addTo(map.current!);
       }
@@ -185,42 +212,69 @@ export const LiveView: React.FC<LiveViewProps> = ({ selectedWeek, selectedEmploy
       });
     }
 
-    // Add order markers
+    // Add order markers (XSS-safe)
     weekOrders.forEach((order, index) => {
       const el = document.createElement('div');
       el.className = 'order-marker';
-      el.innerHTML = `
-        <div style="
-          background-color: #ef4444;
-          color: white;
-          border-radius: 50%;
-          width: 30px;
-          height: 30px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-          border: 3px solid white;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        ">
-          ${index + 1}
-        </div>
+      
+      // Create secure marker element
+      const markerDiv = document.createElement('div');
+      markerDiv.style.cssText = `
+        background-color: #ef4444;
+        color: white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
       `;
+      markerDiv.textContent = String(index + 1);
+      el.appendChild(markerDiv);
+
+      // Create secure popup content
+      const popupDiv = document.createElement('div');
+      popupDiv.className = 'p-3';
+      
+      const customerTitle = document.createElement('h3');
+      customerTitle.className = 'font-semibold';
+      customerTitle.textContent = order.customer || 'Unknown Customer';
+      
+      const orderType = document.createElement('p');
+      orderType.className = 'text-sm text-gray-600';
+      orderType.textContent = order.order_type || 'Unknown Type';
+      
+      const address = document.createElement('p');
+      address.className = 'text-sm';
+      address.textContent = order.address || 'Ingen adresse';
+      
+      const stopNumber = document.createElement('p');
+      stopNumber.className = 'text-xs text-gray-500';
+      stopNumber.textContent = `Stop ${index + 1}`;
+      
+      const scheduledTime = document.createElement('p');
+      scheduledTime.className = 'text-xs text-gray-500';
+      scheduledTime.textContent = `Tid: ${order.scheduled_time || 'Ikke planlagt'}`;
+      
+      const price = document.createElement('p');
+      price.className = 'text-xs text-green-600';
+      price.textContent = `${order.price.toLocaleString()} kr`;
+      
+      popupDiv.appendChild(customerTitle);
+      popupDiv.appendChild(orderType);
+      popupDiv.appendChild(address);
+      popupDiv.appendChild(stopNumber);
+      popupDiv.appendChild(scheduledTime);
+      popupDiv.appendChild(price);
 
       new mapboxgl.Marker(el)
         .setLngLat([order.longitude!, order.latitude!])
         .setPopup(
           new mapboxgl.Popup({ offset: 25 })
-            .setHTML(`
-              <div class="p-3">
-                <h3 class="font-semibold">${order.customer}</h3>
-                <p class="text-sm text-gray-600">${order.order_type}</p>
-                <p class="text-sm">${order.address || 'Ingen adresse'}</p>
-                <p class="text-xs text-gray-500">Stop ${index + 1}</p>
-                <p class="text-xs text-gray-500">Tid: ${order.scheduled_time || 'Ikke planlagt'}</p>
-                <p class="text-xs text-green-600">${order.price.toLocaleString()} kr</p>
-              </div>
-            `)
+            .setDOMContent(popupDiv)
         )
         .addTo(map.current!);
     });
