@@ -20,6 +20,7 @@ import { useOrders, Order } from '@/hooks/useOrders';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useWorkSchedules } from '@/hooks/useWorkSchedules';
 import { useBlockedTimeSlots } from '@/hooks/useBlockedTimeSlots';
+import { useAuth } from '@/hooks/useAuth';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'sonner';
 
@@ -48,14 +49,44 @@ export const FensterCalendar = () => {
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{date: string, time: string} | null>(null);
   const [blockReason, setBlockReason] = useState('');
-  const [blockDuration, setBlockDuration] = useState(15); // Duration in minutes
+  const [blockDuration, setBlockDuration] = useState(15);
   const [deleteBlockDialog, setDeleteBlockDialog] = useState(false);
   const [selectedBlockToDelete, setSelectedBlockToDelete] = useState<any>(null);
   
-  const { orders, updateOrder } = useOrders();
+  const { orders, updateOrder, refetch: refetchOrders } = useOrders();
   const { employees } = useEmployees();
   const { workSchedules } = useWorkSchedules();
   const { blockedSlots, createBlockedSlot, deleteBlockedSlot } = useBlockedTimeSlots();
+  const { user } = useAuth();
+
+  // Auto-assign unassigned orders to available employees
+  const autoAssignOrders = async () => {
+    if (!user) return;
+    
+    try {
+      const response = await fetch('https://tckynbgheicyqezqprdp.supabase.co/functions/v1/assign-order-to-employee', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRja3luYmdoZWljeXFlenFwcmRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNTE3OTMsImV4cCI6MjA2NTkyNzc5M30.vJoSHaDDJrbXIzoEww4LDg8EynJ38cvUZ0qX1BWNNgM`,
+        },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      
+      const result = await response.json();
+      if (result.success && result.assigned > 0) {
+        toast.success(`${result.assigned} ordrer tildelt til ${result.employees.join(', ')}`);
+        refetchOrders();
+      }
+    } catch (error) {
+      console.error('Auto-assign error:', error);
+    }
+  };
+
+  // Auto-assign on component mount
+  useEffect(() => {
+    autoAssignOrders();
+  }, [user]);
 
   // Generate time slots based on work schedules
   useEffect(() => {
