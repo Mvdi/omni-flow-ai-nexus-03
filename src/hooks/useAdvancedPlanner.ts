@@ -67,11 +67,11 @@ export const useAdvancedPlanner = () => {
       console.log(`👥 Active employees: ${employees.filter(e => e.is_active).length}`);
 
       // Call our advanced edge function
-      const response = await fetch('/functions/v1/advanced-route-planner', {
+      const response = await fetch('https://tckynbgheicyqezqprdp.supabase.co/functions/v1/advanced-route-planner', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRja3luYmdoZWljeXFlenFwcmRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNTE3OTMsImV4cCI6MjA2NTkyNzc5M30.vJoSHaDDJrbXIzoEww4LDg8EynJ38cvUZ0qX1BWNNgM`,
         },
         body: JSON.stringify({
           weekStart: startDate.toISOString(),
