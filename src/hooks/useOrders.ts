@@ -74,8 +74,7 @@ export const useOrders = () => {
         .from('orders')
         .select('*')
         .eq('user_id', user.id)
-        .order('scheduled_date', { ascending: true })
-        .order('scheduled_time', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching orders:', error);
