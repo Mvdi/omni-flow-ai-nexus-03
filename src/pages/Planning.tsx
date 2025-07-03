@@ -7,10 +7,13 @@ import { useAdvancedPlanner } from '@/hooks/useAdvancedPlanner';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Brain, TrendingUp } from 'lucide-react';
+import { Brain, TrendingUp, Zap, RefreshCw } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { toast } from 'sonner';
 
 const Planning = () => {
   const [showAIPanel, setShowAIPanel] = useState(false);
+  const [isAutoPlanning, setIsAutoPlanning] = useState(false);
   const { user } = useAuth();
   
   const { 
@@ -61,6 +64,41 @@ const Planning = () => {
     }
   }, [user, orders]);
 
+  // Manual trigger for intelligent planning
+  const handleManualAutoPlanning = async () => {
+    if (!user) {
+      toast.error('Du skal være logget ind');
+      return;
+    }
+
+    setIsAutoPlanning(true);
+    
+    try {
+      console.log('🎯 Manuelt trigger af intelligent auto-planlægning');
+      
+      const response = await supabase.functions.invoke('intelligent-auto-planner', {
+        body: { userId: user.id }
+      });
+      
+      if (response.data?.success) {
+        toast.success(`✅ ${response.data.planned} ordrer blev planlagt intelligent`);
+        console.log('✅ Manual intelligent planning completed:', response.data);
+        
+        // Refresh page to show updated orders
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } else {
+        toast.info('Ingen ordrer at planlagt');
+      }
+    } catch (error) {
+      console.error('❌ Error in manual intelligent planning:', error);
+      toast.error('Fejl ved auto-planlægning');
+    } finally {
+      setIsAutoPlanning(false);
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <Navigation />
@@ -75,8 +113,28 @@ const Planning = () => {
             </p>
           </div>
           
-          {/* AI Status */}
+          {/* AI Status & Manual Trigger */}
           <div className="flex items-center gap-2">
+            <Button
+              onClick={handleManualAutoPlanning}
+              disabled={isAutoPlanning}
+              variant="default"
+              size="sm"
+              className="bg-primary hover:bg-primary/90"
+            >
+              {isAutoPlanning ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Planlægger...
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4 mr-2" />
+                  Auto-tildel Ordrer
+                </>
+              )}
+            </Button>
+            
             {hasOrdersNeedingOptimization && (
               <Badge variant="default" className="bg-primary text-xs animate-pulse">
                 AI arbejder...
