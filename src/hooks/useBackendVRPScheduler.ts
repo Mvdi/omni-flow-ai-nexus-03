@@ -29,29 +29,30 @@ export const useBackendVRPScheduler = () => {
       return;
     }
 
-    // Find orders that need scheduling - CRITICAL FIX: Don't move subscription orders with correct dates
+    // CRITICAL FIX: NEVER modify subscription orders that already have correct dates and times
     const ordersToOptimize = orders.filter(order => {
-      const needsScheduling = !order.scheduled_date || !order.scheduled_time || !order.assigned_employee_id;
       const isNotCompleted = order.status !== 'Afsluttet' && order.status !== 'Færdig';
       
-      // CRITICAL: If it's a subscription order with a scheduled_date, only optimize if missing time/employee
-      // Don't change the date of subscription orders - they have fixed 8-week intervals
-      if (order.subscription_id && order.scheduled_date) {
-        // Only optimize subscription orders if they need time or employee assignment
-        // BUT NEVER change their scheduled_date
-        return (!order.scheduled_time || !order.assigned_employee_id) && isNotCompleted;
+      // ABSOLUTELY NEVER touch subscription orders that have both date AND time set
+      // Subscription orders have fixed 8-week intervals and should NEVER be modified
+      if (order.subscription_id) {
+        // Only optimize subscription orders if they are completely unscheduled (no date, time, or employee)
+        const isCompletelyUnscheduled = !order.scheduled_date && !order.scheduled_time && !order.assigned_employee_id;
+        console.log(`🔒 Subscription order ${order.id.slice(0, 8)}: completely unscheduled = ${isCompletelyUnscheduled}`);
+        return isCompletelyUnscheduled && isNotCompleted;
       }
       
       // For regular orders, optimize if they need any scheduling
+      const needsScheduling = !order.scheduled_date || !order.scheduled_time || !order.assigned_employee_id;
       return needsScheduling && isNotCompleted;
     });
 
     if (ordersToOptimize.length === 0) {
-      console.log('🎯 Enhanced VRP: All orders properly scheduled');
-      return;
+      console.log('🎯 Enhanced VRP: All orders properly scheduled (subscription orders are date/time locked)');
+      return { scheduledOrders: 0, daysUsed: 0, score: 100 };
     }
 
-    console.log(`🚀 Enhanced VRP: Optimizing ${ordersToOptimize.length} orders with real Mapbox routing`);
+    console.log(`🚀 Enhanced VRP: Optimizing ${ordersToOptimize.length} orders (${orders.filter(o => o.subscription_id).length} subscription orders are protected)`);
     setIsOptimizing(true);
 
     try {

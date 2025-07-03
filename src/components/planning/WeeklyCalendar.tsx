@@ -47,13 +47,15 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   // Use enhanced VRP scheduler with Mapbox integration (manual mode)
   const { isOptimizing, solverHealthy, runOptimization } = useBackendVRPScheduler();
 
-  // Use the new auto-refresh hook (only for data refresh, not optimization)
+  // DISABLED auto-refresh optimization to prevent unwanted changes
   useAutoRefresh({
     enabled: autoRefresh,
     interval: 30000,
     onRefresh: () => {
+      // Only refresh data, NEVER trigger optimization automatically
       refetchOrders();
       refetchRoutes();
+      // DO NOT call runOptimization() here - only manual optimization allowed
     }
   });
 
@@ -266,22 +268,26 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 size="sm"
                 onClick={async () => {
                   try {
+                    console.log('🎯 Manual optimization triggered by user');
                     const result = await runOptimization();
-                    if (result) {
+                    if (result && result.scheduledOrders > 0) {
                       toast.success(
                         `✅ ${result.scheduledOrders} ordrer planlagt på ${result.daysUsed} dage (${Math.round(result.score)}% effektivitet)`
                       );
                       refetchOrders();
                       refetchRoutes();
+                    } else if (result && result.scheduledOrders === 0) {
+                      toast.success('🔒 Alle ordrer er allerede korrekt planlagt');
                     }
                   } catch (error) {
+                    console.error('Manual optimization failed:', error);
                     toast.error('Planlægning fejlede - prøv igen');
                   }
                 }}
                 disabled={isOptimizing}
               >
                 <Brain className={`h-4 w-4 mr-2 ${isOptimizing ? 'animate-pulse' : ''}`} />
-                {isOptimizing ? 'Planlægger...' : 'Genplanlæg Ruter'}
+                {isOptimizing ? 'Planlægger...' : 'Genplanlæg Kun Nye Ordrer'}
               </Button>
             </div>
           </div>
