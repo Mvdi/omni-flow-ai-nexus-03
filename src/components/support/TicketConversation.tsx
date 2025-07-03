@@ -49,9 +49,10 @@ const formatMessageContent = (content: string, isFromSupport: boolean) => {
   if (isFromSupport && content.includes('---SIGNATUR---')) {
     const parts = content.split('---SIGNATUR---');
     const messageText = parts[0].trim();
-    const signatureText = parts[1].trim();
+    const signatureText = parts[1] ? parts[1].trim() : '';
     
-    return `${messageText}\n\n---\n${signatureText}`;
+    // Only return the message part, signature will be handled separately
+    return messageText;
   }
   
   return content;
