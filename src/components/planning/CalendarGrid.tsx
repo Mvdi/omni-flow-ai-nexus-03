@@ -429,30 +429,23 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
                               handleOrderClick(order);
                             }}
                           >
-                            {/* Header row with price only */}
-                            <div className="flex justify-end items-center mb-2">
-                              <div className="text-sm font-semibold text-foreground">
-                                Kr. {order.price.toLocaleString()}
-                              </div>
-                            </div>
-                            
-                            {/* Customer name */}
-                            <div className="font-semibold text-foreground text-sm mb-1">
+                            {/* Customer name - prominent at top */}
+                            <div className="font-semibold text-foreground text-base mb-1">
                               {order.customer}
                             </div>
                             
                             {/* Address */}
-                            <div className="text-xs text-muted-foreground mb-2 leading-tight">
+                            <div className="text-sm text-muted-foreground mb-3 leading-tight">
                               {order.address || order.order_type || 'Ingen adresse'}
                             </div>
                             
-                            {/* Bottom row with price and duration */}
+                            {/* Bottom row - price and duration only */}
                             <div className="flex justify-between items-center">
                               <div className="text-sm font-semibold text-foreground">
                                 Kr. {order.price.toLocaleString()}
                               </div>
                               {order.estimated_duration && (
-                                <div className="text-xs text-muted-foreground">
+                                <div className="text-sm text-muted-foreground">
                                   {order.estimated_duration} min
                                 </div>
                               )}
