@@ -77,34 +77,34 @@ const Customers = () => {
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       
-      <div className="p-2">
-        <div className="flex items-center justify-between mb-4">
+      <div className="p-2 md:p-4 lg:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
-              <Database className="h-7 w-7 text-green-600" />
-              Kundekartotek
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 flex items-center gap-2 sm:gap-3">
+              <Database className="h-6 w-6 sm:h-7 sm:w-7 text-green-600" />
+              <span className="truncate">Kundekartotek</span>
             </h1>
-            <p className="text-gray-600">Centraliseret administration af alle kundedata</p>
+            <p className="text-sm sm:text-base text-gray-600 hidden sm:block">Centraliseret administration af alle kundedata</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button className="bg-green-600 hover:bg-green-700">
-              <Plus className="h-4 w-4 mr-2" />
-              Ny Kunde
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button className="bg-green-600 hover:bg-green-700 touch-target whitespace-nowrap">
+              <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Ny</span> Kunde
             </Button>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {/* Stats Cards - Mobile optimized */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
           <Card className="shadow-sm border-0">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Totale Kunder</p>
-                  <p className="text-xl font-bold text-gray-900">{customers.length}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Totale</p>
+                  <p className="text-lg sm:text-xl font-bold text-gray-900">{customers.length}</p>
                 </div>
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Database className="h-5 w-5 text-blue-600" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Database className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                 </div>
               </div>
             </CardContent>
@@ -223,73 +223,60 @@ const Customers = () => {
                 {sortedCustomers.map((customer) => (
                   <div
                     key={customer.id}
-                    className="p-4 hover:bg-gray-50 transition-colors"
+                    className="p-3 sm:p-4 hover:bg-gray-50 active:bg-gray-100 transition-colors touch-target"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 flex-1">
-                        <Avatar className="h-12 w-12">
-                          <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                        <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+                          <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm">
                             {getCustomerInitials(customer.navn, customer.email)}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-medium text-gray-900">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
+                            <h3 className="font-medium text-gray-900 truncate">
                               {customer.navn || customer.email}
                             </h3>
-                            <Badge className={`text-xs ${getTypeColor(customer.kundetype)}`}>
-                              {customer.kundetype}
-                            </Badge>
-                            <Badge className={`text-xs ${getScoreBadge(customer.score)}`}>
-                              Score: {customer.score}
-                            </Badge>
+                            <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                              <Badge className={`text-xs ${getTypeColor(customer.kundetype)}`}>
+                                {customer.kundetype}
+                              </Badge>
+                              <Badge className={`text-xs ${getScoreBadge(customer.score)}`}>
+                                {customer.score}
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
-                            <div className="flex items-center gap-1">
-                              <Mail className="h-3 w-3" />
-                              <span>{customer.email}</span>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
+                              <Mail className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{customer.email}</span>
                             </div>
                             {customer.telefon && (
-                              <div className="flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
+                              <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
+                                <Phone className="h-3 w-3 flex-shrink-0" />
                                 <span>{customer.telefon}</span>
                               </div>
                             )}
                             {customer.virksomhedsnavn && (
-                              <div className="flex items-center gap-1">
-                                <Building className="h-3 w-3" />
-                                <span>{customer.virksomhedsnavn}</span>
+                              <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
+                                <Building className="h-3 w-3 flex-shrink-0" />
+                                <span className="truncate">{customer.virksomhedsnavn}</span>
                               </div>
                             )}
-                            {customer.cvr && (
-                              <div className="flex items-center gap-1">
-                                <Hash className="h-3 w-3" />
-                                <span>CVR: {customer.cvr}</span>
+                            {customer.adresse && (
+                              <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
+                                <MapPin className="h-3 w-3 flex-shrink-0" />
+                                <span className="truncate">{customer.adresse}, {customer.postnummer} {customer.by}</span>
                               </div>
                             )}
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              <span>
-                                Opdateret {formatDistanceToNow(new Date(customer.updated_at), { 
-                                  addSuffix: true, 
-                                  locale: da 
-                                })}
-                              </span>
-                            </div>
                           </div>
-                          {customer.adresse && (
-                            <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
-                              <MapPin className="h-3 w-3" />
-                              <span>{customer.adresse}, {customer.postnummer} {customer.by}</span>
-                            </div>
-                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm">
-                          Se tickets
+                      <div className="flex items-center gap-2 sm:gap-2 justify-end sm:justify-start">
+                        <Button variant="outline" size="sm" className="text-xs touch-target">
+                          Tickets
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" className="text-xs touch-target">
                           Rediger
                         </Button>
                       </div>

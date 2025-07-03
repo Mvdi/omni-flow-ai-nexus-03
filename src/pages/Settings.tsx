@@ -96,43 +96,45 @@ const Settings = () => {
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       
-      <div className="p-6">
+      <div className="p-2 md:p-4 lg:p-6">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              <SettingsIcon className="h-8 w-8 text-blue-600" />
+          <div className="mb-4 sm:mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 flex items-center gap-2 sm:gap-3">
+              <SettingsIcon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
               Indstillinger
             </h1>
-            <p className="text-gray-600">Administrer dine kontoindstillinger og præferencer</p>
+            <p className="text-sm sm:text-base text-gray-600 hidden sm:block">Administrer dine kontoindstillinger og præferencer</p>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="general" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Generelt
-              </TabsTrigger>
-              <TabsTrigger value="employees" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Medarbejdere
-              </TabsTrigger>
-              <TabsTrigger value="schedules" className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Arbejdstider
-              </TabsTrigger>
-              <TabsTrigger value="notifications" className="flex items-center gap-2">
-                <Bell className="h-4 w-4" />
-                Notifikationer
-              </TabsTrigger>
-              <TabsTrigger value="integrations" className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                Integrationer
-              </TabsTrigger>
-              <TabsTrigger value="quotes" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Tilbud
-              </TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto">
+              <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 min-w-[600px] sm:min-w-full h-auto gap-1">
+                <TabsTrigger value="general" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+                  <User className="h-4 w-4" />
+                  <span>Generelt</span>
+                </TabsTrigger>
+                <TabsTrigger value="employees" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+                  <Users className="h-4 w-4" />
+                  <span>Medarbejdere</span>
+                </TabsTrigger>
+                <TabsTrigger value="schedules" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+                  <Clock className="h-4 w-4" />
+                  <span>Arbejdstider</span>
+                </TabsTrigger>
+                <TabsTrigger value="notifications" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+                  <Bell className="h-4 w-4" />
+                  <span>Notifikationer</span>
+                </TabsTrigger>
+                <TabsTrigger value="integrations" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+                  <Mail className="h-4 w-4" />
+                  <span>Integrationer</span>
+                </TabsTrigger>
+                <TabsTrigger value="quotes" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+                  <FileText className="h-4 w-4" />
+                  <span>Tilbud</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="general" className="space-y-4">
               <Card>
@@ -143,7 +145,7 @@ const Settings = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="firstName">Fornavn</Label>
                       <Input 
@@ -151,6 +153,7 @@ const Settings = () => {
                         placeholder="Dit fornavn" 
                         value={profileData.firstName}
                         onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
+                        className="mobile-input"
                       />
                     </div>
                     <div>
@@ -160,6 +163,7 @@ const Settings = () => {
                         placeholder="Dit efternavn" 
                         value={profileData.lastName}
                         onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
+                        className="mobile-input"
                       />
                     </div>
                   </div>
@@ -171,6 +175,7 @@ const Settings = () => {
                       placeholder="din@email.dk" 
                       value={profileData.email}
                       onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                      className="mobile-input"
                     />
                   </div>
                   <div>
@@ -180,9 +185,10 @@ const Settings = () => {
                       placeholder="+45 12 34 56 78" 
                       value={profileData.phone}
                       onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
+                      className="mobile-input"
                     />
                   </div>
-                  <Button onClick={handleProfileSave}>Gem Ændringer</Button>
+                  <Button onClick={handleProfileSave} className="touch-target">Gem Ændringer</Button>
                 </CardContent>
               </Card>
 

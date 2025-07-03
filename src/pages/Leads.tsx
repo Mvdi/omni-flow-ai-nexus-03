@@ -116,129 +116,131 @@ const Leads = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navigation />
-      <div className="flex-1 flex flex-col p-2">
+      <div className="flex-1 flex flex-col p-2 md:p-4 lg:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
-              <Users className="h-7 w-7 text-blue-600" />
-              CRM - Leads Management
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 flex items-center gap-2 sm:gap-3">
+              <Users className="h-6 w-6 sm:h-7 sm:w-7 text-blue-600" />
+              <span className="truncate">CRM - Leads</span>
             </h1>
-            <p className="text-gray-600">Administrer dine leads gennem hele salgsprocessen</p>
+            <p className="text-sm sm:text-base text-gray-600 hidden sm:block">Administrer dine leads gennem hele salgsprocessen</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Filtrér
+          <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto">
+            <Button variant="outline" size="sm" className="whitespace-nowrap touch-target">
+              <Filter className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Filtrér</span>
             </Button>
-            <Button variant="outline" size="sm">
-              <Search className="h-4 w-4 mr-2" />
-              Søg
+            <Button variant="outline" size="sm" className="whitespace-nowrap touch-target">
+              <Search className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Søg</span>
             </Button>
             <LeadDialog />
           </div>
         </div>
 
-        {/* Quick Stats Bar */}
-        <div className="grid grid-cols-4 gap-4 mb-4">
-          <div className="bg-white p-3 rounded-lg border shadow-sm">
-            <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium text-gray-700">Total</span>
+        {/* Quick Stats Bar - Mobile optimized */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4">
+          <div className="bg-white p-2 sm:p-3 rounded-lg border shadow-sm">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Target className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+              <span className="text-xs sm:text-sm font-medium text-gray-700">Total</span>
             </div>
-            <p className="text-xl font-bold text-gray-900">{analytics.totalLeads}</p>
+            <p className="text-lg sm:text-xl font-bold text-gray-900">{analytics.totalLeads}</p>
           </div>
-          <div className="bg-white p-3 rounded-lg border shadow-sm">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="text-sm font-medium text-gray-700">Værdi</span>
+          <div className="bg-white p-2 sm:p-3 rounded-lg border shadow-sm">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+              <span className="text-xs sm:text-sm font-medium text-gray-700">Værdi</span>
             </div>
-            <p className="text-xl font-bold text-gray-900">{analytics.totalValue.toLocaleString()} kr</p>
+            <p className="text-sm sm:text-xl font-bold text-gray-900">{(analytics.totalValue / 1000).toFixed(0)}k kr</p>
           </div>
-          <div className="bg-white p-3 rounded-lg border shadow-sm">
-            <div className="flex items-center gap-2">
-              <Brain className="h-4 w-4 text-purple-600" />
-              <span className="text-sm font-medium text-gray-700">Høj Prioritet</span>
+          <div className="bg-white p-2 sm:p-3 rounded-lg border shadow-sm">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Brain className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600" />
+              <span className="text-xs sm:text-sm font-medium text-gray-700">Høj</span>
             </div>
-            <p className="text-xl font-bold text-gray-900">{analytics.highPriorityLeads}</p>
+            <p className="text-lg sm:text-xl font-bold text-gray-900">{analytics.highPriorityLeads}</p>
           </div>
-          <div className="bg-white p-3 rounded-lg border shadow-sm">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-orange-600" />
-              <span className="text-sm font-medium text-gray-700">Kræver Opfølgning</span>
+          <div className="bg-white p-2 sm:p-3 rounded-lg border shadow-sm">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
+              <span className="text-xs sm:text-sm font-medium text-gray-700">Opfølg</span>
             </div>
-            <p className="text-xl font-bold text-gray-900">{analytics.urgentLeads}</p>
+            <p className="text-lg sm:text-xl font-bold text-gray-900">{analytics.urgentLeads}</p>
           </div>
         </div>
 
-        {/* Kanban Board - Main Focus */}
+        {/* Kanban Board - Mobile optimized */}
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-7 gap-4 mb-4">
-            {kanbanColumns.map((column) => (
-              <Droppable droppableId={column.id} key={column.id}>
-                {(provided, snapshot) => (
-                  <Card 
-                    ref={provided.innerRef} 
-                    {...provided.droppableProps} 
-                    className={`shadow-sm border-0 transition-all duration-200 ${
-                      snapshot.isDraggingOver 
-                        ? 'bg-blue-50 ring-2 ring-blue-400' 
-                        : 'hover:shadow-md'
-                    }`}
-                  > 
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-3 h-3 rounded-full ${column.color}`} />
-                          <CardTitle className="text-sm font-medium text-gray-900">
-                            {column.title}
-                          </CardTitle>
+          <div className="flex-1 overflow-x-auto pb-4">
+            <div className="grid grid-cols-7 gap-2 sm:gap-4 min-w-[1400px] lg:min-w-full">
+              {kanbanColumns.map((column) => (
+                <Droppable droppableId={column.id} key={column.id}>
+                  {(provided, snapshot) => (
+                    <Card 
+                      ref={provided.innerRef} 
+                      {...provided.droppableProps} 
+                      className={`shadow-sm border-0 transition-all duration-200 ${
+                        snapshot.isDraggingOver 
+                          ? 'bg-blue-50 ring-2 ring-blue-400' 
+                          : 'hover:shadow-md'
+                      }`}
+                    > 
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${column.color}`} />
+                            <CardTitle className="text-sm font-medium text-gray-900">
+                              {column.title}
+                            </CardTitle>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            {leads.filter(l => l.status === column.id).length}
+                          </Badge>
                         </div>
-                        <Badge variant="secondary" className="text-xs">
-                          {leads.filter(l => l.status === column.id).length}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3 min-h-[120px]">
-                      {isLoading ? (
-                        <div className="text-center text-gray-400">Indlæser...</div>
-                      ) : leads.filter(l => l.status === column.id).length === 0 ? (
-                        <div className={`p-6 text-center text-gray-400 border-2 border-dashed border-gray-200 rounded-lg ${
-                          snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : ''
-                        }`}> 
-                          <p className="text-sm">Træk leads hertil</p>
-                        </div>
-                      ) : (
-                        <>
-                          {leads.filter(lead => lead.status === column.id).map((lead, idx) => (
-                            <Draggable draggableId={lead.id} index={idx} key={lead.id}>
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  style={{
-                                    ...provided.draggableProps.style,
-                                    opacity: snapshot.isDragging ? 0.8 : 1,
-                                  }}
-                                  className="transition-all duration-200"
-                                >
-                                  <LeadCard
-                                    lead={lead}
-                                    onEdit={openEditDialog}
-                                  />
-                                </div>
-                              )}
-                            </Draggable>
-                          ))}
-                          <div style={{ minHeight: 24 }}>{provided.placeholder}</div>
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-              </Droppable>
-            ))}
+                      </CardHeader>
+                      <CardContent className="space-y-3 min-h-[120px]">
+                        {isLoading ? (
+                          <div className="text-center text-gray-400">Indlæser...</div>
+                        ) : leads.filter(l => l.status === column.id).length === 0 ? (
+                          <div className={`p-6 text-center text-gray-400 border-2 border-dashed border-gray-200 rounded-lg ${
+                            snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : ''
+                          }`}> 
+                            <p className="text-sm">Træk leads hertil</p>
+                          </div>
+                        ) : (
+                          <>
+                            {leads.filter(lead => lead.status === column.id).map((lead, idx) => (
+                              <Draggable draggableId={lead.id} index={idx} key={lead.id}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    style={{
+                                      ...provided.draggableProps.style,
+                                      opacity: snapshot.isDragging ? 0.8 : 1,
+                                    }}
+                                    className="transition-all duration-200"
+                                  >
+                                    <LeadCard
+                                      lead={lead}
+                                      onEdit={openEditDialog}
+                                    />
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            <div style={{ minHeight: 24 }}>{provided.placeholder}</div>
+                          </>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+                </Droppable>
+              ))}
+            </div>
           </div>
         </DragDropContext>
 
