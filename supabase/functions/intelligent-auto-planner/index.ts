@@ -70,6 +70,30 @@ serve(async (req) => {
     for (const order of unplannedOrders) {
       console.log(`🔄 Processing order ${order.id.slice(0, 8)} for ${order.customer}`)
 
+      // Geocode address if missing coordinates
+      if (!order.latitude || !order.longitude) {
+        console.log(`📍 Geocoding address: ${order.address}`)
+        try {
+          const geocodeResult = await geocodeAddress(order.address)
+          if (geocodeResult) {
+            await supabase
+              .from('orders')
+              .update({
+                latitude: geocodeResult.lat,
+                longitude: geocodeResult.lng,
+                geocoded_at: new Date().toISOString()
+              })
+              .eq('id', order.id)
+            
+            order.latitude = geocodeResult.lat
+            order.longitude = geocodeResult.lng
+            console.log(`✅ Geocoded: ${geocodeResult.lat}, ${geocodeResult.lng}`)
+          }
+        } catch (error) {
+          console.error(`❌ Geocoding failed for ${order.address}:`, error)
+        }
+      }
+
       // Calculate optimal week and date
       let targetWeek = currentWeek
       let targetDate = new Date()
@@ -81,40 +105,74 @@ serve(async (req) => {
         const orderPastDays = (targetDate.getTime() - orderFirstDay.getTime()) / 86400000
         targetWeek = Math.ceil((orderPastDays + orderFirstDay.getDay() + 1) / 7)
       } else {
-        // For new orders, schedule for next week
-        targetWeek = currentWeek + 1
+        // For new orders, schedule for current week
+        targetWeek = currentWeek
         targetDate = new Date()
-        targetDate.setDate(targetDate.getDate() + 7)
       }
 
       // Find best employee based on workload and location
       let bestEmployee = employees[0]
       let lowestWorkload = Infinity
+      let bestDistance = Infinity
 
       for (const employee of employees) {
         // Get current workload for target week
         const { data: employeeOrders } = await supabase
           .from('orders')
-          .select('estimated_duration')
+          .select('estimated_duration, scheduled_date')
           .eq('assigned_employee_id', employee.id)
           .eq('scheduled_week', targetWeek)
 
         const totalMinutes = employeeOrders?.reduce((sum, o) => sum + (o.estimated_duration || 60), 0) || 0
         
-        // Prefer employees with less workload
-        if (totalMinutes < lowestWorkload) {
+        // Calculate distance if both have coordinates
+        let distance = 0
+        if (employee.latitude && employee.longitude && order.latitude && order.longitude) {
+          distance = calculateDistance(
+            employee.latitude, employee.longitude,
+            order.latitude, order.longitude
+          )
+        }
+        
+        // Score based on workload (70%) and distance (30%)
+        const workloadScore = totalMinutes
+        const distanceScore = distance * 1000 // Convert km to comparable scale
+        const totalScore = workloadScore * 0.7 + distanceScore * 0.3
+        
+        if (totalScore < (lowestWorkload * 0.7 + bestDistance * 1000 * 0.3)) {
           lowestWorkload = totalMinutes
+          bestDistance = distance
           bestEmployee = employee
         }
       }
 
-      // Calculate optimal time slot
-      const timeSlot = calculateOptimalTimeSlot(lowestWorkload)
+      // Find best day in the target week for this employee
+      const weekDays = getWeekDays(targetDate)
+      let bestDay = weekDays[0]
+      let lowestDayWorkload = Infinity
+
+      for (const day of weekDays) {
+        const { data: dayOrders } = await supabase
+          .from('orders')
+          .select('estimated_duration')
+          .eq('assigned_employee_id', bestEmployee.id)
+          .eq('scheduled_date', day.toISOString().split('T')[0])
+
+        const dayMinutes = dayOrders?.reduce((sum, o) => sum + (o.estimated_duration || 60), 0) || 0
+        
+        if (dayMinutes < lowestDayWorkload) {
+          lowestDayWorkload = dayMinutes
+          bestDay = day
+        }
+      }
+
+      // Calculate optimal time slot based on existing orders for that day
+      const timeSlot = await calculateDayTimeSlot(supabase, bestEmployee.id, bestDay.toISOString().split('T')[0])
 
       // Update the order
       const updateData = {
         assigned_employee_id: bestEmployee.id,
-        scheduled_date: targetDate.toISOString().split('T')[0],
+        scheduled_date: bestDay.toISOString().split('T')[0],
         scheduled_week: targetWeek,
         scheduled_time: timeSlot,
         status: 'Planlagt'
@@ -127,7 +185,7 @@ serve(async (req) => {
 
       if (!updateError) {
         plannedCount++
-        console.log(`✅ Assigned order ${order.id.slice(0, 8)} to ${bestEmployee.name} for week ${targetWeek}`)
+        console.log(`✅ Assigned order ${order.id.slice(0, 8)} to ${bestEmployee.name} on ${bestDay.toISOString().split('T')[0]} at ${timeSlot}`)
       } else {
         console.error(`❌ Failed to assign order ${order.id}:`, updateError)
       }
@@ -242,4 +300,109 @@ async function optimizeEmployeeRoute(supabase: any, employeeId: string, orders: 
   }
 
   console.log(`✅ Optimized ${orders.length} orders for employee ${employeeId}`)
+}
+
+// Geocoding function using Danish Address Web API (DAWA)
+async function geocodeAddress(address: string) {
+  if (!address) return null
+  
+  try {
+    const encodedAddress = encodeURIComponent(address)
+    const response = await fetch(`https://api.dataforsyningen.dk/adresser?q=${encodedAddress}&format=json&struktur=mini`)
+    
+    if (!response.ok) {
+      throw new Error(`Geocoding API error: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    
+    if (data && data.length > 0) {
+      const result = data[0]
+      return {
+        lat: result.y,
+        lng: result.x
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Geocoding error:', error)
+    return null
+  }
+}
+
+// Calculate distance between two points using Haversine formula
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371 // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  return R * c
+}
+
+// Get weekdays for a given week
+function getWeekDays(date: Date): Date[] {
+  const monday = new Date(date)
+  const dayOfWeek = monday.getDay()
+  const diff = monday.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)
+  monday.setDate(diff)
+  
+  const weekDays = []
+  for (let i = 0; i < 5; i++) { // Monday to Friday
+    const day = new Date(monday)
+    day.setDate(monday.getDate() + i)
+    weekDays.push(day)
+  }
+  return weekDays
+}
+
+// Calculate optimal time slot for a specific day
+async function calculateDayTimeSlot(supabase: any, employeeId: string, date: string): Promise<string> {
+  // Get existing orders for this employee on this date
+  const { data: dayOrders } = await supabase
+    .from('orders')
+    .select('scheduled_time, estimated_duration')
+    .eq('assigned_employee_id', employeeId)
+    .eq('scheduled_date', date)
+    .not('scheduled_time', 'is', null)
+    .order('scheduled_time', { ascending: true })
+
+  if (!dayOrders || dayOrders.length === 0) {
+    return '08:00'
+  }
+
+  // Find the next available time slot
+  let currentTime = 8 * 60 // Start at 8:00 AM
+
+  for (const order of dayOrders) {
+    const orderTime = timeStringToMinutes(order.scheduled_time)
+    const orderDuration = order.estimated_duration || 60
+    const orderEnd = orderTime + orderDuration + 15 // Add 15 min travel time
+
+    if (currentTime < orderTime) {
+      // We found a gap
+      break
+    }
+    
+    currentTime = Math.max(currentTime, orderEnd)
+  }
+
+  // Don't schedule past 16:00
+  if (currentTime >= 16 * 60) {
+    currentTime = 16 * 60 - 60 // Last hour of the day
+  }
+
+  const hour = Math.floor(currentTime / 60)
+  const minute = currentTime % 60
+  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+}
+
+// Convert time string to minutes
+function timeStringToMinutes(timeString: string): number {
+  const [hours, minutes] = timeString.split(':').map(Number)
+  return hours * 60 + minutes
 }
