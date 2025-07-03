@@ -212,6 +212,60 @@ export const useSubscriptions = () => {
     return await updateSubscription(id, { status: 'active' });
   };
 
+  const reactivateSubscription = async (id: string) => {
+    if (!user) {
+      toast.error('Du skal være logget ind for at genaktivere et abonnement');
+      return false;
+    }
+
+    try {
+      console.log('Reactivating subscription:', id);
+      
+      const subscription = subscriptions.find(s => s.id === id);
+      if (!subscription) {
+        toast.error('Abonnement ikke fundet');
+        return false;
+      }
+
+      // Calculate new next_due_date from today
+      const today = new Date();
+      const nextDueDate = new Date(today);
+      nextDueDate.setDate(nextDueDate.getDate() + (subscription.interval_weeks * 7));
+      
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .update({ 
+          status: 'active',
+          start_date: today.toISOString().split('T')[0],
+          next_due_date: nextDueDate.toISOString().split('T')[0],
+          last_order_date: null
+        })
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error reactivating subscription:', error);
+        toast.error('Kunne ikke genaktivere abonnement');
+        return false;
+      }
+
+      console.log('Subscription reactivated successfully:', data);
+      
+      // Create orders for the reactivated subscription
+      await createOrdersForSubscription(data);
+      
+      toast.success('Abonnement genaktiveret');
+      await fetchSubscriptions();
+      return true;
+    } catch (error) {
+      console.error('Error reactivating subscription:', error);
+      toast.error('Kunne ikke genaktivere abonnement');
+      return false;
+    }
+  };
+
   const createOrderFromSubscription = async (subscriptionId: string, scheduledDate?: string) => {
     if (!user) {
       toast.error('Du skal være logget ind for at oprette en ordre');
@@ -366,6 +420,7 @@ export const useSubscriptions = () => {
     cancelSubscription,
     pauseSubscription,
     resumeSubscription,
+    reactivateSubscription,
     createOrderFromSubscription,
     getActiveSubscriptions,
     getSubscriptionsByCustomer,

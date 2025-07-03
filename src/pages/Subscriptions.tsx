@@ -24,6 +24,7 @@ const Subscriptions = () => {
     cancelSubscription, 
     pauseSubscription, 
     resumeSubscription,
+    reactivateSubscription,
     createOrderFromSubscription 
   } = useSubscriptions();
 
@@ -90,6 +91,10 @@ const Subscriptions = () => {
       case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  };
+
+  const handleReactivateSubscription = async (id: string) => {
+    await reactivateSubscription(id);
   };
 
   const getStatusText = (status: string) => {
@@ -335,6 +340,17 @@ const Subscriptions = () => {
                           >
                             <Play className="h-4 w-4 mr-1" />
                             Genoptag
+                          </Button>
+                        )}
+
+                        {subscription.status === 'cancelled' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReactivateSubscription(subscription.id)}
+                          >
+                            <Play className="h-4 w-4 mr-1" />
+                            Genaktiver
                           </Button>
                         )}
 
