@@ -28,7 +28,7 @@ serve(async (req) => {
     console.log('🔄 Running subscription order creation check...');
 
     // Find subscriptions that need orders created 
-    // 1. Subscriptions starting today (start_date = today and no orders exist yet)
+    // 1. Subscriptions starting today or in the future (start_date >= today and no orders exist yet)
     // 2. Subscriptions due within 1 week
     const today = new Date().toISOString().split('T')[0];
     const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -38,7 +38,7 @@ serve(async (req) => {
       .select('*')
       .eq('status', 'active')
       .eq('auto_create_orders', true)
-      .or(`start_date.eq.${today},and(next_due_date.lte.${oneWeekFromNow},next_due_date.gt.${today})`);
+      .or(`start_date.gte.${today},and(next_due_date.lte.${oneWeekFromNow},next_due_date.gt.${today})`);
 
     if (subscriptionsError) {
       console.error('Error fetching subscriptions:', subscriptionsError);
@@ -57,9 +57,12 @@ serve(async (req) => {
       try {
         console.log(`🏗️ Processing subscription ${subscription.id} for ${subscription.customer_name}`);
 
-        // Determine the order date - either start date (if today) or next due date
-        const isStartingToday = subscription.start_date === today;
-        const orderDate = isStartingToday ? subscription.start_date : subscription.next_due_date;
+        // Check if this is a new subscription that needs a start date order
+        const isNewSubscription = subscription.last_order_date === null;
+        const needsStartOrder = isNewSubscription && subscription.start_date >= today;
+        
+        // Determine the order date - start date for new subscriptions, next due date for ongoing ones
+        const orderDate = needsStartOrder ? subscription.start_date : subscription.next_due_date;
         
         // Check if order already exists for this date
         const { data: existingOrders } = await supabase
@@ -83,7 +86,7 @@ serve(async (req) => {
           price: subscription.price,
           scheduled_date: orderDate,
           status: 'Ikke planlagt',
-          comment: `Abonnement${isStartingToday ? ' (start)' : ''}: ${subscription.description || subscription.service_type}${subscription.notes ? '\nNoter: ' + subscription.notes : ''}`,
+          comment: `Abonnement${needsStartOrder ? ' (start)' : ''}: ${subscription.description || subscription.service_type}${subscription.notes ? '\nNoter: ' + subscription.notes : ''}`,
           address: subscription.customer_address,
           priority: 'Normal',
           estimated_duration: subscription.estimated_duration
@@ -136,8 +139,8 @@ serve(async (req) => {
           }
         }
 
-        // Update subscription with new next due date (only if not starting today)
-        if (!isStartingToday) {
+        // Update subscription with new next due date (only if not a new start order)
+        if (!needsStartOrder) {
           const nextDueDate = new Date(subscription.next_due_date);
           nextDueDate.setDate(nextDueDate.getDate() + (subscription.interval_weeks * 7));
 
@@ -156,10 +159,14 @@ serve(async (req) => {
             console.log(`✅ Updated subscription ${subscription.id} next due date to ${nextDueDate.toISOString().split('T')[0]}`);
           }
         } else {
-          // For starting subscriptions, just update last_order_date
+          // For new start orders, set next_due_date and last_order_date
+          const nextDueDate = new Date(subscription.start_date);
+          nextDueDate.setDate(nextDueDate.getDate() + (subscription.interval_weeks * 7));
+          
           const { error: updateError } = await supabase
             .from('subscriptions')
             .update({
+              next_due_date: nextDueDate.toISOString().split('T')[0],
               last_order_date: subscription.start_date,
               updated_at: new Date().toISOString()
             })
@@ -168,7 +175,7 @@ serve(async (req) => {
           if (updateError) {
             console.error(`Error updating subscription ${subscription.id}:`, updateError);
           } else {
-            console.log(`✅ Updated subscription ${subscription.id} with start order`);
+            console.log(`✅ Updated subscription ${subscription.id} with start order and next due date`);
           }
         }
 
