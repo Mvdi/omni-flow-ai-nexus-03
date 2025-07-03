@@ -27,29 +27,22 @@ interface TicketConversationProps {
   ticket: SupportTicket;
 }
 
-// CRITICAL FIX: Format messages with signature AND correct Danish time
+// SECURE FIX: Format messages safely without HTML injection
 const formatMessageWithSignature = (content: string, isFromSupport: boolean) => {
   if (!isFromSupport) {
-    return content.replace(/\n/g, '<br>');
+    return content;
   }
 
-  // For support messages: check for signature
+  // For support messages: check for signature but return as plain text
   if (content.includes('---SIGNATUR---')) {
     const parts = content.split('---SIGNATUR---');
     const messageText = parts[0].trim();
-    const signatureHtml = parts[1].trim();
+    const signatureText = parts[1].trim();
     
-    return `
-      <div style="margin-bottom: 16px;">
-        ${messageText.replace(/\n/g, '<br>')}
-      </div>
-      <div style="border-top: 1px solid #e5e7eb; margin-top: 16px; padding-top: 12px;">
-        ${signatureHtml}
-      </div>
-    `;
+    return `${messageText}\n\n---\n${signatureText}`;
   }
   
-  return content.replace(/\n/g, '<br>');
+  return content;
 };
 
 export const TicketConversation = ({ ticket }: TicketConversationProps) => {
@@ -488,12 +481,9 @@ ${messages.slice(-3).map(msg =>
                                 {formatDanishDistance(message.created_at)} - DANSK TID: {debugTimeConversion(message.created_at)}
                               </span>
                             </div>
-                            <div 
-                              className="text-sm text-gray-700"
-                              dangerouslySetInnerHTML={{ 
-                                __html: formatMessageWithSignature(message.message_content, isFromSupport)
-                              }}
-                            />
+                            <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                              {formatMessageWithSignature(message.message_content, isFromSupport)}
+                            </div>
                             {message.attachments && message.attachments.length > 0 && (
                               <div className="mt-3">
                                 <AttachmentViewer attachments={message.attachments} />

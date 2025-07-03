@@ -2,7 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 
 const KEATECH_API_BASE = 'https://api.keatech.com';
-const KEATECH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJodHRwczovL2FwaS5rZWF0ZWNoLmNvbSIsImlzcyI6IktlYXRlY2guQWRtaW4uQ29uc29sZSIsImV4cCI6MTg0NjE0MTE5MiwiaWF0IjoxNzUxNDQ2NzkyLCJuYmYiOjE3NTE0NDY3OTIsImp0aSI6Ijk5Zjc0YzFkLWFhZDItNGQ3Ny05OGRjLTI0NjkwYjFkMWJkYiIsInN1YiI6IjI0NDAwIn0.SeQxV1D4CYzgSmTu8w3Yz1blrz5qWWbnaKm1t2nO-B8';
+
+// Get Keatech token from Supabase secrets via edge function
+const getKeatechToken = async (): Promise<string> => {
+  try {
+    const response = await fetch('https://tckynbgheicyqezqprdp.supabase.co/functions/v1/get-keatech-token');
+    const data = await response.json();
+    return data.token;
+  } catch (error) {
+    console.error('Failed to get Keatech token:', error);
+    throw new Error('Authentication failed');
+  }
+};
 
 export interface Vehicle {
   id: string;
@@ -51,9 +62,10 @@ export function useKeatechAPI() {
 
   const makeKeatechRequest = useCallback(async (endpoint: string) => {
     try {
+      const token = await getKeatechToken();
       const response = await fetch(`${KEATECH_API_BASE}${endpoint}`, {
         headers: {
-          'Authorization': `Bearer ${KEATECH_TOKEN}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });

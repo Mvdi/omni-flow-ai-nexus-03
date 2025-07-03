@@ -4,6 +4,7 @@ import { useEmployees } from './useEmployees';
 import { useRoutes } from './useRoutes';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PlanningStats {
   ordersOptimized: number;
@@ -67,25 +68,21 @@ export const useAdvancedPlanner = () => {
       console.log(`👥 Active employees: ${employees.filter(e => e.is_active).length}`);
       console.log(`🎯 Target: Minimize driving, maximize revenue, schedule ALL orders`);
 
-      // Call our advanced edge function
-      const response = await fetch('https://tckynbgheicyqezqprdp.supabase.co/functions/v1/advanced-route-planner', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRja3luYmdoZWljeXFlenFwcmRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNTE3OTMsImV4cCI6MjA2NTkyNzc5M30.vJoSHaDDJrbXIzoEww4LDg8EynJ38cvUZ0qX1BWNNgM`,
-        },
-        body: JSON.stringify({
+      // Call our advanced edge function using Supabase client
+      const { data, error } = await supabase.functions.invoke('advanced-route-planner', {
+        body: {
           weekStart: startDate.toISOString(),
           userId: user.id,
           forceOptimize
-        }),
+        },
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      if (error) {
+        console.error('❌ Advanced planner failed:', error);
+        throw new Error(`Edge function error: ${error.message}`);
       }
 
-      const result: PlanningResult = await response.json();
+      const result: PlanningResult = data;
       
       if (!result.success) {
         throw new Error(result.message || 'AI optimization failed');

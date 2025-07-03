@@ -11,8 +11,10 @@ import { useRoutes } from '@/hooks/useRoutes';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-// Placeholder - skal sættes fra Supabase secrets
-const MAPBOX_TOKEN = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+// Use demo token - should be moved to environment configuration
+const MAPBOX_TOKEN = process.env.NODE_ENV === 'production' 
+  ? 'pk.production_token_here' 
+  : 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
 
 interface LiveViewProps {
   selectedWeek: Date;
@@ -65,8 +67,8 @@ export const LiveView: React.FC<LiveViewProps> = ({ selectedWeek, selectedEmploy
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // Use the public Mapbox token for demonstration
-    mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+    // Use environment-appropriate token
+    mapboxgl.accessToken = MAPBOX_TOKEN;
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,

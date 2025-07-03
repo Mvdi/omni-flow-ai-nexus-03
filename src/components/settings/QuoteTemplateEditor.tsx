@@ -619,10 +619,14 @@ export const QuoteTemplateEditor = () => {
             <CardTitle>Forhåndsvisning af Tilbudsskabelon</CardTitle>
           </CardHeader>
           <CardContent>
-            <div 
-              className="border rounded-lg bg-white p-4"
-              dangerouslySetInnerHTML={{ __html: generateTemplateHtml() }}
-            />
+            <div className="border rounded-lg bg-white p-4">
+              <iframe 
+                srcDoc={generateTemplateHtml()}
+                className="w-full h-96 border-0"
+                sandbox="allow-same-origin"
+                title="Template Preview"
+              />
+            </div>
           </CardContent>
         </Card>
       )}

@@ -21,11 +21,9 @@ interface TicketPopupProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// SECURE: Return plain text instead of HTML to prevent XSS
 const formatTextForDisplay = (text: string) => {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/\n/g, '<br>');
+  return text; // Return as plain text, whitespace-pre-wrap will handle line breaks
 };
 
 export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) => {
@@ -439,12 +437,9 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
                         </Badge>
                       )}
                     </div>
-                    <div 
-                      className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ 
-                        __html: formatTextForDisplay(message.message_content) 
-                      }}
-                    />
+                    <div className="prose prose-sm max-w-none whitespace-pre-wrap">
+                      {formatTextForDisplay(message.message_content)}
+                    </div>
                     {message.attachments && message.attachments.length > 0 && (
                       <div className="mt-3">
                         <AttachmentViewer attachments={message.attachments} />

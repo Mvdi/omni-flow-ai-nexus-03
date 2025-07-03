@@ -24,7 +24,10 @@ export class MapboxService {
   private readonly baseUrl = 'https://api.mapbox.com';
 
   constructor() {
-    this.accessToken = 'pk.eyJ1IjoibG92YWJsZS1kZXYiLCJhIjoiY2x6NHQ4YmZqMGFjeTJycGZpb2VmbGhzZCJ9.qzHLmkYaBHjfJGCGGGfZ3Q';
+    // Use environment-specific token - should be moved to Supabase secrets
+    this.accessToken = process.env.NODE_ENV === 'production' 
+      ? 'pk.production_token_here' 
+      : 'pk.eyJ1IjoibG92YWJsZS1kZXYiLCJhIjoiY2x6NHQ4YmZqMGFjeTJycGZpb2VmbGhzZCJ9.qzHLmkYaBHjfJGCGGGfZ3Q';
   }
 
   async geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {

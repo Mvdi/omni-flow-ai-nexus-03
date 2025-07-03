@@ -479,10 +479,14 @@ export const SignatureSettings = () => {
             <CardTitle>Forhåndsvisning af signatur</CardTitle>
           </CardHeader>
           <CardContent>
-            <div 
-              className="border rounded-lg p-4 bg-white"
-              dangerouslySetInnerHTML={{ __html: generateSignatureHtml() }}
-            />
+            <div className="border rounded-lg p-4 bg-white">
+              <iframe 
+                srcDoc={generateSignatureHtml()}
+                className="w-full h-32 border-0"
+                sandbox="allow-same-origin"
+                title="Signature Preview"
+              />
+            </div>
           </CardContent>
         </Card>
       )}

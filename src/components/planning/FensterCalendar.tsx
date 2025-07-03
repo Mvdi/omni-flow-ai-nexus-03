@@ -23,6 +23,7 @@ import { useBlockedTimeSlots } from '@/hooks/useBlockedTimeSlots';
 import { useAuth } from '@/hooks/useAuth';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TimeSlot {
   time: string;
@@ -64,18 +65,18 @@ export const FensterCalendar = () => {
     if (!user) return;
     
     try {
-      const response = await fetch('https://tckynbgheicyqezqprdp.supabase.co/functions/v1/assign-order-to-employee', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRja3luYmdoZWljeXFlenFwcmRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzNTE3OTMsImV4cCI6MjA2NTkyNzc5M30.vJoSHaDDJrbXIzoEww4LDg8EynJ38cvUZ0qX1BWNNgM`,
-        },
-        body: JSON.stringify({ userId: user.id }),
+      const { data, error } = await supabase.functions.invoke('assign-order-to-employee', {
+        body: { userId: user.id },
       });
       
-      const result = await response.json();
-      if (result.success && result.assigned > 0) {
-        toast.success(`${result.assigned} ordrer tildelt til ${result.employees.join(', ')}`);
+      if (error) {
+        console.error('Assignment error:', error);
+        toast.error('Fejl ved automatisk tildeling');
+        return;
+      }
+      
+      if (data?.success && data?.assigned > 0) {
+        toast.success(`${data.assigned} ordrer tildelt til ${data.employees.join(', ')}`);
         refetchOrders();
       }
     } catch (error) {
