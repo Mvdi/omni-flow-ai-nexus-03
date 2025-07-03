@@ -48,11 +48,14 @@ export const FensterCalendar = () => {
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{date: string, time: string} | null>(null);
   const [blockReason, setBlockReason] = useState('');
+  const [blockDuration, setBlockDuration] = useState(15); // Duration in minutes
+  const [deleteBlockDialog, setDeleteBlockDialog] = useState(false);
+  const [selectedBlockToDelete, setSelectedBlockToDelete] = useState<any>(null);
   
   const { orders, updateOrder } = useOrders();
   const { employees } = useEmployees();
   const { workSchedules } = useWorkSchedules();
-  const { blockedSlots, createBlockedSlot } = useBlockedTimeSlots();
+  const { blockedSlots, createBlockedSlot, deleteBlockedSlot } = useBlockedTimeSlots();
 
   // Generate time slots based on work schedules
   useEffect(() => {
@@ -177,24 +180,41 @@ export const FensterCalendar = () => {
     }
   };
 
-  // Block time slot
+  // Block time slot with custom duration
   const handleBlockTimeSlot = async () => {
     if (!selectedTimeSlot || !blockReason.trim()) return;
 
     try {
+      const endTime = addMinutesToTime(selectedTimeSlot.time, blockDuration);
+      
       await createBlockedSlot({
         blocked_date: selectedTimeSlot.date,
         start_time: selectedTimeSlot.time,
-        end_time: addMinutesToTime(selectedTimeSlot.time, 15), // 15 min block
+        end_time: endTime,
         reason: blockReason,
         employee_id: selectedEmployee !== 'all' ? selectedEmployee : null
       });
       
-      toast.success('Tidsrum blokeret');
+      toast.success(`Tidsrum blokeret i ${blockDuration} minutter`);
       setBlockDialogOpen(false);
       setBlockReason('');
+      setBlockDuration(15);
     } catch (error) {
       toast.error('Kunne ikke blokere tidsrum');
+    }
+  };
+
+  // Delete blocked time slot
+  const handleDeleteBlock = async () => {
+    if (!selectedBlockToDelete) return;
+
+    try {
+      await deleteBlockedSlot(selectedBlockToDelete.id);
+      toast.success('Blokeret tidsrum slettet');
+      setDeleteBlockDialog(false);
+      setSelectedBlockToDelete(null);
+    } catch (error) {
+      toast.error('Kunne ikke slette blokeret tidsrum');
     }
   };
 
@@ -217,13 +237,17 @@ export const FensterCalendar = () => {
     });
   };
 
-  const isTimeSlotBlocked = (date: string, time: string): boolean => {
-    return blockedSlots.some(slot => 
+  const getBlockedSlotForTime = (date: string, time: string) => {
+    return blockedSlots.find(slot => 
       slot.blocked_date === date && 
       time >= slot.start_time.substring(0, 5) && 
       time < slot.end_time.substring(0, 5) &&
       (!slot.employee_id || slot.employee_id === selectedEmployee)
     );
+  };
+
+  const isTimeSlotBlocked = (date: string, time: string): boolean => {
+    return !!getBlockedSlotForTime(date, time);
   };
 
   const getWeekInfo = () => {
@@ -305,10 +329,10 @@ export const FensterCalendar = () => {
                   {slot.time}
                 </div>
 
-                {/* Day Columns */}
                 {weekColumns.map((column) => {
                   const order = getOrderForTimeSlot(column.date, slot.time);
                   const isBlocked = isTimeSlotBlocked(column.date, slot.time);
+                  const blockedSlot = getBlockedSlotForTime(column.date, slot.time);
                   
                   return (
                     <Droppable 
@@ -357,9 +381,21 @@ export const FensterCalendar = () => {
                             </Draggable>
                           )}
                           
-                          {isBlocked && (
-                            <div className="absolute inset-1 bg-blue-200/80 border border-blue-300 rounded flex items-center justify-center">
-                              <Ban className="h-4 w-4 text-blue-600" />
+                          {isBlocked && blockedSlot && (
+                            <div 
+                              className="absolute inset-1 bg-blue-200/80 border border-blue-300 rounded p-2 cursor-pointer hover:bg-blue-200"
+                              onClick={() => {
+                                setSelectedBlockToDelete(blockedSlot);
+                                setDeleteBlockDialog(true);
+                              }}
+                              title={`Blokeret: ${blockedSlot.reason || 'Ingen årsag'}`}
+                            >
+                              <div className="flex items-center justify-center h-full">
+                                <Ban className="h-4 w-4 text-blue-600 mr-1" />
+                                <div className="text-xs text-blue-800 font-medium truncate">
+                                  {blockedSlot.reason || 'Blokeret'}
+                                </div>
+                              </div>
                             </div>
                           )}
                           
@@ -390,6 +426,22 @@ export const FensterCalendar = () => {
               />
             </div>
             <div>
+              <Label>Varighed</Label>
+              <Select value={blockDuration.toString()} onValueChange={(value) => setBlockDuration(parseInt(value))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15">15 minutter</SelectItem>
+                  <SelectItem value="30">30 minutter</SelectItem>
+                  <SelectItem value="60">1 time</SelectItem>
+                  <SelectItem value="120">2 timer</SelectItem>
+                  <SelectItem value="240">4 timer</SelectItem>
+                  <SelectItem value="480">8 timer (hele dagen)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>Årsag</Label>
               <Textarea 
                 value={blockReason}
@@ -403,6 +455,33 @@ export const FensterCalendar = () => {
               </Button>
               <Button onClick={handleBlockTimeSlot} disabled={!blockReason.trim()}>
                 Bloker Tidsrum
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Block Dialog */}
+      <Dialog open={deleteBlockDialog} onOpenChange={setDeleteBlockDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Slet Blokeret Tidsrum</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>Er du sikker på at du vil slette denne blokering?</p>
+            {selectedBlockToDelete && (
+              <div className="bg-blue-50 p-3 rounded">
+                <p><strong>Dato:</strong> {selectedBlockToDelete.blocked_date}</p>
+                <p><strong>Tid:</strong> {selectedBlockToDelete.start_time} - {selectedBlockToDelete.end_time}</p>
+                <p><strong>Årsag:</strong> {selectedBlockToDelete.reason || 'Ingen årsag'}</p>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDeleteBlockDialog(false)}>
+                Annuller
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteBlock}>
+                Slet Blokering
               </Button>
             </div>
           </div>
