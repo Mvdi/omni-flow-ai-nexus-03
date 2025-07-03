@@ -31,13 +31,20 @@ interface TicketConversationProps {
 const formatMessageContent = (content: string, isFromSupport: boolean) => {
   if (!content) return '';
 
+  // First, remove all signature separators regardless of format
+  let cleanedContent = content
+    .replace(/---SIGNATUR---/g, '')
+    .replace(/--SIGNATUR--/g, '')
+    .replace(/-SIGNATUR-/g, '')
+    .trim();
+
   // Check if content contains HTML tags
-  const containsHTML = /<[^>]+>/.test(content);
+  const containsHTML = /<[^>]+>/.test(cleanedContent);
   
   if (containsHTML) {
     // For HTML content: sanitize and return safe HTML
     // Remove potentially dangerous scripts and inline event handlers
-    const sanitizedContent = content
+    const sanitizedContent = cleanedContent
       .replace(/<script[^>]*>.*?<\/script>/gi, '')
       .replace(/on\w+="[^"]*"/gi, '')
       .replace(/javascript:/gi, '');
@@ -45,16 +52,7 @@ const formatMessageContent = (content: string, isFromSupport: boolean) => {
     return sanitizedContent;
   }
 
-  // For plain text: handle signatures from ANY message (not just support)
-  if (content.includes('---SIGNATUR---')) {
-    const parts = content.split('---SIGNATUR---');
-    const messageText = parts[0].trim();
-    
-    // Only return the message part, hide the signature separator completely
-    return messageText;
-  }
-  
-  return content;
+  return cleanedContent;
 };
 
 export const TicketConversation = ({ ticket }: TicketConversationProps) => {
