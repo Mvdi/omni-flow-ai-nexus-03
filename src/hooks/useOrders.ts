@@ -107,6 +107,72 @@ export const useOrders = () => {
     }
   };
 
+  // Auto-fix broken orders on load
+  const fixBrokenOrders = async () => {
+    if (!user) return;
+    
+    try {
+      // Find orders with missing data
+      const brokenOrders = orders.filter(order => 
+        order.scheduled_date && (!order.scheduled_week || !order.assigned_employee_id)
+      );
+      
+      if (brokenOrders.length === 0) return;
+      
+      console.log(`🔧 Auto-fixing ${brokenOrders.length} broken orders`);
+      
+      // Get first active employee
+      const { data: employees } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .limit(1);
+      
+      const employeeId = employees?.[0]?.id;
+      
+      for (const order of brokenOrders) {
+        const updates: any = {};
+        
+        // Calculate missing scheduled_week
+        if (!order.scheduled_week && order.scheduled_date) {
+          const date = new Date(order.scheduled_date);
+          const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+          const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+          updates.scheduled_week = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+        }
+        
+        // Assign to employee if missing
+        if (!order.assigned_employee_id && employeeId) {
+          updates.assigned_employee_id = employeeId;
+        }
+        
+        // Update status
+        if (order.status === 'Ikke planlagt') {
+          updates.status = 'Planlagt';
+          updates.scheduled_time = '08:00';
+        }
+        
+        if (Object.keys(updates).length > 0) {
+          const { error } = await supabase
+            .from('orders')
+            .update(updates)
+            .eq('id', order.id)
+            .eq('user_id', user.id);
+            
+          if (!error) {
+            console.log(`✅ Fixed order ${order.id}:`, updates);
+          }
+        }
+      }
+      
+      // Refresh orders after fixing
+      await fetchOrders();
+    } catch (error) {
+      console.error('Error fixing broken orders:', error);
+    }
+  };
+
   const createOrder = async (orderData: CreateOrderData) => {
     if (!user) {
       toast.error('Du skal være logget ind for at oprette en ordre');
@@ -268,6 +334,13 @@ export const useOrders = () => {
   useEffect(() => {
     fetchOrders();
   }, [user]);
+
+  // Auto-fix broken orders when orders change
+  useEffect(() => {
+    if (orders.length > 0) {
+      fixBrokenOrders();
+    }
+  }, [orders.length]);
 
   return {
     orders,
