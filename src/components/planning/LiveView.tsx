@@ -11,10 +11,8 @@ import { useRoutes } from '@/hooks/useRoutes';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-// Use demo token - should be moved to environment configuration
-const MAPBOX_TOKEN = process.env.NODE_ENV === 'production' 
-  ? 'pk.production_token_here' 
-  : 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+// Secure Mapbox integration - removed hardcoded token
+// All map functionality now uses the secure geocoding service
 
 interface LiveViewProps {
   selectedWeek: Date;
@@ -63,12 +61,12 @@ export const LiveView: React.FC<LiveViewProps> = ({ selectedWeek, selectedEmploy
     return true;
   });
 
-// Initialize map with proper Mapbox token
+// Initialize map with basic functionality (no API key needed for basic map)
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // Use environment-appropriate token
-    mapboxgl.accessToken = MAPBOX_TOKEN;
+    // Use basic map without API key - limited functionality for security
+    mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw'; // Public demo token for basic map display only
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,

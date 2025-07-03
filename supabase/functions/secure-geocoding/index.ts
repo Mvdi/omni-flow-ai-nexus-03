@@ -1,8 +1,15 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
-const corsHeaders = {
+const securityHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://*.mapbox.com",
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
 };
 
 interface GeocodeRequest {
@@ -17,7 +24,7 @@ interface GeocodeResponse {
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: securityHeaders });
   }
 
   try {
@@ -28,7 +35,7 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ error: 'Invalid address parameter' }),
         {
           status: 400,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
         }
       );
     }
@@ -40,7 +47,7 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ error: 'Address cannot be empty' }),
         {
           status: 400,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
         }
       );
     }
@@ -52,7 +59,7 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ error: 'Geocoding service not available' }),
         {
           status: 503,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
         }
       );
     }
@@ -70,7 +77,7 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ error: 'Geocoding failed' }),
         {
           status: 502,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          headers: { 'Content-Type': 'application/json', ...securityHeaders },
         }
       );
     }
@@ -83,7 +90,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       const result: GeocodeResponse = { lat, lng };
       return new Response(JSON.stringify(result), {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...securityHeaders },
       });
     }
     
@@ -92,7 +99,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ error: 'Address not found' }),
       {
         status: 404,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...securityHeaders },
       }
     );
     
@@ -102,7 +109,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ error: 'Internal server error' }),
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...securityHeaders },
       }
     );
   }

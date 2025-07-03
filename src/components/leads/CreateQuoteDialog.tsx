@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateQuote } from '@/hooks/useQuotes';
+import { useSecureValidation } from '@/hooks/useSecureValidation';
+import { sanitizeText } from '@/utils/security';
 import { FileText, Plus } from 'lucide-react';
 import type { Lead } from '@/hooks/useLeads';
 
@@ -18,19 +20,37 @@ export const CreateQuoteDialog = ({ lead, children }: CreateQuoteDialogProps) =>
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   
   const createQuote = useCreateQuote();
+  const { validateForm } = useSecureValidation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationErrors([]);
+    
+    // Validate form data securely
+    const formData = {
+      title: title || `Tilbud til ${lead.navn}`,
+      description,
+      email: lead.email,
+      name: lead.navn
+    };
+
+    const validation = await validateForm(formData, { serverSideValidation: true });
+    
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors);
+      return;
+    }
     
     try {
       await createQuote.mutateAsync({
         lead_id: lead.id,
         customer_email: lead.email,
         customer_name: lead.navn,
-        title: title || `Tilbud til ${lead.navn}`,
-        description,
+        title: sanitizeText(title || `Tilbud til ${lead.navn}`),
+        description: sanitizeText(description),
         items: [],
         total_amount: parseFloat(totalAmount) || 0,
         currency: 'DKK',
@@ -44,8 +64,10 @@ export const CreateQuoteDialog = ({ lead, children }: CreateQuoteDialogProps) =>
       setTitle('');
       setDescription('');
       setTotalAmount('');
+      setValidationErrors([]);
     } catch (error) {
       console.error('Failed to create quote:', error);
+      setValidationErrors(['Der opstod en fejl ved oprettelse af tilbud']);
     }
   };
 
@@ -68,6 +90,16 @@ export const CreateQuoteDialog = ({ lead, children }: CreateQuoteDialogProps) =>
             Opret Tilbud
           </DialogTitle>
         </DialogHeader>
+        
+        {validationErrors.length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-3">
+            <ul className="text-sm text-red-600 space-y-1">
+              {validationErrors.map((error, index) => (
+                <li key={index}>• {error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
