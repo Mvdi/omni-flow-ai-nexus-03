@@ -70,7 +70,7 @@ export const useRoutes = () => {
     }
   };
 
-  const createRoute = async (routeData: CreateRouteData) => {
+  const createRoute = async (routeData: CreateRouteData, showToast = true) => {
     if (!user) {
       toast.error('Du skal være logget ind for at oprette en rute');
       return null;
@@ -87,17 +87,23 @@ export const useRoutes = () => {
 
       if (error) {
         console.error('Error creating route:', error);
-        toast.error('Kunne ikke oprette rute');
+        if (showToast) {
+          toast.error('Kunne ikke oprette rute');
+        }
         return null;
       }
 
       console.log('Route created successfully:', data);
-      toast.success('Rute oprettet');
+      if (showToast) {
+        toast.success('Rute oprettet');
+      }
       await fetchRoutes();
       return data;
     } catch (error) {
       console.error('Error creating route:', error);
-      toast.error('Kunne ikke oprette rute');
+      if (showToast) {
+        toast.error('Kunne ikke oprette rute');
+      }
       return null;
     }
   };

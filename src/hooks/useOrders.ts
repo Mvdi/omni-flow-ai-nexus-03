@@ -139,7 +139,7 @@ export const useOrders = () => {
     }
   };
 
-  const updateOrder = async (id: string, orderData: Partial<CreateOrderData>) => {
+  const updateOrder = async (id: string, orderData: Partial<CreateOrderData>, showToast = true) => {
     if (!user) {
       toast.error('Du skal være logget ind for at opdatere en ordre');
       return null;
@@ -177,20 +177,24 @@ export const useOrders = () => {
 
       if (error) {
         console.error('Error updating order:', error);
-        toast.error('Kunne ikke opdatere ordre');
+        if (showToast) {
+          toast.error('Kunne ikke opdatere ordre');
+        }
         return null;
       }
 
       console.log('Order updated successfully:', data);
-      // Don't show toast for automated updates to avoid spam
-      if (!orderData.assigned_employee_id && !orderData.route_id) {
+      // Only show toast for manual updates, not automated ones
+      if (showToast && !orderData.assigned_employee_id && !orderData.route_id) {
         toast.success('Ordre opdateret');
       }
       await fetchOrders();
       return data;
     } catch (error) {
       console.error('Error updating order:', error);
-      toast.error('Kunne ikke opdatere ordre');
+      if (showToast) {
+        toast.error('Kunne ikke opdatere ordre');
+      }
       return null;
     }
   };
