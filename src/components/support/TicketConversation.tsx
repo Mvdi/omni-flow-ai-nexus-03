@@ -45,13 +45,12 @@ const formatMessageContent = (content: string, isFromSupport: boolean) => {
     return sanitizedContent;
   }
 
-  // For plain text: handle signatures if it's from support
-  if (isFromSupport && content.includes('---SIGNATUR---')) {
+  // For plain text: handle signatures from ANY message (not just support)
+  if (content.includes('---SIGNATUR---')) {
     const parts = content.split('---SIGNATUR---');
     const messageText = parts[0].trim();
-    const signatureText = parts[1] ? parts[1].trim() : '';
     
-    // Only return the message part, signature will be handled separately
+    // Only return the message part, hide the signature separator completely
     return messageText;
   }
   
