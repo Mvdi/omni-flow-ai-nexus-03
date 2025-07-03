@@ -483,54 +483,6 @@ export type Database = {
         }
         Relationships: []
       }
-      optimization_runs: {
-        Row: {
-          completed_at: string | null
-          created_at: string
-          error_details: string | null
-          fuel_savings_estimate: number | null
-          id: string
-          optimization_config: Json | null
-          orders_optimized: number | null
-          run_type: string
-          started_at: string
-          status: string
-          total_distance_km: number | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string
-          error_details?: string | null
-          fuel_savings_estimate?: number | null
-          id?: string
-          optimization_config?: Json | null
-          orders_optimized?: number | null
-          run_type?: string
-          started_at?: string
-          status?: string
-          total_distance_km?: number | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string
-          error_details?: string | null
-          fuel_savings_estimate?: number | null
-          id?: string
-          optimization_config?: Json | null
-          orders_optimized?: number | null
-          run_type?: string
-          started_at?: string
-          status?: string
-          total_distance_km?: number | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       orders: {
         Row: {
           address: string | null
@@ -541,16 +493,12 @@ export type Database = {
           created_at: string
           customer: string
           customer_email: string | null
-          distance_from_previous_km: number | null
-          edited_manually: boolean | null
           estimated_duration: number | null
           expected_completion_time: string | null
-          fuel_cost_estimate: number | null
           geocoded_at: string | null
           id: string
           latitude: number | null
           longitude: number | null
-          optimization_run_id: string | null
           order_sequence: number | null
           order_type: string
           price: number
@@ -574,16 +522,12 @@ export type Database = {
           created_at?: string
           customer: string
           customer_email?: string | null
-          distance_from_previous_km?: number | null
-          edited_manually?: boolean | null
           estimated_duration?: number | null
           expected_completion_time?: string | null
-          fuel_cost_estimate?: number | null
           geocoded_at?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
-          optimization_run_id?: string | null
           order_sequence?: number | null
           order_type: string
           price?: number
@@ -607,16 +551,12 @@ export type Database = {
           created_at?: string
           customer?: string
           customer_email?: string | null
-          distance_from_previous_km?: number | null
-          edited_manually?: boolean | null
           estimated_duration?: number | null
           expected_completion_time?: string | null
-          fuel_cost_estimate?: number | null
           geocoded_at?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
-          optimization_run_id?: string | null
           order_sequence?: number | null
           order_type?: string
           price?: number
@@ -869,9 +809,7 @@ export type Database = {
           actual_distance_km: number | null
           actual_duration_hours: number | null
           ai_optimized: boolean | null
-          capacity_constraints: Json | null
           created_at: string
-          distance_matrix: Json | null
           employee_id: string
           estimated_distance_km: number | null
           estimated_duration_hours: number | null
@@ -879,9 +817,7 @@ export type Database = {
           id: string
           mapbox_route_data: Json | null
           name: string
-          optimization_method: string | null
           optimization_score: number | null
-          or_tools_solution: Json | null
           route_date: string
           start_location: string | null
           status: string | null
@@ -894,9 +830,7 @@ export type Database = {
           actual_distance_km?: number | null
           actual_duration_hours?: number | null
           ai_optimized?: boolean | null
-          capacity_constraints?: Json | null
           created_at?: string
-          distance_matrix?: Json | null
           employee_id: string
           estimated_distance_km?: number | null
           estimated_duration_hours?: number | null
@@ -904,9 +838,7 @@ export type Database = {
           id?: string
           mapbox_route_data?: Json | null
           name: string
-          optimization_method?: string | null
           optimization_score?: number | null
-          or_tools_solution?: Json | null
           route_date: string
           start_location?: string | null
           status?: string | null
@@ -919,9 +851,7 @@ export type Database = {
           actual_distance_km?: number | null
           actual_duration_hours?: number | null
           ai_optimized?: boolean | null
-          capacity_constraints?: Json | null
           created_at?: string
-          distance_matrix?: Json | null
           employee_id?: string
           estimated_distance_km?: number | null
           estimated_duration_hours?: number | null
@@ -929,9 +859,7 @@ export type Database = {
           id?: string
           mapbox_route_data?: Json | null
           name?: string
-          optimization_method?: string | null
           optimization_score?: number | null
-          or_tools_solution?: Json | null
           route_date?: string
           start_location?: string | null
           status?: string | null
