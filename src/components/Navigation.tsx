@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Users, Ticket, Calendar, Database, Bot, Settings, Menu, X, ChevronDown, ShoppingCart } from 'lucide-react';
+import { LayoutDashboard, Users, Ticket, Calendar, Database, Bot, Settings, Menu, X, ChevronDown, ShoppingCart, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import UserMenu from '@/components/UserMenu';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -31,6 +31,10 @@ export const Navigation = () => {
     href: '/orders',
     label: 'Ordre',
     icon: ShoppingCart
+  }, {
+    href: '/subscriptions',
+    label: 'Abonnementer',
+    icon: RotateCcw
   }, {
     href: '/support',
     label: 'Support',

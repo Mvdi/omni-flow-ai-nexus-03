@@ -508,6 +508,7 @@ export type Database = {
           scheduled_time: string | null
           scheduled_week: number | null
           status: string
+          subscription_id: string | null
           travel_time_minutes: number | null
           updated_at: string
           user_id: string
@@ -536,6 +537,7 @@ export type Database = {
           scheduled_time?: string | null
           scheduled_week?: number | null
           status?: string
+          subscription_id?: string | null
           travel_time_minutes?: number | null
           updated_at?: string
           user_id: string
@@ -564,6 +566,7 @@ export type Database = {
           scheduled_time?: string | null
           scheduled_week?: number | null
           status?: string
+          subscription_id?: string | null
           travel_time_minutes?: number | null
           updated_at?: string
           user_id?: string
@@ -581,6 +584,13 @@ export type Database = {
             columns: ["route_id"]
             isOneToOne: false
             referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
             referencedColumns: ["id"]
           },
         ]
@@ -889,6 +899,78 @@ export type Database = {
           id?: string
           priority?: number | null
           service_name?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          auto_create_orders: boolean | null
+          created_at: string
+          customer_address: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          description: string | null
+          estimated_duration: number
+          id: string
+          images: Json | null
+          interval_weeks: number
+          last_order_date: string | null
+          next_due_date: string
+          notes: string | null
+          price: number
+          send_notifications: boolean | null
+          service_type: string
+          start_date: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_create_orders?: boolean | null
+          created_at?: string
+          customer_address?: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          description?: string | null
+          estimated_duration: number
+          id?: string
+          images?: Json | null
+          interval_weeks: number
+          last_order_date?: string | null
+          next_due_date: string
+          notes?: string | null
+          price: number
+          send_notifications?: boolean | null
+          service_type: string
+          start_date: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_create_orders?: boolean | null
+          created_at?: string
+          customer_address?: string | null
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          description?: string | null
+          estimated_duration?: number
+          id?: string
+          images?: Json | null
+          interval_weeks?: number
+          last_order_date?: string | null
+          next_due_date?: string
+          notes?: string | null
+          price?: number
+          send_notifications?: boolean | null
+          service_type?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1233,6 +1315,14 @@ export type Database = {
         Args: { customer_email_param: string }
         Returns: number
       }
+      calculate_next_due_date: {
+        Args: {
+          start_date: string
+          interval_weeks: number
+          last_order_date: string
+        }
+        Returns: string
+      }
       create_facebook_lead: {
         Args: {
           email_content: string
@@ -1240,6 +1330,10 @@ export type Database = {
           sender_name?: string
         }
         Returns: string
+      }
+      create_subscription_orders: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       generate_quote_number: {
         Args: Record<PropertyKey, never>

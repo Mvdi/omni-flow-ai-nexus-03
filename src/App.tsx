@@ -11,6 +11,7 @@ import Leads from "./pages/Leads";
 import Support from "./pages/Support";
 import Planning from "./pages/Planning";
 import Orders from "./pages/Orders";
+import Subscriptions from "./pages/Subscriptions";
 import Customers from "./pages/Customers";
 import AIAssistant from "./pages/AIAssistant";
 import Settings from "./pages/Settings";
@@ -51,6 +52,11 @@ const App = () => (
           <Route path="/orders" element={
             <ProtectedRoute>
               <Orders />
+            </ProtectedRoute>
+          } />
+          <Route path="/subscriptions" element={
+            <ProtectedRoute>
+              <Subscriptions />
             </ProtectedRoute>
           } />
           <Route path="/customers" element={
