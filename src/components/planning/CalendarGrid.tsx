@@ -429,38 +429,36 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
                               handleOrderClick(order);
                             }}
                           >
-                            <div className="space-y-2">
-                              {/* Header with day and price */}
-                              <div className="flex justify-between items-start">
-                                <div className="text-sm font-bold text-muted-foreground">
-                                  {weekDates.find(d => formatDate(d) === order.scheduled_date)?.toLocaleDateString('da-DK', { weekday: 'short' }).toUpperCase().slice(0, 3) || 'DAG'}.
+                            {/* Header row with day and price */}
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="text-sm font-bold text-muted-foreground">
+                                {weekDates.find(d => formatDate(d) === order.scheduled_date)?.toLocaleDateString('da-DK', { weekday: 'short' }).toUpperCase() || 'DAG'}.
+                              </div>
+                              <div className="text-sm font-semibold text-foreground">
+                                Kr. {order.price.toLocaleString()}
+                              </div>
+                            </div>
+                            
+                            {/* Customer name */}
+                            <div className="font-semibold text-foreground text-sm mb-1">
+                              {order.customer}
+                            </div>
+                            
+                            {/* Address */}
+                            <div className="text-xs text-muted-foreground mb-2 leading-tight">
+                              {order.address || order.order_type || 'Ingen adresse'}
+                            </div>
+                            
+                            {/* Bottom row with price and duration */}
+                            <div className="flex justify-between items-center">
+                              <div className="text-sm font-semibold text-foreground">
+                                Kr. {order.price.toLocaleString()}
+                              </div>
+                              {order.estimated_duration && (
+                                <div className="text-xs text-muted-foreground">
+                                  {order.estimated_duration} min
                                 </div>
-                                <div className="text-sm font-semibold text-foreground">
-                                  Kr. {order.price.toLocaleString()}
-                                </div>
-                              </div>
-                              
-                              {/* Customer name */}
-                              <div className="font-semibold text-foreground text-sm leading-tight">
-                                {order.customer}
-                              </div>
-                              
-                              {/* Address */}
-                              <div className="text-xs text-muted-foreground line-clamp-1">
-                                {order.address || order.order_type || 'Ingen adresse'}
-                              </div>
-                              
-                              {/* Bottom row with price and duration */}
-                              <div className="flex justify-between items-center text-xs">
-                                <div className="font-semibold text-foreground">
-                                  Kr. {order.price.toLocaleString()}
-                                </div>
-                                {order.estimated_duration && (
-                                  <div className="text-muted-foreground">
-                                    {order.estimated_duration} min
-                                  </div>
-                                )}
-                              </div>
+                              )}
                             </div>
                           </div>
                         ))}

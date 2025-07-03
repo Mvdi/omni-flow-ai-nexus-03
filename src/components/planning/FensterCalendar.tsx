@@ -415,10 +415,10 @@ export const FensterCalendar = () => {
                                        : 'bg-white border border-border'
                                    }`}
                                  >
-                                   {/* Header with day and price */}
-                                   <div className="flex justify-between items-start mb-2">
-                                     <div className="text-lg font-bold text-muted-foreground">
-                                       {new Date().toLocaleDateString('da-DK', { weekday: 'short' }).toUpperCase().slice(0, 3)}.
+                                   {/* Header row with day and price */}
+                                   <div className="flex justify-between items-center mb-2">
+                                     <div className="text-sm font-bold text-muted-foreground">
+                                       {new Date().toLocaleDateString('da-DK', { weekday: 'short' }).toUpperCase()}.
                                      </div>
                                      <div className="text-sm font-semibold text-foreground">
                                        Kr. {order.price.toLocaleString()}
@@ -426,22 +426,22 @@ export const FensterCalendar = () => {
                                    </div>
                                    
                                    {/* Customer name */}
-                                   <div className="font-semibold text-foreground mb-1 text-sm leading-tight">
+                                   <div className="font-semibold text-foreground text-sm mb-1">
                                      {order.customer}
                                    </div>
                                    
                                    {/* Address */}
-                                   <div className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                                   <div className="text-xs text-muted-foreground mb-2 leading-tight">
                                      {order.address || 'Ingen adresse'}
                                    </div>
                                    
                                    {/* Bottom row with price and duration */}
-                                   <div className="flex justify-between items-center text-xs">
-                                     <div className="font-semibold text-foreground">
+                                   <div className="flex justify-between items-center">
+                                     <div className="text-sm font-semibold text-foreground">
                                        Kr. {order.price.toLocaleString()}
                                      </div>
                                      {order.estimated_duration && (
-                                       <div className="text-muted-foreground">
+                                       <div className="text-xs text-muted-foreground">
                                          {order.estimated_duration} min
                                        </div>
                                      )}

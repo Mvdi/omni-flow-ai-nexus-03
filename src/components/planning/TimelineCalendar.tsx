@@ -281,45 +281,43 @@ export const TimelineCalendar: React.FC<TimelineCalendarProps> = ({
                                            ...provided.draggableProps.style
                                          }}
                                        >
-                                         <div className="space-y-2">
-                                           {/* Header with day and price */}
-                                           <div className="flex justify-between items-start">
-                                             <div className="text-sm font-bold text-muted-foreground">
-                                               {weekDates[dayIndex].toLocaleDateString('da-DK', { weekday: 'short' }).toUpperCase().slice(0, 3)}.
-                                             </div>
-                                             <div className="text-sm font-semibold text-foreground">
-                                               Kr. {order.price.toLocaleString()}
-                                             </div>
+                                         {/* Header row with day and price */}
+                                         <div className="flex justify-between items-center mb-2">
+                                           <div className="text-sm font-bold text-muted-foreground">
+                                             {weekDates[dayIndex].toLocaleDateString('da-DK', { weekday: 'short' }).toUpperCase()}.
                                            </div>
-                                           
-                                           {/* Customer name */}
-                                           <div className="font-semibold text-foreground text-sm leading-tight">
-                                             {order.customer}
+                                           <div className="text-sm font-semibold text-foreground">
+                                             Kr. {order.price.toLocaleString()}
                                            </div>
-                                           
-                                           {/* Address */}
-                                           <div className="text-xs text-muted-foreground line-clamp-1">
-                                             {order.address || 'Ingen adresse'}
-                                           </div>
-                                           
-                                           {/* Bottom row with price and duration */}
-                                           <div className="flex justify-between items-center text-xs">
-                                             <div className="font-semibold text-foreground">
-                                               Kr. {order.price.toLocaleString()}
-                                             </div>
-                                             <div className="text-muted-foreground">
-                                               {duration} min
-                                             </div>
-                                           </div>
-                                           
-                                           {/* Subscription indicator */}
-                                           {order.subscription_id && (
-                                             <Badge variant="outline" className="text-xs w-fit">
-                                               <RotateCcw className="h-3 w-3 mr-1" />
-                                               Abonnement
-                                             </Badge>
-                                           )}
                                          </div>
+                                         
+                                         {/* Customer name */}
+                                         <div className="font-semibold text-foreground text-sm mb-1">
+                                           {order.customer}
+                                         </div>
+                                         
+                                         {/* Address */}
+                                         <div className="text-xs text-muted-foreground mb-2 leading-tight">
+                                           {order.address || 'Ingen adresse'}
+                                         </div>
+                                         
+                                         {/* Bottom row with price and duration */}
+                                         <div className="flex justify-between items-center">
+                                           <div className="text-sm font-semibold text-foreground">
+                                             Kr. {order.price.toLocaleString()}
+                                           </div>
+                                           <div className="text-xs text-muted-foreground">
+                                             {duration} min
+                                           </div>
+                                         </div>
+                                         
+                                         {/* Subscription indicator */}
+                                         {order.subscription_id && (
+                                           <Badge variant="outline" className="text-xs w-fit mt-1">
+                                             <RotateCcw className="h-3 w-3 mr-1" />
+                                             Abon
+                                           </Badge>
+                                         )}
                                       </div>
                                     )}
                                   </Draggable>
