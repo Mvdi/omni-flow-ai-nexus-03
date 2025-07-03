@@ -28,9 +28,11 @@ import { EmployeeManagement } from '@/components/settings/EmployeeManagement';
 import { WorkScheduleManagement } from '@/components/settings/WorkScheduleManagement';
 import { QuoteTemplateManagement } from '@/components/settings/QuoteTemplateManagement';
 import { QuoteTemplateEditor } from '@/components/settings/QuoteTemplateEditor';
+import { OrderSettingsDialog } from '@/components/orders/OrderSettingsDialog';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('general');
+  const [orderSettingsOpen, setOrderSettingsOpen] = useState(false);
   const { toast } = useToast();
   
   // Profile form state
@@ -106,12 +108,16 @@ const Settings = () => {
             <p className="text-sm sm:text-base text-gray-600 hidden sm:block">Administrer dine kontoindstillinger og præferencer</p>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <div className="overflow-x-auto">
-              <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 min-w-[600px] sm:min-w-full h-auto gap-1">
+              <TabsList className="grid w-full grid-cols-3 sm:grid-cols-7 min-w-[700px] sm:min-w-full h-auto gap-1">
                 <TabsTrigger value="general" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
                   <User className="h-4 w-4" />
                   <span>Generelt</span>
+                </TabsTrigger>
+                <TabsTrigger value="orders" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+                  <Database className="h-4 w-4" />
+                  <span>Ordrer</span>
                 </TabsTrigger>
                 <TabsTrigger value="employees" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
                   <Users className="h-4 w-4" />
@@ -232,6 +238,34 @@ const Settings = () => {
                     />
                   </div>
                   <Button onClick={handleCompanySave}>Gem Ændringer</Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="orders" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ordre Indstillinger</CardTitle>
+                  <CardDescription>
+                    Administrer ordre typer og status muligheder
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={() => setOrderSettingsOpen(true)}>
+                    Åbn Ordre Indstillinger
+                  </Button>
+                  
+                  <OrderSettingsDialog 
+                    isOpen={orderSettingsOpen} 
+                    onClose={() => setOrderSettingsOpen(false)}
+                    onSave={(settings) => {
+                      toast({
+                        title: "Indstillinger gemt",
+                        description: "Ordre indstillinger er blevet opdateret",
+                      });
+                      setOrderSettingsOpen(false);
+                    }}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
