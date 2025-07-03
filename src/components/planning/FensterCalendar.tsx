@@ -93,21 +93,30 @@ export const FensterCalendar = () => {
     const generateTimeSlots = () => {
       const slots: TimeSlot[] = [];
       
-      // Get work schedule for selected employee or default schedule
+      // Get work schedule for selected employee or use global schedule
       let startHour = 7;
       let endHour = 16;
       
       if (selectedEmployee !== 'all') {
         const employee = employees.find(e => e.id === selectedEmployee);
         if (employee) {
-          // Get work schedule for Monday (1) as default
+          // Get work schedule for Monday (1) as default - can be enhanced to check day-specific schedules
           const schedule = workSchedules.find(ws => 
-            ws.employee_id === employee.id && ws.day_of_week === 1
+            ws.employee_id === employee.id && ws.day_of_week === 1 && ws.is_working_day
           );
           if (schedule) {
             startHour = parseInt(schedule.start_time.split(':')[0]);
             endHour = parseInt(schedule.end_time.split(':')[0]);
           }
+        }
+      } else {
+        // When viewing all employees, find the earliest start and latest end time
+        const allSchedules = workSchedules.filter(ws => ws.is_working_day);
+        if (allSchedules.length > 0) {
+          const startTimes = allSchedules.map(ws => parseInt(ws.start_time.split(':')[0]));
+          const endTimes = allSchedules.map(ws => parseInt(ws.end_time.split(':')[0]));
+          startHour = Math.min(...startTimes);
+          endHour = Math.max(...endTimes);
         }
       }
       
@@ -398,23 +407,49 @@ export const FensterCalendar = () => {
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
-                                  className={`absolute inset-1 p-2 rounded text-xs ${
-                                    snapshot.isDragging ? 'shadow-lg rotate-2' : 'hover:shadow-md'
-                                  } ${
-                                    !order.assigned_employee_id 
-                                      ? 'bg-orange-100 border-2 border-orange-400 border-dashed' 
-                                      : 'bg-white border border-primary/20'
-                                  }`}
-                                >
-                                  <div className="font-medium truncate">{order.customer}</div>
-                                  <div className="text-muted-foreground truncate">{order.address}</div>
-                                  <div className="font-bold text-primary">Kr. {order.price.toLocaleString()}</div>
-                                  {order.estimated_duration && (
-                                    <div className="text-muted-foreground">{order.estimated_duration} min</div>
-                                  )}
-                                  {!order.assigned_employee_id && (
-                                    <div className="text-xs text-orange-600 font-medium">Ikke tildelt</div>
-                                  )}
+                                   className={`absolute inset-1 p-3 rounded-lg shadow-sm ${
+                                     snapshot.isDragging ? 'shadow-lg rotate-2' : 'hover:shadow-md'
+                                   } ${
+                                     !order.assigned_employee_id 
+                                       ? 'bg-orange-50 border-2 border-orange-300 border-dashed' 
+                                       : 'bg-white border border-border'
+                                   }`}
+                                 >
+                                   {/* Header with day and price */}
+                                   <div className="flex justify-between items-start mb-2">
+                                     <div className="text-lg font-bold text-muted-foreground">
+                                       {new Date().toLocaleDateString('da-DK', { weekday: 'short' }).toUpperCase().slice(0, 3)}.
+                                     </div>
+                                     <div className="text-sm font-semibold text-foreground">
+                                       Kr. {order.price.toLocaleString()}
+                                     </div>
+                                   </div>
+                                   
+                                   {/* Customer name */}
+                                   <div className="font-semibold text-foreground mb-1 text-sm leading-tight">
+                                     {order.customer}
+                                   </div>
+                                   
+                                   {/* Address */}
+                                   <div className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                                     {order.address || 'Ingen adresse'}
+                                   </div>
+                                   
+                                   {/* Bottom row with price and duration */}
+                                   <div className="flex justify-between items-center text-xs">
+                                     <div className="font-semibold text-foreground">
+                                       Kr. {order.price.toLocaleString()}
+                                     </div>
+                                     {order.estimated_duration && (
+                                       <div className="text-muted-foreground">
+                                         {order.estimated_duration} min
+                                       </div>
+                                     )}
+                                   </div>
+                                   
+                                   {!order.assigned_employee_id && (
+                                     <div className="text-xs text-orange-600 font-medium mt-1">Ikke tildelt</div>
+                                   )}
                                 </div>
                               )}
                             </Draggable>

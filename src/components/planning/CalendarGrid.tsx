@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Clock, User, MapPin, Euro, Ban, Settings, Trash2 } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useEmployees } from '@/hooks/useEmployees';
+import { useWorkSchedules } from '@/hooks/useWorkSchedules';
 import { useBlockedTimeSlots } from '@/hooks/useBlockedTimeSlots';
 import { OrderDialog } from '@/components/orders/OrderDialog';
 import { BlockTimeSlotDialog } from './BlockTimeSlotDialog';
@@ -31,6 +32,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
   
   const { orders, updateOrder } = useOrders();
   const { employees } = useEmployees();
+  const { workSchedules } = useWorkSchedules();
   const { blockedSlots, createBlockedSlot, deleteBlockedSlot } = useBlockedTimeSlots();
 
   // Load status options from localStorage
@@ -94,11 +96,41 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
   const weekDates = getWeekDates(currentWeek);
   const weekNumber = getWeekNumber(currentWeek);
 
-  // Generate time slots from 7:00 to 18:00
-  const timeSlots = [];
-  for (let hour = 7; hour <= 18; hour++) {
-    timeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
-  }
+  // Generate time slots based on work schedules
+  const getTimeSlots = () => {
+    let startHour = 7;
+    let endHour = 18;
+    
+    if (selectedEmployee !== 'all') {
+      const employee = employees.find(e => e.id === selectedEmployee);
+      if (employee) {
+        const schedule = workSchedules.find(ws => 
+          ws.employee_id === employee.id && ws.day_of_week === 1 && ws.is_working_day
+        );
+        if (schedule) {
+          startHour = parseInt(schedule.start_time.split(':')[0]);
+          endHour = parseInt(schedule.end_time.split(':')[0]);
+        }
+      }
+    } else {
+      // When viewing all employees, find the earliest start and latest end time
+      const allSchedules = workSchedules.filter(ws => ws.is_working_day);
+      if (allSchedules.length > 0) {
+        const startTimes = allSchedules.map(ws => parseInt(ws.start_time.split(':')[0]));
+        const endTimes = allSchedules.map(ws => parseInt(ws.end_time.split(':')[0]));
+        startHour = Math.min(...startTimes);
+        endHour = Math.max(...endTimes);
+      }
+    }
+    
+    const slots = [];
+    for (let hour = startHour; hour <= endHour; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+    }
+    return slots;
+  };
+  
+  const timeSlots = getTimeSlots();
 
   // SYNCHRONIZED FILTERING LOGIC - Same as WeeklyCalendar
   const weekOrders = orders.filter(order => {
@@ -386,11 +418,8 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
                         {dayOrders.map((order, orderIndex) => (
                           <div
                             key={order.id}
-                            className="mb-1 p-2 rounded-lg border shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                            className="mb-1 p-3 rounded-lg border shadow-sm cursor-pointer hover:shadow-md transition-shadow bg-white"
                             style={{ 
-                              backgroundColor: selectedEmployee === 'all' 
-                                ? getEmployeeColor(order.assigned_employee_id) + '20'
-                                : getStatusColor(order.status) + '20',
                               borderColor: selectedEmployee === 'all' 
                                 ? getEmployeeColor(order.assigned_employee_id)
                                 : getStatusColor(order.status)
@@ -400,27 +429,38 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
                               handleOrderClick(order);
                             }}
                           >
-                            <div className="space-y-1">
-                              <div className="font-medium text-sm truncate">{order.customer}</div>
-                              <div className="text-xs text-gray-600 truncate">
-                                {order.order_type || 'Ingen type'}
-                              </div>
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="flex items-center gap-1">
-                                  <User className="h-3 w-3" />
-                                  {getEmployeeName(order.assigned_employee_id)}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Euro className="h-3 w-3" />
-                                  {order.price}
-                                </span>
-                              </div>
-                              {order.estimated_duration && (
-                                <div className="flex items-center gap-1 text-xs text-gray-500">
-                                  <Clock className="h-3 w-3" />
-                                  {order.estimated_duration} min
+                            <div className="space-y-2">
+                              {/* Header with day and price */}
+                              <div className="flex justify-between items-start">
+                                <div className="text-sm font-bold text-muted-foreground">
+                                  {weekDates.find(d => formatDate(d) === order.scheduled_date)?.toLocaleDateString('da-DK', { weekday: 'short' }).toUpperCase().slice(0, 3) || 'DAG'}.
                                 </div>
-                              )}
+                                <div className="text-sm font-semibold text-foreground">
+                                  Kr. {order.price.toLocaleString()}
+                                </div>
+                              </div>
+                              
+                              {/* Customer name */}
+                              <div className="font-semibold text-foreground text-sm leading-tight">
+                                {order.customer}
+                              </div>
+                              
+                              {/* Address */}
+                              <div className="text-xs text-muted-foreground line-clamp-1">
+                                {order.address || order.order_type || 'Ingen adresse'}
+                              </div>
+                              
+                              {/* Bottom row with price and duration */}
+                              <div className="flex justify-between items-center text-xs">
+                                <div className="font-semibold text-foreground">
+                                  Kr. {order.price.toLocaleString()}
+                                </div>
+                                {order.estimated_duration && (
+                                  <div className="text-muted-foreground">
+                                    {order.estimated_duration} min
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}
