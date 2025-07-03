@@ -1,16 +1,19 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProfessionalCalendar } from '@/components/planning/ProfessionalCalendar';
 import { useAdvancedPlanner } from '@/hooks/useAdvancedPlanner';
-import { Brain, Calendar, TrendingUp, Zap } from 'lucide-react';
+import { useOrders } from '@/hooks/useOrders';
+import { useEmployees } from '@/hooks/useEmployees';
+import { Brain, Calendar, TrendingUp, Zap, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Planning = () => {
   const [showAIPanel, setShowAIPanel] = useState(false);
+  const [isFixing, setIsFixing] = useState(false);
   
   const { 
     isOptimizing, 
@@ -20,7 +23,59 @@ const Planning = () => {
     hasOrdersNeedingOptimization 
   } = useAdvancedPlanner();
   
+  const { orders, updateOrder } = useOrders();
+  const { employees } = useEmployees();
+  
   const stats = getPlanningStats();
+
+  const fixMissingOrderData = async () => {
+    setIsFixing(true);
+    try {
+      // Find orders with missing scheduled_week or assigned_employee_id
+      const brokenOrders = orders.filter(order => 
+        order.scheduled_date && (!order.scheduled_week || !order.assigned_employee_id)
+      );
+      
+      console.log('Found broken orders:', brokenOrders);
+      
+      for (const order of brokenOrders) {
+        const updates: any = {};
+        
+        // Calculate missing scheduled_week
+        if (!order.scheduled_week && order.scheduled_date) {
+          const date = new Date(order.scheduled_date);
+          const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+          const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+          updates.scheduled_week = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+        }
+        
+        // Assign to first active employee if missing
+        if (!order.assigned_employee_id && employees.length > 0) {
+          const activeEmployee = employees.find(e => e.is_active);
+          if (activeEmployee) {
+            updates.assigned_employee_id = activeEmployee.id;
+          }
+        }
+        
+        // Update status if needed
+        if (order.status === 'Ikke planlagt') {
+          updates.status = 'Planlagt';
+        }
+        
+        if (Object.keys(updates).length > 0) {
+          await updateOrder(order.id, updates, false);
+          console.log(`Fixed order ${order.id}:`, updates);
+        }
+      }
+      
+      toast.success(`Fiksede ${brokenOrders.length} ordrer!`);
+    } catch (error) {
+      console.error('Error fixing orders:', error);
+      toast.error('Kunne ikke fikse ordrer');
+    } finally {
+      setIsFixing(false);
+    }
+  };
 
   const handleQuickOptimization = async () => {
     const result = await runAdvancedOptimization(new Date(), false);
@@ -56,6 +111,25 @@ const Planning = () => {
             >
               <Brain className="h-4 w-4 mr-1" />
               AI
+            </Button>
+            
+            <Button 
+              onClick={fixMissingOrderData}
+              disabled={isFixing}
+              variant="outline"
+              size="sm"
+            >
+              {isFixing ? (
+                <>
+                  <div className="animate-spin h-4 w-4 mr-1 border-2 border-primary border-t-transparent rounded-full" />
+                  Fikser
+                </>
+              ) : (
+                <>
+                  <Settings className="h-4 w-4 mr-1" />
+                  Fiks Ordrer
+                </>
+              )}
             </Button>
             
             <Button 

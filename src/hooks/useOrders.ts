@@ -148,16 +148,25 @@ export const useOrders = () => {
     try {
       console.log('Updating order:', id, orderData);
       
+      // Auto-calculate scheduled_week if scheduled_date is provided but scheduled_week is missing
+      let calculatedOrderData = { ...orderData };
+      if (orderData.scheduled_date && !orderData.scheduled_week) {
+        const date = new Date(orderData.scheduled_date);
+        const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+        const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+        calculatedOrderData.scheduled_week = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+      }
+      
       // Clean the data before sending to database with new field handling
       const cleanOrderData = {
-        ...orderData,
-        estimated_duration: orderData.estimated_duration ? Math.round(orderData.estimated_duration) : undefined,
-        scheduled_date: orderData.scheduled_date || null,
-        scheduled_time: orderData.scheduled_time || null,
-        expected_completion_time: orderData.expected_completion_time || null,
-        scheduled_week: orderData.scheduled_week || null,
-        latitude: orderData.latitude || null,
-        longitude: orderData.longitude || null
+        ...calculatedOrderData,
+        estimated_duration: calculatedOrderData.estimated_duration ? Math.round(calculatedOrderData.estimated_duration) : undefined,
+        scheduled_date: calculatedOrderData.scheduled_date || null,
+        scheduled_time: calculatedOrderData.scheduled_time || null,
+        expected_completion_time: calculatedOrderData.expected_completion_time || null,
+        scheduled_week: calculatedOrderData.scheduled_week || null,
+        latitude: calculatedOrderData.latitude || null,
+        longitude: calculatedOrderData.longitude || null
       };
 
       // Remove any undefined values
