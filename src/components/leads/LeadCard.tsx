@@ -6,7 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useUpdateLeadStatus, useUpdateLastContact, useDeleteLead, useLeadSupportTickets } from '@/hooks/useLeads';
 import { useLeadQuotesByEmail } from '@/hooks/useLeadQuotes';
 import { MoreVertical, Edit, Trash2, Phone, Calendar, ArrowRight, Building, Mail, MessageSquare, Wrench, FileText } from 'lucide-react';
-import { CreateQuoteDialog } from './CreateQuoteDialog';
+import { EnhancedCreateQuoteDialog } from './EnhancedCreateQuoteDialog';
 import type { Lead } from '@/hooks/useLeads';
 
 interface LeadCardProps {
@@ -188,7 +188,7 @@ export const LeadCard = ({ lead, onEdit, onClick }: LeadCardProps) => {
       
       {/* Action Buttons */}
       <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-100">
-        <CreateQuoteDialog lead={lead} />
+        <EnhancedCreateQuoteDialog lead={lead} />
         {lead.sidste_kontakt && (
           <div className="flex items-center gap-1 text-xs text-gray-500 ml-auto">
             <Calendar className="h-3 w-3 flex-shrink-0" />
