@@ -47,6 +47,8 @@ export const LogoUpload: React.FC<LogoUploadProps> = ({
       reader.onload = (e) => {
         if (e.target?.result) {
           localStorage.setItem('company-logo', e.target.result as string);
+          // Dispatch custom event to notify Navigation component
+          window.dispatchEvent(new CustomEvent('logoUpdated'));
         }
       };
       reader.readAsDataURL(file);
@@ -62,6 +64,8 @@ export const LogoUpload: React.FC<LogoUploadProps> = ({
   const handleRemoveLogo = () => {
     onLogoChange(null);
     localStorage.removeItem('company-logo');
+    // Dispatch custom event to notify Navigation component
+    window.dispatchEvent(new CustomEvent('logoUpdated'));
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }

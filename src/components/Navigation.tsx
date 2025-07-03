@@ -12,12 +12,35 @@ export const Navigation = () => {
   const location = useLocation();
   const { user, loading } = useAuth();
 
-  // Load logo from localStorage on component mount
+  // Load logo from localStorage on component mount and listen for changes
   useEffect(() => {
-    const savedLogo = localStorage.getItem('company-logo');
-    if (savedLogo) {
+    const loadLogo = () => {
+      const savedLogo = localStorage.getItem('company-logo');
       setCompanyLogo(savedLogo);
-    }
+    };
+
+    // Load initial logo
+    loadLogo();
+
+    // Listen for storage changes (when logo is updated in other tabs/components)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'company-logo') {
+        setCompanyLogo(e.newValue);
+      }
+    };
+
+    // Listen for custom logo update events
+    const handleLogoUpdate = () => {
+      loadLogo();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('logoUpdated', handleLogoUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('logoUpdated', handleLogoUpdate);
+    };
   }, []);
   const navigationItems = [{
     href: '/',
