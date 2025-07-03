@@ -184,8 +184,8 @@ export const useOrders = () => {
       }
 
       console.log('Order updated successfully:', data);
-      // Only show toast for manual updates, not automated ones
-      if (showToast && !orderData.assigned_employee_id && !orderData.route_id) {
+      // FENSTER-STYLE: Never show automated toasts, only manual ones
+      if (showToast) {
         toast.success('Ordre opdateret');
       }
       await fetchOrders();

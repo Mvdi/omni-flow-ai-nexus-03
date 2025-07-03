@@ -2,7 +2,7 @@
 import { Navigation } from '@/components/Navigation';
 import { WeeklyCalendar } from '@/components/planning/WeeklyCalendar';
 import { useIntelligentScheduler } from '@/hooks/useIntelligentScheduler';
-import { useBackendVRPScheduler } from '@/hooks/useBackendVRPScheduler';
+import { useSmartPlanner } from '@/hooks/useSmartPlanner';
 import { useOrderMigration } from '@/hooks/useOrderMigration';
 
 const Planning = () => {
@@ -10,7 +10,7 @@ const Planning = () => {
   useOrderMigration();
   
   // Use enhanced VRP scheduler with Mapbox integration
-  const { isOptimizing, solverHealthy } = useBackendVRPScheduler();
+  const { isPlanning } = useSmartPlanner();
   
   // Fallback to browser-based intelligent scheduling (now rarely needed)
   useIntelligentScheduler();
@@ -25,8 +25,8 @@ const Planning = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Ruteplanlægning</h1>
           <div className="space-y-1 sm:space-y-2">
             <p className="text-sm sm:text-base text-green-600">
-              🎯 Enhanced VRP-optimering aktiv
-              {isOptimizing && <span className="ml-2">⚙️ Optimerer...</span>}
+              🎯 Smart Fenster-planlægning aktiv (kun nye ordrer)
+              {isPlanning && <span className="ml-2">⚙️ Planlægger...</span>}
             </p>
             <div className="text-xs sm:text-sm text-gray-600 space-y-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">

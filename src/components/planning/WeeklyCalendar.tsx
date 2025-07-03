@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, MapPin, Clock, Users, Zap, RefreshCw, Settings, Plus, Ban, ChevronLeft, ChevronRight, Euro, Bug, Brain, Grid, Layout } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Zap, RefreshCw, Settings, Plus, Ban, ChevronLeft, ChevronRight, Euro, Bug, Brain, Grid, Layout, Check } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useRoutes } from '@/hooks/useRoutes';
@@ -22,7 +22,7 @@ import { TestOrderGenerator } from './TestOrderGenerator';
 import { OrderDebugInfo } from './OrderDebugInfo';
 import { LiveView } from './LiveView';
 import { VRPOptimizer } from '@/utils/vrpOptimizer';
-import { useBackendVRPScheduler } from '@/hooks/useBackendVRPScheduler';
+import { useSmartPlanner } from '@/hooks/useSmartPlanner';
 
 interface WeeklyCalendarProps {
   currentWeek?: Date;
@@ -44,18 +44,17 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   const { workSchedules } = useWorkSchedules();
   const { blockedSlots } = useBlockedTimeSlots();
   
-  // Use enhanced VRP scheduler with Mapbox integration (manual mode)
-  const { isOptimizing, solverHealthy, runOptimization } = useBackendVRPScheduler();
+  // Use SMART planner (Fenster-style) instead of complex VRP
+  const { isPlanning, planNewOrders, hasOrdersNeedingPlanning, ordersNeedingPlanningCount } = useSmartPlanner();
 
-  // DISABLED auto-refresh optimization to prevent unwanted changes
+  // FENSTER-STYLE: Silent auto-refresh - NO notifications, NO automatic planning
   useAutoRefresh({
     enabled: autoRefresh,
     interval: 30000,
     onRefresh: () => {
-      // Only refresh data, NEVER trigger optimization automatically
+      // ONLY refresh data silently - no toasts, no planning, no notifications
       refetchOrders();
       refetchRoutes();
-      // DO NOT call runOptimization() here - only manual optimization allowed
     }
   });
 
@@ -136,7 +135,9 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 <CardDescription>
                   {weekDates[0].toLocaleDateString('da-DK')} - {weekDates[6].toLocaleDateString('da-DK')}
                   <br />
-                  <span className="text-green-600 text-sm">🤖 Automatisk dynamisk planlægning aktiv</span>
+                  <span className="text-green-600 text-sm">
+                    🎯 Smart Fenster-planlægning {hasOrdersNeedingPlanning() ? `(${ordersNeedingPlanningCount} nye ordrer)` : '(alle planlagt)'}
+                  </span>
                 </CardDescription>
               </div>
               
@@ -262,32 +263,39 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
                 Auto-opdater
               </Button>
 
-              {/* Manual Route Planning Button */}
+              {/* FENSTER-Style Smart Planning Button */}
               <Button 
-                variant="default" 
+                variant={hasOrdersNeedingPlanning() ? "default" : "outline"}
                 size="sm"
                 onClick={async () => {
                   try {
-                    console.log('🎯 Manual optimization triggered by user');
-                    const result = await runOptimization();
-                    if (result && result.scheduledOrders > 0) {
-                      toast.success(
-                        `✅ ${result.scheduledOrders} ordrer planlagt på ${result.daysUsed} dage (${Math.round(result.score)}% effektivitet)`
-                      );
+                    console.log('🎯 Manual smart planning triggered');
+                    const result = await planNewOrders(true);
+                    if (result.plannedOrders > 0) {
                       refetchOrders();
                       refetchRoutes();
-                    } else if (result && result.scheduledOrders === 0) {
-                      toast.success('🔒 Alle ordrer er allerede korrekt planlagt');
                     }
                   } catch (error) {
-                    console.error('Manual optimization failed:', error);
-                    toast.error('Planlægning fejlede - prøv igen');
+                    console.error('Smart planning failed:', error);
+                    toast.error('Planlægning fejlede');
                   }
                 }}
-                disabled={isOptimizing}
+                disabled={isPlanning}
               >
-                <Brain className={`h-4 w-4 mr-2 ${isOptimizing ? 'animate-pulse' : ''}`} />
-                {isOptimizing ? 'Planlægger...' : 'Genplanlæg Kun Nye Ordrer'}
+                {isPlanning ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
+                    Planlægger...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    {hasOrdersNeedingPlanning() 
+                      ? `Planlæg ${ordersNeedingPlanningCount} Nye Ordrer`
+                      : 'Alle Ordrer Planlagt'
+                    }
+                  </>
+                )}
               </Button>
             </div>
           </div>
