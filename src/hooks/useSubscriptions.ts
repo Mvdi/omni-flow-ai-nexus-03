@@ -122,6 +122,10 @@ export const useSubscriptions = () => {
       }
 
       console.log('Subscription created successfully:', data);
+      
+      // Automatically create orders for the subscription
+      await createOrdersForSubscription(data);
+      
       toast.success('Abonnement oprettet');
       await fetchSubscriptions();
       return data;
@@ -255,6 +259,90 @@ export const useSubscriptions = () => {
       console.error('Error creating order from subscription:', error);
       toast.error('Kunne ikke oprette ordre fra abonnement');
       return null;
+    }
+  };
+
+  const createOrdersForSubscription = async (subscription: any) => {
+    if (!user) return;
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Create order for start date if it's today or in the future
+      if (subscription.start_date >= today) {
+        const orderData = {
+          subscription_id: subscription.id,
+          order_type: subscription.service_type,
+          customer: subscription.customer_name,
+          customer_email: subscription.customer_email,
+          price: subscription.price,
+          scheduled_date: subscription.start_date,
+          status: 'Ikke planlagt',
+          comment: `Abonnement (start): ${subscription.description || subscription.service_type}${subscription.notes ? '\nNoter: ' + subscription.notes : ''}`,
+          address: subscription.customer_address,
+          priority: 'Normal',
+          estimated_duration: subscription.estimated_duration,
+          user_id: user.id
+        };
+
+        const { error: orderError } = await supabase
+          .from('orders')
+          .insert([orderData]);
+
+        if (orderError) {
+          console.error('Error creating start order:', orderError);
+        } else {
+          console.log('Created start order for subscription');
+        }
+
+        // Create future orders for planning (next 3 intervals)
+        const futureOrders = [];
+        for (let i = 1; i <= 3; i++) {
+          const futureDate = new Date(subscription.start_date);
+          futureDate.setDate(futureDate.getDate() + (subscription.interval_weeks * 7 * i));
+          
+          futureOrders.push({
+            subscription_id: subscription.id,
+            order_type: subscription.service_type,
+            customer: subscription.customer_name,
+            customer_email: subscription.customer_email,
+            price: subscription.price,
+            scheduled_date: futureDate.toISOString().split('T')[0],
+            status: 'Ikke planlagt',
+            comment: `Abonnement (fremtidig): ${subscription.description || subscription.service_type}${subscription.notes ? '\nNoter: ' + subscription.notes : ''}`,
+            address: subscription.customer_address,
+            priority: 'Normal',
+            estimated_duration: subscription.estimated_duration,
+            user_id: user.id
+          });
+        }
+
+        if (futureOrders.length > 0) {
+          const { error: futureOrdersError } = await supabase
+            .from('orders')
+            .insert(futureOrders);
+
+          if (futureOrdersError) {
+            console.error('Error creating future orders:', futureOrdersError);
+          } else {
+            console.log(`Created ${futureOrders.length} future orders for subscription`);
+          }
+        }
+
+        // Update subscription to mark that start order has been created
+        const nextDueDate = new Date(subscription.start_date);
+        nextDueDate.setDate(nextDueDate.getDate() + (subscription.interval_weeks * 7));
+        
+        await supabase
+          .from('subscriptions')
+          .update({
+            last_order_date: subscription.start_date,
+            next_due_date: nextDueDate.toISOString().split('T')[0]
+          })
+          .eq('id', subscription.id);
+      }
+    } catch (error) {
+      console.error('Error creating orders for subscription:', error);
     }
   };
 
