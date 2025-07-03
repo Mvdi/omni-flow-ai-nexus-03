@@ -62,9 +62,10 @@ export const useAdvancedPlanner = () => {
     const startDate = weekStart || new Date();
 
     try {
-      console.log(`🧠 Initiating Advanced AI Route Planning...`);
+      console.log(`🧠 FENSTER AI Route Planning - MINDST KØRSEL, HØJEST INDTÆGT...`);
       console.log(`📊 Orders to optimize: ${ordersToOptimize.length}`);
       console.log(`👥 Active employees: ${employees.filter(e => e.is_active).length}`);
+      console.log(`🎯 Target: Minimize driving, maximize revenue, schedule ALL orders`);
 
       // Call our advanced edge function
       const response = await fetch('https://tckynbgheicyqezqprdp.supabase.co/functions/v1/advanced-route-planner', {

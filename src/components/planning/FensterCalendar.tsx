@@ -120,8 +120,11 @@ export const FensterCalendar = () => {
         // Filter orders for this day and employee
         const dayOrders = orders.filter(order => {
           if (order.scheduled_date !== dateString) return false;
-          if (selectedEmployee !== 'all' && order.assigned_employee_id !== selectedEmployee) return false;
-          return true;
+          // Show unassigned orders when viewing "all employees"
+          if (selectedEmployee !== 'all') {
+            return order.assigned_employee_id === selectedEmployee;
+          }
+          return true; // Show all orders including unassigned when viewing "all"
         }).sort((a, b) => {
           const timeA = a.scheduled_time || '00:00';
           const timeB = b.scheduled_time || '00:00';
@@ -364,8 +367,12 @@ export const FensterCalendar = () => {
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
-                                  className={`absolute inset-1 p-2 bg-white border border-primary/20 rounded text-xs ${
+                                  className={`absolute inset-1 p-2 rounded text-xs ${
                                     snapshot.isDragging ? 'shadow-lg rotate-2' : 'hover:shadow-md'
+                                  } ${
+                                    !order.assigned_employee_id 
+                                      ? 'bg-orange-100 border-2 border-orange-400 border-dashed' 
+                                      : 'bg-white border border-primary/20'
                                   }`}
                                 >
                                   <div className="font-medium truncate">{order.customer}</div>
@@ -373,6 +380,9 @@ export const FensterCalendar = () => {
                                   <div className="font-bold text-primary">Kr. {order.price.toLocaleString()}</div>
                                   {order.estimated_duration && (
                                     <div className="text-muted-foreground">{order.estimated_duration} min</div>
+                                  )}
+                                  {!order.assigned_employee_id && (
+                                    <div className="text-xs text-orange-600 font-medium">Ikke tildelt</div>
                                   )}
                                 </div>
                               )}
