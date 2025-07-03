@@ -129,6 +129,121 @@ export const TestOrderGenerator: React.FC = () => {
     return weekDates;
   };
 
+  // Real DAWA addresses for testing distance calculation
+  const dawaTestOrders = [
+    {
+      name: 'Maria Andersen',
+      email: 'maria@example.com',
+      address: 'Rådhuspladsen 1, 1550 København V',
+      lat: 55.6760968,
+      lng: 12.5683371,
+      city: 'København'
+    },
+    {
+      name: 'Lars Petersen',
+      email: 'lars@example.com', 
+      address: 'Store Torv 1, 8000 Aarhus C',
+      lat: 56.1567,
+      lng: 10.2108,
+      city: 'Aarhus'
+    },
+    {
+      name: 'Hanne Nielsen',
+      email: 'hanne@example.com',
+      address: 'Kongens Nytorv 13, 5000 Odense C', 
+      lat: 55.3959,
+      lng: 10.3883,
+      city: 'Odense'
+    },
+    {
+      name: 'Søren Hansen',
+      email: 'soeren@example.com',
+      address: 'Danmarksgade 1, 9000 Aalborg',
+      lat: 57.0488,
+      lng: 9.9217,
+      city: 'Aalborg'
+    },
+    {
+      name: 'Anne Larsen',
+      email: 'anne@example.com',
+      address: 'Axeltorv 8, 6700 Esbjerg',
+      lat: 55.4719,
+      lng: 8.4512,
+      city: 'Esbjerg'
+    }
+  ];
+
+  const generate5TestOrders = async () => {
+    if (employees.length === 0) {
+      toast.error('Ingen medarbejdere fundet. Opret medarbejdere først.');
+      return;
+    }
+
+    setIsGenerating(true);
+    let created = 0;
+    let failed = 0;
+
+    console.log('Genererer 5 DAWA test ordre for denne uge...');
+
+    const currentWeek = getCurrentWeekNumber();
+    const weekDates = getWeekDates(currentWeek);
+
+    for (let i = 0; i < 5; i++) {
+      const customer = dawaTestOrders[i];
+      const service = getRandomServiceType();
+      const priority = getWeightedRandomPriority();
+      const employee = getRandomItem(employees);
+      
+      // Distribute across this week's weekdays
+      const dayIndex = i % 5;
+      const selectedDay = weekDates[dayIndex];
+
+      const orderData = {
+        customer: customer.name,
+        customer_email: customer.email,
+        order_type: service.type,
+        address: customer.address,
+        latitude: customer.lat,
+        longitude: customer.lng,
+        price: service.price,
+        priority: priority,
+        estimated_duration: service.duration,
+        scheduled_week: currentWeek,
+        scheduled_date: selectedDay.toISOString().split('T')[0],
+        status: 'Ikke planlagt', // Let intelligent planner handle this
+        comment: `Test ordre ${i + 1} - ${customer.city} - ${service.type} (DAWA adresse)`
+      };
+
+      console.log('Opretter DAWA test ordre:', {
+        customer: orderData.customer,
+        city: customer.city,
+        address: customer.address,
+        type: service.type,
+        date: orderData.scheduled_date,
+        coordinates: `${customer.lat.toFixed(4)}, ${customer.lng.toFixed(4)}`
+      });
+
+      try {
+        const result = await createOrder(orderData);
+        if (result) {
+          created++;
+          console.log(`✅ Oprettet ordre ${i + 1} i ${customer.city}`);
+        } else {
+          failed++;
+        }
+      } catch (error) {
+        console.error('Error creating DAWA test order:', error);
+        failed++;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    setIsGenerating(false);
+    toast.success(`${created} DAWA test ordre oprettet for denne uge${failed > 0 ? `, ${failed} fejlede` : ''}`);
+    console.log('DAWA test order generation completed');
+  };
+
   const generateTestOrders = async () => {
     if (employees.length === 0) {
       toast.error('Ingen medarbejdere fundet. Opret medarbejdere først.');
@@ -240,13 +355,33 @@ export const TestOrderGenerator: React.FC = () => {
           </div>
         </div>
 
-        <Button 
-          onClick={generateTestOrders} 
-          disabled={isGenerating || employees.length === 0}
-          className="w-full"
-        >
-          {isGenerating ? 'Genererer Realistiske Ordre...' : `Opret ${numberOfOrders} VRP-Optimerede Test Ordre`}
-        </Button>
+        <div className="space-y-3">
+          <Button 
+            onClick={generate5TestOrders} 
+            disabled={isGenerating || employees.length === 0}
+            className="w-full bg-blue-600 hover:bg-blue-700"
+          >
+            {isGenerating ? 'Genererer DAWA Test Ordre...' : '🎯 Opret 5 DAWA Test Ordre (Denne Uge)'}
+          </Button>
+          
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <p className="font-semibold text-blue-800">🏙️ DAWA Test Ordre:</p>
+            <ul className="text-xs text-blue-700 mt-1 space-y-1">
+              <li>✓ København, Aarhus, Odense, Aalborg, Esbjerg</li>
+              <li>✓ Reelle adresser fra DAWA</li>
+              <li>✓ Spredt over denne uges hverdage</li>
+              <li>✓ Tester afstandsberegning mellem byer</li>
+            </ul>
+          </div>
+          
+          <Button 
+            onClick={generateTestOrders} 
+            disabled={isGenerating || employees.length === 0}
+            className="w-full"
+          >
+            {isGenerating ? 'Genererer Realistiske Ordre...' : `Opret ${numberOfOrders} VRP-Optimerede Test Ordre`}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
