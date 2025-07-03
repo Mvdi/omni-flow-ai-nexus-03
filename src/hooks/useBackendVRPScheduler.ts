@@ -208,8 +208,8 @@ export const useBackendVRPScheduler = () => {
               const completionMins = completionMinutes % 60;
               const expectedCompletionTime = `${completionHours.toString().padStart(2, '0')}:${completionMins.toString().padStart(2, '0')}`;
 
-              await updateOrder(order.id, {
-                scheduled_date: actualRouteDate.toISOString().split('T')[0],
+              // For subscription orders, keep original date and only update time
+              const updateData: any = {
                 scheduled_time: scheduledTime,
                 expected_completion_time: expectedCompletionTime,
                 route_id: createdRoute.id,
@@ -218,10 +218,17 @@ export const useBackendVRPScheduler = () => {
                 ai_suggested_time: scheduledTime,
                 assigned_employee_id: route.vehicle_id,
                 estimated_duration: order.estimated_duration || 60
-              });
+              };
 
+              // Only change date for non-subscription orders
+              if (!order.subscription_id) {
+                updateData.scheduled_date = actualRouteDate.toISOString().split('T')[0];
+              }
+
+              await updateOrder(order.id, updateData);
+              
               scheduledOrders++;
-              console.log(`✅ Scheduled: ${order.customer} on ${actualRouteDate.toLocaleDateString('da-DK')} at ${scheduledTime} (${stop.travel_time_from_prev} min travel)`);
+              console.log(`✅ Scheduled: ${order.customer} on ${order.subscription_id ? order.scheduled_date : actualRouteDate.toLocaleDateString('da-DK')} at ${scheduledTime} (${stop.travel_time_from_prev} min travel)`);
             }
           }
         }

@@ -29,6 +29,7 @@ export interface Order {
   created_at: string;
   updated_at: string;
   user_id: string;
+  subscription_id?: string;
 }
 
 export interface CreateOrderData {
