@@ -29,11 +29,20 @@ export const useBackendVRPScheduler = () => {
       return;
     }
 
-    // Find orders that need scheduling
+    // Find orders that need scheduling - CRITICAL FIX: Don't move subscription orders with correct dates
     const ordersToOptimize = orders.filter(order => {
       const needsScheduling = !order.scheduled_date || !order.scheduled_time || !order.assigned_employee_id;
       const isNotCompleted = order.status !== 'Afsluttet' && order.status !== 'Færdig';
       
+      // CRITICAL: If it's a subscription order with a scheduled_date, only optimize if missing time/employee
+      // Don't change the date of subscription orders - they have fixed 8-week intervals
+      if (order.subscription_id && order.scheduled_date) {
+        // Only optimize subscription orders if they need time or employee assignment
+        // BUT NEVER change their scheduled_date
+        return (!order.scheduled_time || !order.assigned_employee_id) && isNotCompleted;
+      }
+      
+      // For regular orders, optimize if they need any scheduling
       return needsScheduling && isNotCompleted;
     });
 
@@ -207,7 +216,7 @@ export const useBackendVRPScheduler = () => {
             const completionMins = completionMinutes % 60;
             const expectedCompletionTime = `${completionHours.toString().padStart(2, '0')}:${completionMins.toString().padStart(2, '0')}`;
 
-            // For subscription orders, keep original date and only update time
+            // CRITICAL FIX: Never change subscription order dates - they have fixed 8-week intervals
             const updateData: any = {
               scheduled_time: scheduledTime,
               expected_completion_time: expectedCompletionTime,
@@ -219,10 +228,11 @@ export const useBackendVRPScheduler = () => {
               estimated_duration: order.estimated_duration || 60
             };
 
-            // Only change date for non-subscription orders
+            // NEVER change scheduled_date for subscription orders - they are date-locked!
             if (!order.subscription_id) {
               updateData.scheduled_date = actualRouteDate.toISOString().split('T')[0];
             }
+            // Subscription orders keep their original scheduled_date (8-week intervals)
 
             await updateOrder(order.id, updateData, false); // Don't show toast for automated updates
             

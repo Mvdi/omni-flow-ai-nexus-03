@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CalendarGrid } from './CalendarGrid';
 import { DynamicCalendarGrid } from './DynamicCalendarGrid';
+import { TimelineCalendar } from './TimelineCalendar';
 import { RouteOptimizationPanel } from './RouteOptimizationPanel';
 import { RouteVisualization } from './RouteVisualization';
 import { TestOrderGenerator } from './TestOrderGenerator';
@@ -35,7 +36,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   const [showRouteVisualization, setShowRouteVisualization] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [showLiveView, setShowLiveView] = useState(false);
-  const [viewMode, setViewMode] = useState<'dynamic' | 'grid'>('dynamic');
+  const [viewMode, setViewMode] = useState<'timeline' | 'dynamic' | 'grid'>('timeline');
   
   const { orders, refetch: refetchOrders } = useOrders();
   const { employees } = useEmployees();
@@ -170,10 +171,19 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
               {/* View Mode Toggle */}
               <div className="flex items-center border rounded-md">
                 <Button 
+                  variant={viewMode === 'timeline' ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode('timeline')}
+                  className="rounded-r-none"
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Timeline
+                </Button>
+                <Button 
                   variant={viewMode === 'dynamic' ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setViewMode('dynamic')}
-                  className="rounded-r-none"
+                  className="rounded-none"
                 >
                   <Layout className="h-4 w-4 mr-2" />
                   Dynamisk
@@ -375,7 +385,12 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
       </div>
 
       {/* Dynamic Calendar Views */}
-      {viewMode === 'dynamic' ? (
+      {viewMode === 'timeline' ? (
+        <TimelineCalendar 
+          currentWeek={selectedWeek} 
+          selectedEmployee={selectedEmployee}
+        />
+      ) : viewMode === 'dynamic' ? (
         <DynamicCalendarGrid 
           currentWeek={selectedWeek} 
           selectedEmployee={selectedEmployee}
