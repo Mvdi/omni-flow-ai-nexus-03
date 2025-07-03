@@ -429,11 +429,8 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
                               handleOrderClick(order);
                             }}
                           >
-                            {/* Header row with day and price */}
-                            <div className="flex justify-between items-center mb-2">
-                              <div className="text-sm font-bold text-muted-foreground">
-                                {weekDates.find(d => formatDate(d) === order.scheduled_date)?.toLocaleDateString('da-DK', { weekday: 'short' }).toUpperCase() || 'DAG'}.
-                              </div>
+                            {/* Header row with price only */}
+                            <div className="flex justify-end items-center mb-2">
                               <div className="text-sm font-semibold text-foreground">
                                 Kr. {order.price.toLocaleString()}
                               </div>
