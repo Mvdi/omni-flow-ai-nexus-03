@@ -1,88 +1,57 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navigation } from '@/components/Navigation';
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProfessionalCalendar } from '@/components/planning/ProfessionalCalendar';
 import { useAdvancedPlanner } from '@/hooks/useAdvancedPlanner';
 import { useOrders } from '@/hooks/useOrders';
-import { useEmployees } from '@/hooks/useEmployees';
-import { Brain, Calendar, TrendingUp, Zap, Settings } from 'lucide-react';
-import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Brain, TrendingUp } from 'lucide-react';
 
 const Planning = () => {
   const [showAIPanel, setShowAIPanel] = useState(false);
-  const [isFixing, setIsFixing] = useState(false);
+  const { user } = useAuth();
   
   const { 
-    isOptimizing, 
-    lastOptimization, 
-    runAdvancedOptimization, 
     getPlanningStats,
     hasOrdersNeedingOptimization 
   } = useAdvancedPlanner();
   
-  const { orders, updateOrder } = useOrders();
-  const { employees } = useEmployees();
+  const { orders } = useOrders();
   
   const stats = getPlanningStats();
 
-  const fixMissingOrderData = async () => {
-    setIsFixing(true);
-    try {
-      // Find orders with missing scheduled_week or assigned_employee_id
-      const brokenOrders = orders.filter(order => 
-        order.scheduled_date && (!order.scheduled_week || !order.assigned_employee_id)
+  // Automatically trigger intelligent planning when component mounts or orders change
+  useEffect(() => {
+    const triggerIntelligentPlanning = async () => {
+      if (!user) return;
+      
+      // Check for unplanned orders
+      const unplannedOrders = orders.filter(order => 
+        order.status === 'Ikke planlagt' || 
+        !order.assigned_employee_id || 
+        (!order.scheduled_week && order.scheduled_date)
       );
-      
-      console.log('Found broken orders:', brokenOrders);
-      
-      for (const order of brokenOrders) {
-        const updates: any = {};
+
+      if (unplannedOrders.length > 0) {
+        console.log(`🤖 Auto-triggering intelligent planning for ${unplannedOrders.length} unplanned orders`);
         
-        // Calculate missing scheduled_week
-        if (!order.scheduled_week && order.scheduled_date) {
-          const date = new Date(order.scheduled_date);
-          const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-          const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-          updates.scheduled_week = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-        }
-        
-        // Assign to first active employee if missing
-        if (!order.assigned_employee_id && employees.length > 0) {
-          const activeEmployee = employees.find(e => e.is_active);
-          if (activeEmployee) {
-            updates.assigned_employee_id = activeEmployee.id;
-          }
-        }
-        
-        // Update status if needed
-        if (order.status === 'Ikke planlagt') {
-          updates.status = 'Planlagt';
-        }
-        
-        if (Object.keys(updates).length > 0) {
-          await updateOrder(order.id, updates, false);
-          console.log(`Fixed order ${order.id}:`, updates);
+        try {
+          await supabase.functions.invoke('intelligent-auto-planner', {
+            body: { userId: user.id }
+          });
+          console.log('✅ Intelligent planning completed automatically');
+        } catch (error) {
+          console.error('❌ Error in automatic intelligent planning:', error);
         }
       }
-      
-      toast.success(`Fiksede ${brokenOrders.length} ordrer!`);
-    } catch (error) {
-      console.error('Error fixing orders:', error);
-      toast.error('Kunne ikke fikse ordrer');
-    } finally {
-      setIsFixing(false);
-    }
-  };
+    };
 
-  const handleQuickOptimization = async () => {
-    const result = await runAdvancedOptimization(new Date(), false);
-    if (result) {
-      toast.success('AI optimering komplet!');
-    }
-  };
+    // Delay to avoid running on every render
+    const timeoutId = setTimeout(triggerIntelligentPlanning, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [user, orders.length]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -92,63 +61,27 @@ const Planning = () => {
       <div className="border-b border-border bg-background px-4 py-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold">Ruteplanlægning</h1>
-            <p className="text-sm text-muted-foreground">Professionel kalender med AI-optimering</p>
+            <h1 className="text-xl font-bold">Intelligent Ruteplanlægning</h1>
+            <p className="text-sm text-muted-foreground">
+              🤖 Automatisk AI-optimering kører i baggrunden
+            </p>
           </div>
           
-          {/* AI Quick Actions */}
+          {/* AI Status */}
           <div className="flex items-center gap-2">
             {hasOrdersNeedingOptimization && (
-              <Badge variant="default" className="bg-primary text-xs">
-                {stats.ordersNeedingOptimization} nye
+              <Badge variant="default" className="bg-primary text-xs animate-pulse">
+                AI arbejder...
               </Badge>
             )}
             
-            <Button 
-              variant="outline" 
-              size="sm"
+            <div 
+              className="flex items-center gap-2 cursor-pointer"
               onClick={() => setShowAIPanel(!showAIPanel)}
             >
-              <Brain className="h-4 w-4 mr-1" />
-              AI
-            </Button>
-            
-            <Button 
-              onClick={fixMissingOrderData}
-              disabled={isFixing}
-              variant="outline"
-              size="sm"
-            >
-              {isFixing ? (
-                <>
-                  <div className="animate-spin h-4 w-4 mr-1 border-2 border-primary border-t-transparent rounded-full" />
-                  Fikser
-                </>
-              ) : (
-                <>
-                  <Settings className="h-4 w-4 mr-1" />
-                  Fiks Ordrer
-                </>
-              )}
-            </Button>
-            
-            <Button 
-              onClick={handleQuickOptimization}
-              disabled={isOptimizing}
-              size="sm"
-            >
-              {isOptimizing ? (
-                <>
-                  <div className="animate-spin h-4 w-4 mr-1 border-2 border-white border-t-transparent rounded-full" />
-                  Optimerer
-                </>
-              ) : (
-                <>
-                  <Zap className="h-4 w-4 mr-1" />
-                  Smart Optimering
-                </>
-              )}
-            </Button>
+              <Brain className="h-4 w-4 text-primary animate-pulse" />
+              <span className="text-sm font-medium">AI Aktiv</span>
+            </div>
           </div>
         </div>
 
@@ -158,34 +91,32 @@ const Planning = () => {
             <div className="grid grid-cols-4 gap-4 text-center">
               <div>
                 <p className="text-lg font-bold text-primary">{stats.totalOrders}</p>
-                <p className="text-xs text-muted-foreground">Ordrer</p>
+                <p className="text-xs text-muted-foreground">Totale Ordrer</p>
               </div>
               <div>
                 <p className="text-lg font-bold text-green-600">{stats.optimizationRate}%</p>
-                <p className="text-xs text-muted-foreground">Optimeret</p>
+                <p className="text-xs text-muted-foreground">AI Optimeret</p>
               </div>
               <div>
                 <p className="text-lg font-bold text-blue-600">{stats.activeEmployees}</p>
-                <p className="text-xs text-muted-foreground">Medarbejdere</p>
+                <p className="text-xs text-muted-foreground">Aktive Ruter</p>
               </div>
               <div>
                 <p className="text-lg font-bold text-purple-600">
                   {stats.totalRevenue.toLocaleString()} kr
                 </p>
-                <p className="text-xs text-muted-foreground">Omsætning</p>
+                <p className="text-xs text-muted-foreground">Planlagt Omsætning</p>
               </div>
             </div>
             
-            {lastOptimization && (
-              <div className="mt-2 p-2 bg-background rounded border text-xs">
-                <p className="font-medium">Sidste AI optimering:</p>
-                <p className="text-muted-foreground">
-                  {lastOptimization.stats.ordersOptimized} ordrer • 
-                  {lastOptimization.stats.routesCreated} ruter • 
-                  Score: {lastOptimization.stats.avgEfficiency}
-                </p>
-              </div>
-            )}
+            <div className="mt-2 p-2 bg-background rounded border text-xs">
+              <p className="font-medium">🚀 Intelligent Auto-Planlægning Aktiv:</p>
+              <p className="text-muted-foreground">
+                • Automatisk tildeling af ordrer til bedste medarbejder<br/>
+                • Beregning af optimal kørselstid mellem ordrer<br/>
+                • Kontinuerlig optimering af alle ruter
+              </p>
+            </div>
           </div>
         )}
       </div>

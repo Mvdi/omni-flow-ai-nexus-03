@@ -61,6 +61,19 @@ export const useOrders = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
+  const triggerIntelligentPlanning = async () => {
+    if (!user) return;
+    
+    try {
+      console.log('🤖 Triggering intelligent auto-planning...');
+      await supabase.functions.invoke('intelligent-auto-planner', {
+        body: { userId: user.id }
+      });
+    } catch (error) {
+      console.error('Error triggering intelligent planning:', error);
+    }
+  };
+
   const fetchOrders = async () => {
     if (!user) {
       setLoading(false);
@@ -130,6 +143,10 @@ export const useOrders = () => {
 
       console.log('Order created successfully:', data);
       toast.success('Ordre oprettet');
+      
+      // Automatically trigger intelligent planning
+      await triggerIntelligentPlanning();
+      
       await fetchOrders();
       return data;
     } catch (error) {
