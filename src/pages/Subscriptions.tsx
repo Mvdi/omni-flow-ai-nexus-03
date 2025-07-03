@@ -14,6 +14,7 @@ const Subscriptions = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
+  const [prefilledData, setPrefilledData] = useState<any>(null);
 
   const { 
     subscriptions, 
@@ -26,10 +27,26 @@ const Subscriptions = () => {
     createOrderFromSubscription 
   } = useSubscriptions();
 
+  // Listen for order-to-subscription conversion events
+  React.useEffect(() => {
+    const handleCreateSubscriptionFromOrder = (event: CustomEvent) => {
+      setPrefilledData(event.detail);
+      setSelectedSubscription(null);
+      setIsDialogOpen(true);
+    };
+
+    window.addEventListener('createSubscriptionFromOrder', handleCreateSubscriptionFromOrder as EventListener);
+    
+    return () => {
+      window.removeEventListener('createSubscriptionFromOrder', handleCreateSubscriptionFromOrder as EventListener);
+    };
+  }, []);
+
   const handleCreateSubscription = async (subscriptionData: any) => {
     const success = await createSubscription(subscriptionData);
     if (success) {
       setIsDialogOpen(false);
+      setPrefilledData(null);
     }
   };
 
@@ -343,8 +360,10 @@ const Subscriptions = () => {
         onClose={() => {
           setIsDialogOpen(false);
           setSelectedSubscription(null);
+          setPrefilledData(null);
         }}
         subscription={selectedSubscription}
+        prefilledData={prefilledData}
         onSave={selectedSubscription ? handleUpdateSubscription : handleCreateSubscription}
       />
     </div>

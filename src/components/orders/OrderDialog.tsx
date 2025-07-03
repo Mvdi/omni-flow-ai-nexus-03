@@ -470,6 +470,37 @@ export const OrderDialog: React.FC<OrderDialogProps> = ({
             <Button type="button" variant="outline" onClick={onClose}>
               Annuller
             </Button>
+            {order && (
+              <Button 
+                type="button" 
+                variant="secondary"
+                onClick={() => {
+                  // Create subscription data from current order
+                  const subscriptionData = {
+                    customer_name: formData.customer,
+                    customer_email: formData.customer_email,
+                    customer_address: formData.address,
+                    service_type: formData.order_type,
+                    interval_weeks: 8,
+                    price: formData.price,
+                    estimated_duration: formData.estimated_duration,
+                    description: `Abonnement baseret på ordre`,
+                    notes: formData.comment,
+                    start_date: new Date().toISOString().split('T')[0],
+                    auto_create_orders: true,
+                    send_notifications: true
+                  };
+                  
+                  // Dispatch event to open subscription dialog
+                  window.dispatchEvent(new CustomEvent('createSubscriptionFromOrder', { 
+                    detail: subscriptionData 
+                  }));
+                  onClose();
+                }}
+              >
+                Lav Abonnement
+              </Button>
+            )}
             <Button type="submit">
               {order ? 'Gem Ændringer' : 'Opret Ordre'}
             </Button>

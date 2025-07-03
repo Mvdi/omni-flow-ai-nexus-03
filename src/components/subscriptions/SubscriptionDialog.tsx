@@ -6,25 +6,28 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
+import { CustomerSearch, Customer } from "@/components/ui/customer-search";
 import type { Subscription, CreateSubscriptionData } from '@/hooks/useSubscriptions';
 
 interface SubscriptionDialogProps {
   isOpen: boolean;
   onClose: () => void;
   subscription?: Subscription | null;
+  prefilledData?: any;
   onSave: (data: CreateSubscriptionData) => Promise<void>;
 }
 
-export const SubscriptionDialog = ({ isOpen, onClose, subscription, onSave }: SubscriptionDialogProps) => {
+export const SubscriptionDialog = ({ isOpen, onClose, subscription, prefilledData, onSave }: SubscriptionDialogProps) => {
   const [formData, setFormData] = useState<CreateSubscriptionData>({
     customer_name: '',
     customer_email: '',
     customer_phone: '',
     customer_address: '',
-    service_type: 'Vinduespudsning',
+    service_type: '',
     interval_weeks: 8,
     price: 0,
-    estimated_duration: 60,
+    estimated_duration: 0,
     description: '',
     notes: '',
     images: [],
@@ -34,6 +37,27 @@ export const SubscriptionDialog = ({ isOpen, onClose, subscription, onSave }: Su
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [serviceTypes, setServiceTypes] = useState<string[]>([]);
+
+  // Load service types from order settings
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('orderSettings');
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings.orderTypes && Array.isArray(settings.orderTypes)) {
+          const settingsTypes = settings.orderTypes.map((t: any) => t.name || t);
+          setServiceTypes(settingsTypes);
+        }
+      } catch (error) {
+        console.error('Error loading order settings:', error);
+        setServiceTypes(['Vinduespudsning', 'Fliserens', 'Facaderens', 'Tagmaling', 'Graffitijernelse', 'Anden service']);
+      }
+    } else {
+      setServiceTypes(['Vinduespudsning', 'Fliserens', 'Facaderens', 'Tagmaling', 'Graffitijernelse', 'Anden service']);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (subscription) {
@@ -53,16 +77,33 @@ export const SubscriptionDialog = ({ isOpen, onClose, subscription, onSave }: Su
         auto_create_orders: subscription.auto_create_orders,
         send_notifications: subscription.send_notifications,
       });
+    } else if (prefilledData) {
+      setFormData({
+        customer_name: prefilledData.customer_name || '',
+        customer_email: prefilledData.customer_email || '',
+        customer_phone: prefilledData.customer_phone || '',
+        customer_address: prefilledData.customer_address || '',
+        service_type: prefilledData.service_type || serviceTypes[0] || '',
+        interval_weeks: prefilledData.interval_weeks || 8,
+        price: prefilledData.price || 0,
+        estimated_duration: prefilledData.estimated_duration || 0,
+        description: prefilledData.description || '',
+        notes: prefilledData.notes || '',
+        images: prefilledData.images || [],
+        start_date: prefilledData.start_date || new Date().toISOString().split('T')[0],
+        auto_create_orders: prefilledData.auto_create_orders ?? true,
+        send_notifications: prefilledData.send_notifications ?? true,
+      });
     } else {
       setFormData({
         customer_name: '',
         customer_email: '',
         customer_phone: '',
         customer_address: '',
-        service_type: 'Vinduespudsning',
+        service_type: serviceTypes[0] || '',
         interval_weeks: 8,
         price: 0,
-        estimated_duration: 60,
+        estimated_duration: 0,
         description: '',
         notes: '',
         images: [],
@@ -71,7 +112,8 @@ export const SubscriptionDialog = ({ isOpen, onClose, subscription, onSave }: Su
         send_notifications: true,
       });
     }
-  }, [subscription, isOpen]);
+    setSelectedCustomer(null);
+  }, [subscription, prefilledData, isOpen, serviceTypes]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,21 +129,39 @@ export const SubscriptionDialog = ({ isOpen, onClose, subscription, onSave }: Su
     }
   };
 
+  const handleCustomerSelect = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setFormData(prev => ({
+      ...prev,
+      customer_name: customer.navn || customer.email,
+      customer_email: customer.email,
+      customer_phone: customer.telefon || ''
+    }));
+  };
+
+  const clearSelectedCustomer = () => {
+    setSelectedCustomer(null);
+    setFormData(prev => ({
+      ...prev,
+      customer_name: '',
+      customer_email: '',
+      customer_phone: ''
+    }));
+  };
+
+  const handleAddressSelect = (addressData: any) => {
+    setFormData(prev => ({
+      ...prev,
+      customer_address: addressData.address
+    }));
+  };
+
   const handleInputChange = (field: keyof CreateSubscriptionData, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
-
-  const serviceTypes = [
-    'Vinduespudsning',
-    'Fliserens',
-    'Facaderens',
-    'Tagmaling',
-    'Graffitijernelse',
-    'Anden service'
-  ];
 
   const commonIntervals = [
     { value: 2, label: 'Hver 2. uge' },
@@ -127,47 +187,81 @@ export const SubscriptionDialog = ({ isOpen, onClose, subscription, onSave }: Su
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Kunde Information</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="customer_name">Kunde Navn *</Label>
-                <Input
-                  id="customer_name"
-                  value={formData.customer_name}
-                  onChange={(e) => handleInputChange('customer_name', e.target.value)}
-                  required
-                />
+            {selectedCustomer ? (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <p className="font-medium text-green-900">
+                        {selectedCustomer.navn || 'Ingen navn'}
+                      </p>
+                      <p className="text-sm text-green-700">{selectedCustomer.email}</p>
+                      {selectedCustomer.telefon && (
+                        <p className="text-sm text-green-700">{selectedCustomer.telefon}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={clearSelectedCustomer}
+                  >
+                    Skift kunde
+                  </Button>
+                </div>
               </div>
-              
-              <div>
-                <Label htmlFor="customer_email">Email *</Label>
-                <Input
-                  id="customer_email"
-                  type="email"
-                  value={formData.customer_email}
-                  onChange={(e) => handleInputChange('customer_email', e.target.value)}
-                  required
+            ) : (
+              <>
+                <CustomerSearch
+                  onCustomerSelect={handleCustomerSelect}
+                  placeholder="Søg efter eksisterende kunde..."
+                  label="Søg kunde"
                 />
-              </div>
-            </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="customer_name">Kunde Navn *</Label>
+                    <Input
+                      id="customer_name"
+                      value={formData.customer_name}
+                      onChange={(e) => handleInputChange('customer_name', e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="customer_email">Email *</Label>
+                    <Input
+                      id="customer_email"
+                      type="email"
+                      value={formData.customer_email}
+                      onChange={(e) => handleInputChange('customer_email', e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="customer_phone">Telefon</Label>
-                <Input
-                  id="customer_phone"
-                  value={formData.customer_phone}
-                  onChange={(e) => handleInputChange('customer_phone', e.target.value)}
-                />
-              </div>
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="customer_phone">Telefon</Label>
+                    <Input
+                      id="customer_phone"
+                      value={formData.customer_phone}
+                      onChange={(e) => handleInputChange('customer_phone', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             <div>
-              <Label htmlFor="customer_address">Adresse</Label>
-              <Textarea
-                id="customer_address"
+              <AddressAutocomplete
+                label="Adresse"
                 value={formData.customer_address}
-                onChange={(e) => handleInputChange('customer_address', e.target.value)}
-                rows={2}
+                onChange={(value) => handleInputChange('customer_address', value)}
+                onAddressSelect={handleAddressSelect}
+                placeholder="Indtast adresse..."
               />
             </div>
           </div>
@@ -226,14 +320,14 @@ export const SubscriptionDialog = ({ isOpen, onClose, subscription, onSave }: Su
               </div>
 
               <div>
-                <Label htmlFor="estimated_duration">Estimeret Varighed (minutter) *</Label>
+                <Label htmlFor="estimated_duration">Estimeret Varighed (minutter)</Label>
                 <Input
                   id="estimated_duration"
                   type="number"
-                  min="1"
-                  value={formData.estimated_duration}
-                  onChange={(e) => handleInputChange('estimated_duration', parseInt(e.target.value) || 60)}
-                  required
+                  min="0"
+                  value={formData.estimated_duration || ''}
+                  onChange={(e) => handleInputChange('estimated_duration', e.target.value === '' ? 0 : parseInt(e.target.value))}
+                  placeholder="Indtast varighed i minutter"
                 />
               </div>
             </div>
