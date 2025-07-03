@@ -23,8 +23,8 @@ export const useBackendVRPScheduler = () => {
     console.log('🟢 Enhanced VRP solver with Mapbox integration ready');
   }, []);
 
-  // Main scheduling effect with improved optimization
-  useEffect(() => {
+  // Manual optimization function - only runs when called
+  const runOptimization = async () => {
     const runEnhancedOptimization = async () => {
       if (!orders.length || !employees.length || isOptimizing) {
         return;
@@ -235,28 +235,25 @@ export const useBackendVRPScheduler = () => {
 
         if (scheduledOrders > 0) {
           const daysUsed = new Set(result.routes.map(r => r.day_idx)).size;
-          toast.success(
-            `🎯 VRP: ${scheduledOrders} ordrer planlagt på ${daysUsed} dage med korrekte køretider (${Math.round(result.optimization_score)}% effektivitet)`
-          );
+          // Only show toast for manual optimization, not automatic
           console.log(`✅ VRP completed: ${scheduledOrders} orders across ${daysUsed} days in ${result.computation_time_ms}ms`);
+          return { scheduledOrders, daysUsed, score: result.optimization_score };
         }
 
       } catch (error) {
         console.error('❌ VRP optimization failed:', error);
-        toast.error('VRP optimering fejlede - prøv igen');
+        throw error;
       } finally {
         setIsOptimizing(false);
       }
     };
 
-    // Run optimization with delay
-    const timeoutId = setTimeout(runEnhancedOptimization, 1000);
-    
-    return () => clearTimeout(timeoutId);
-  }, [orders.length, employees.length, isOptimizing]);
+    return null;
+  };
 
   return {
     isOptimizing,
-    solverHealthy
+    solverHealthy,
+    runOptimization
   };
 };

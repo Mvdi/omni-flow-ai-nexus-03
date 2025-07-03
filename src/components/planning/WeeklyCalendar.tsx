@@ -21,6 +21,7 @@ import { TestOrderGenerator } from './TestOrderGenerator';
 import { OrderDebugInfo } from './OrderDebugInfo';
 import { LiveView } from './LiveView';
 import { VRPOptimizer } from '@/utils/vrpOptimizer';
+import { useBackendVRPScheduler } from '@/hooks/useBackendVRPScheduler';
 
 interface WeeklyCalendarProps {
   currentWeek?: Date;
@@ -41,8 +42,11 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   const { routes, refetch: refetchRoutes } = useRoutes();
   const { workSchedules } = useWorkSchedules();
   const { blockedSlots } = useBlockedTimeSlots();
+  
+  // Use enhanced VRP scheduler with Mapbox integration (manual mode)
+  const { isOptimizing, solverHealthy, runOptimization } = useBackendVRPScheduler();
 
-  // Use the new auto-refresh hook
+  // Use the new auto-refresh hook (only for data refresh, not optimization)
   useAutoRefresh({
     enabled: autoRefresh,
     interval: 30000,
@@ -244,6 +248,30 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
                 Auto-opdater
+              </Button>
+
+              {/* Manual Route Planning Button */}
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const result = await runOptimization();
+                    if (result) {
+                      toast.success(
+                        `✅ ${result.scheduledOrders} ordrer planlagt på ${result.daysUsed} dage (${Math.round(result.score)}% effektivitet)`
+                      );
+                      refetchOrders();
+                      refetchRoutes();
+                    }
+                  } catch (error) {
+                    toast.error('Planlægning fejlede - prøv igen');
+                  }
+                }}
+                disabled={isOptimizing}
+              >
+                <Brain className={`h-4 w-4 mr-2 ${isOptimizing ? 'animate-pulse' : ''}`} />
+                {isOptimizing ? 'Planlægger...' : 'Genplanlæg Ruter'}
               </Button>
             </div>
           </div>
