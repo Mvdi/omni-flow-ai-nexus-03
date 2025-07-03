@@ -101,3 +101,81 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Mobile-optimized design tokens */
+@layer base {
+  :root {
+    /* Mobile touch targets - minimum 44px for accessibility */
+    --touch-target-min: 2.75rem; /* 44px */
+    --touch-target-comfortable: 3rem; /* 48px */
+    
+    /* Mobile spacing */
+    --mobile-padding: 1rem;
+    --mobile-margin: 0.75rem;
+    
+    /* Mobile typography scaling */
+    --mobile-text-scale: 0.875; /* 14px base */
+    
+    /* Mobile sheet widths */
+    --mobile-sheet-width: 100vw;
+    --mobile-sheet-max-width: 28rem; /* 448px */
+  }
+}
+
+/* Mobile-first responsive utilities */
+@layer utilities {
+  .touch-target {
+    min-height: var(--touch-target-min);
+    min-width: var(--touch-target-min);
+  }
+  
+  .touch-target-comfortable {
+    min-height: var(--touch-target-comfortable);
+    min-width: var(--touch-target-comfortable);
+  }
+  
+  .mobile-padding {
+    padding: var(--mobile-padding);
+  }
+  
+  .mobile-margin {
+    margin: var(--mobile-margin);
+  }
+  
+  /* Mobile-optimized grid for data tables */
+  .mobile-grid {
+    @apply grid grid-cols-1 gap-4;
+  }
+  
+  @media (min-width: 640px) {
+    .mobile-grid {
+      @apply grid-cols-2;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .mobile-grid {
+      @apply grid-cols-3;
+    }
+  }
+  
+  /* Mobile card layouts */
+  .mobile-card {
+    @apply p-4 rounded-lg border bg-card text-card-foreground shadow-sm;
+  }
+  
+  /* Mobile-friendly form inputs */
+  .mobile-input {
+    @apply h-12 text-base; /* Larger touch target and text */
+  }
+  
+  /* Swipe indicators */
+  .swipe-indicator {
+    @apply relative overflow-hidden;
+  }
+  
+  .swipe-indicator::after {
+    content: '';
+    @apply absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-muted rounded-full;
+  }
+}

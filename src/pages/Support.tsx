@@ -188,7 +188,7 @@ const Support = () => {
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       
-      <div className="p-2">
+      <div className="p-2 md:p-4 lg:p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -219,16 +219,16 @@ const Support = () => {
         </div>
 
         {/* Analytics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
           <Card className="shadow-sm border-0">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Nye Svar</p>
-                  <p className="text-xl font-bold text-orange-600">{nytSvarCount}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Nye Svar</p>
+                  <p className="text-lg sm:text-xl font-bold text-orange-600">{nytSvarCount}</p>
                 </div>
-                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <Bell className="h-5 w-5 text-orange-600" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
                 </div>
               </div>
             </CardContent>
@@ -343,7 +343,7 @@ const Support = () => {
         <Card className="shadow-sm border-0">
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-8 mb-4">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 mb-4 h-auto gap-1">
                 <TabsTrigger value="alle">Alle ({alleTicketsCount})</TabsTrigger>
                 <TabsTrigger value="nyt-svar" className="text-orange-600 font-bold">
                   🔔 Nye Svar ({nytSvarCount})
@@ -373,51 +373,49 @@ const Support = () => {
                       {getTicketsByTab(tab).map(ticket => (
                         <div 
                           key={ticket.id} 
-                          className={`p-3 hover:bg-gray-50 cursor-pointer transition-colors ${
+                          className={`p-3 sm:p-4 hover:bg-gray-50 active:bg-gray-100 cursor-pointer transition-colors touch-target ${
                             ticket.status === 'Nyt svar' ? 'bg-orange-50 border-l-4 border-orange-400' : ''
                           }`}
                           onClick={() => handleTicketSelect(ticket.id)}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4 flex-1">
-                              <div className="flex items-center gap-3">
-                                <span className="font-mono text-sm font-medium text-blue-600">
-                                  {ticket.ticket_number}
-                                </span>
-                                <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
-                                  {ticket.status}
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                              <span className="font-mono text-xs sm:text-sm font-medium text-blue-600">
+                                {ticket.ticket_number}
+                              </span>
+                              <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
+                                {ticket.status}
+                              </Badge>
+                              {ticket.priority && (
+                                <Badge variant={getPriorityColor(ticket.priority)} className="text-xs">
+                                  {ticket.priority}
                                 </Badge>
-                                {ticket.priority && (
-                                  <Badge variant={getPriorityColor(ticket.priority)} className="text-xs">
-                                    {ticket.priority}
-                                  </Badge>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-gray-900 mb-1 truncate sm:whitespace-normal">
+                                {ticket.subject}
+                              </h3>
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-gray-600">
+                                <span className="truncate">{ticket.customer_name || ticket.customer_email}</span>
+                                <span className="hidden sm:inline">•</span>
+                                <span>{formatDanishDate(ticket.created_at)}</span>
+                                {ticket.last_response_at && (
+                                  <>
+                                    <span className="hidden sm:inline">•</span>
+                                    <span className="text-green-600">
+                                      Sidst: {formatDanishDistance(ticket.last_response_at)}
+                                    </span>
+                                  </>
                                 )}
-                              </div>
-                              <div className="flex-1">
-                                <h3 className="font-medium text-gray-900 mb-1">
-                                  {ticket.subject}
-                                </h3>
-                                <div className="flex items-center gap-4 text-sm text-gray-600">
-                                  <span>{ticket.customer_name || ticket.customer_email}</span>
-                                  <span>•</span>
-                                  <span>{formatDanishDate(ticket.created_at)}</span>
-                                  {ticket.last_response_at && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="text-green-600">
-                                        Sidst: {formatDanishDistance(ticket.last_response_at)}
-                                      </span>
-                                    </>
-                                  )}
-                                  {ticket.assignee_name && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="text-blue-600 font-medium">
-                                        Tildelt: {ticket.assignee_name}
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
+                                {ticket.assignee_name && (
+                                  <>
+                                    <span className="hidden sm:inline">•</span>
+                                    <span className="text-blue-600 font-medium">
+                                      Tildelt: {ticket.assignee_name}
+                                    </span>
+                                  </>
+                                )}
                               </div>
                             </div>
                           </div>

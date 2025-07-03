@@ -94,20 +94,22 @@ export const Navigation = () => {
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
-            <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+          {/* Mobile menu button and user menu */}
+          <div className="md:hidden flex items-center space-x-2">
+            <NotificationBell />
+            {user && <UserMenu />}
+            <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="touch-target">
               {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
         </div>
 
         {/* Mobile Navigation */}
-        {isMobileMenuOpen && <div className="md:hidden py-4 border-t">
+        {isMobileMenuOpen && <div className="md:hidden py-4 border-t bg-white/95 backdrop-blur-sm">
             <div className="space-y-1">
               {navigationItems.map(item => {
             const Icon = item.icon;
-            return <Link key={item.href} to={item.href} onClick={() => setIsMobileMenuOpen(false)} className={cn("flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200", isActive(item.href) ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50")}>
+            return <Link key={item.href} to={item.href} onClick={() => setIsMobileMenuOpen(false)} className={cn("flex items-center space-x-3 px-4 py-4 rounded-lg text-base font-medium transition-all duration-200 touch-target", isActive(item.href) ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-gray-600 active:bg-gray-100")}>
                     <Icon className="h-5 w-5" />
                     <span>{item.label}</span>
                   </Link>;

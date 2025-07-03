@@ -349,13 +349,13 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, onEditQ
           )}
         </div>
 
-        <div className="flex gap-1">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-1">
           <Button
             type="button"
             size="sm"
             variant="outline"
             onClick={() => onPreviewQuote(quote)}
-            className="text-xs"
+            className="text-xs touch-target h-9 sm:h-8"
           >
             <Eye className="h-3 w-3 mr-1" />
             Preview
@@ -366,7 +366,7 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, onEditQ
               size="sm"
               variant="outline"
               onClick={() => onEditQuote(quote)}
-              className="text-xs text-purple-600 border-purple-200"
+              className="text-xs text-purple-600 border-purple-200 touch-target h-9 sm:h-8"
             >
               <Edit className="h-3 w-3 mr-1" />
               Rediger
@@ -379,7 +379,7 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, onEditQ
               variant="outline"
               onClick={() => onSendQuote(quote)}
               disabled={sendingQuote === quote.id}
-              className="text-xs"
+              className="text-xs touch-target h-9 sm:h-8"
             >
               <Send className="h-3 w-3 mr-1" />
               {sendingQuote === quote.id ? 'Sender...' : 'Send'}
@@ -388,14 +388,14 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, onEditQ
         </div>
 
         {quote.status === 'sent' && (
-          <div className="flex gap-1">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-1 mt-2 sm:mt-0">
             <Button
               type="button"
               size="sm"
               variant="outline"
               onClick={() => onSendQuote(quote)}
               disabled={sendingQuote === quote.id}
-              className="text-xs text-blue-600 border-blue-200"
+              className="text-xs text-blue-600 border-blue-200 touch-target h-9 sm:h-8"
             >
               <RotateCcw className="h-3 w-3 mr-1" />
               {sendingQuote === quote.id ? 'Sender...' : 'Gensend'}
@@ -405,7 +405,7 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, onEditQ
               size="sm"
               variant="outline"
               onClick={() => onStatusChange(quote.id, 'accepted')}
-              className="text-xs text-green-600 border-green-200"
+              className="text-xs text-green-600 border-green-200 touch-target h-9 sm:h-8"
             >
               <CheckCircle className="h-3 w-3 mr-1" />
               Accepter
@@ -415,7 +415,7 @@ const QuoteCard = ({ quote, onStatusChange, onSendQuote, onPreviewQuote, onEditQ
               size="sm"
               variant="outline"
               onClick={() => onStatusChange(quote.id, 'rejected')}
-              className="text-xs text-red-600 border-red-200"
+              className="text-xs text-red-600 border-red-200 touch-target h-9 sm:h-8"
             >
               <X className="h-3 w-3 mr-1" />
               Afvis
