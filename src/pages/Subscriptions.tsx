@@ -8,6 +8,8 @@ import { Plus, Search, Calendar, Users, Pause, Play, X, FileText } from 'lucide-
 import { SubscriptionDialog } from '@/components/subscriptions/SubscriptionDialog';
 import { useSubscriptions } from '@/hooks/useSubscriptions';
 import type { Subscription } from '@/hooks/useSubscriptions';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const Subscriptions = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,6 +85,25 @@ const Subscriptions = () => {
     await createOrderFromSubscription(subscriptionId);
   };
 
+  const handleCreateOrdersFromSubscriptions = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('subscription-order-creator', {
+        body: { trigger: 'manual' }
+      });
+      
+      if (error) {
+        console.error('Error creating subscription orders:', error);
+        toast.error('Kunne ikke oprette ordrer fra abonnementer');
+      } else {
+        console.log('Orders created:', data);
+        toast.success('Ordrer oprettet fra abonnementer');
+      }
+    } catch (error) {
+      console.error('Error invoking subscription-order-creator:', error);
+      toast.error('Kunne ikke oprette ordrer fra abonnementer');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -134,10 +155,16 @@ const Subscriptions = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Abonnementer</h1>
             <p className="text-gray-600">Administrer dine tilbagevendende serviceopgaver</p>
           </div>
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nyt Abonnement
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setIsDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nyt Abonnement
+            </Button>
+            <Button variant="outline" onClick={handleCreateOrdersFromSubscriptions}>
+              <Calendar className="h-4 w-4 mr-2" />
+              Opret Ordrer
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
