@@ -132,7 +132,12 @@ serve(async (req) => {
     let emailHtmlContent = message_content.replace(/\n/g, '<br>');
     
     if (signatureHtml) {
-      emailHtmlContent += '<br><br>' + signatureHtml;
+      // Fjern base64 billeder fra signaturen og erstat med logo URL
+      let cleanSignatureHtml = signatureHtml.replace(
+        /<img[^>]*src="data:image\/[^;]+;base64,[^"]*"[^>]*>/gi,
+        '<img src="https://www.mmmultipartner.dk/logo.png" alt="MM Multipartner logo" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 4px;" />'
+      );
+      emailHtmlContent += '<br><br>' + cleanSignatureHtml;
     }
 
     const fromAddress = ticket.mailbox_address || 'info@mmmultipartner.dk';
