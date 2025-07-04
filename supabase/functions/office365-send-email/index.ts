@@ -13,13 +13,16 @@ interface GraphTokenResponse {
 }
 
 serve(async (req) => {
-  console.log('🚀 OFFICE365 SEND EMAIL FUNCTION STARTED');
+  console.log('🚀 OFFICE365 SEND EMAIL FUNCTION STARTED - Method:', req.method);
+  console.log('🚀 Request headers:', Object.fromEntries(req.headers.entries()));
   
   if (req.method === 'OPTIONS') {
+    console.log('✅ Handling OPTIONS request');
     return new Response('ok', { headers: corsHeaders });
   }
 
   if (req.method !== 'POST') {
+    console.log('❌ Method not allowed:', req.method);
     return new Response(JSON.stringify({ error: "Method not allowed" }), { 
       status: 405, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -27,8 +30,16 @@ serve(async (req) => {
   }
 
   try {
+    console.log('📧 Processing POST request for email sending...');
+    
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    console.log('🔍 Supabase config check:', {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseKey,
+      urlPrefix: supabaseUrl?.substring(0, 30) + '...'
+    });
     
     if (!supabaseUrl || !supabaseKey) {
       throw new Error("Missing Supabase configuration");
@@ -39,12 +50,15 @@ serve(async (req) => {
     const requestBody = await req.json();
     console.log('📧 Email request received:', {
       ticket_id: requestBody.ticket_id,
-      content_length: requestBody.message_content?.length || 0
+      content_length: requestBody.message_content?.length || 0,
+      has_sender_name: !!requestBody.sender_name,
+      cc_emails_count: requestBody.cc_emails?.length || 0
     });
     
     const { ticket_id, message_content, sender_name, cc_emails } = requestBody;
 
     if (!ticket_id || !message_content) {
+      console.log('❌ Missing required fields:', { ticket_id: !!ticket_id, message_content: !!message_content });
       throw new Error("Missing required fields: ticket_id or message_content");
     }
 
