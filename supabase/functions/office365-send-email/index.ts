@@ -132,17 +132,17 @@ serve(async (req) => {
     let emailHtmlContent = message_content.replace(/\n/g, '<br>');
     
     if (signatureHtml) {
-      // Erstat base64 billeder med offentligt tilgængeligt logo
+      // Erstat base64 billeder med simpel text-baseret logo da externe URLs kan være upålidelige
       let cleanSignatureHtml = signatureHtml.replace(
         /<img[^>]*src="data:image\/[^;]+;base64,[^"]*"[^>]*>/gi,
-        '<img src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/company-assets/mm-multipartner-logo.png" alt="MM Multipartner" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 8px;" />'
+        '<div style="background: linear-gradient(135deg, #2563eb, #7c3aed); color: white; padding: 8px 16px; border-radius: 6px; display: inline-block; font-weight: bold; font-size: 16px; margin-bottom: 8px;">MM | Multipartner</div>'
       );
       
       // Hvis signaturen er tom efter billede-fjernelse, tilføj basic firma info
       if (cleanSignatureHtml.trim().length < 10) {
         cleanSignatureHtml = `
           <div style="font-family: Arial, sans-serif; color: #333; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
-            <strong>MM Multipartner</strong><br>
+            <div style="background: linear-gradient(135deg, #2563eb, #7c3aed); color: white; padding: 8px 16px; border-radius: 6px; display: inline-block; font-weight: bold; font-size: 16px; margin-bottom: 12px;">MM | Multipartner</div><br>
             📧 info@mmmultipartner.dk<br>
             🌐 www.mmmultipartner.dk
           </div>
