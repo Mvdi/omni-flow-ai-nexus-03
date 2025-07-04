@@ -15,6 +15,7 @@ import { useTickets, SupportTicket, useTicketAnalytics } from '@/hooks/useTicket
 import { useRouteMemory } from '@/hooks/useRouteMemory';
 import { formatDanishTime, formatDanishDistance } from '@/utils/danishTime';
 import { Ticket, Search, Settings, Zap, Clock, TrendingUp, AlertTriangle, CheckCircle, Bell, Users } from 'lucide-react';
+import { ManualEmailSync } from '@/components/support/ManualEmailSync';
 
 // Helper function to format Danish date
 const formatDanishDate = (dateString: string) => {
@@ -224,6 +225,11 @@ const Support = () => {
               Indstillinger
             </Button>
           </div>
+        </div>
+
+        {/* Manual Email Sync Alert */}
+        <div className="mb-6">
+          <ManualEmailSync />
         </div>
 
         {/* Analytics Cards */}
