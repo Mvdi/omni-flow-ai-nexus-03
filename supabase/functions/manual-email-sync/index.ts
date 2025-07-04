@@ -142,6 +142,53 @@ serve(async (req) => {
             continue;
           }
 
+          // Tjek om dette er et svar til eksisterende ticket (baseret på thread ID)
+          const { data: existingThreadTicket } = await supabase
+            .from('support_tickets')
+            .select('id, ticket_number, customer_email')
+            .eq('email_thread_id', email.conversationId)
+            .single();
+
+          if (existingThreadTicket) {
+            console.log(`📧 New reply to existing ticket ${existingThreadTicket.ticket_number}`);
+            
+            const senderEmail = email.from?.emailAddress?.address || 'unknown@example.com';
+            const senderName = email.from?.emailAddress?.name || senderEmail;
+            
+            // Skip emails from our own domain
+            if (senderEmail.includes('@mmmultipartner.dk')) {
+              continue;
+            }
+
+            // Tilføj besked til ticket
+            await supabase
+              .from('ticket_messages')
+              .insert({
+                ticket_id: existingThreadTicket.id,
+                sender_email: senderEmail,
+                sender_name: senderName,
+                message_content: email.body?.content || '',
+                message_type: 'inbound_email',
+                is_internal: false,
+                email_message_id: email.id
+              });
+
+            // Opdater ticket status til "Nyt svar" og last_response_at
+            await supabase
+              .from('support_tickets')
+              .update({
+                status: 'Nyt svar',
+                last_response_at: email.receivedDateTime,
+                updated_at: new Date().toISOString(),
+                email_message_id: email.id // Opdater til nyeste email ID
+              })
+              .eq('id', existingThreadTicket.id);
+
+            console.log(`✅ Added reply to ticket ${existingThreadTicket.ticket_number} - status set to "Nyt svar"`);
+            totalEmailsProcessed++;
+            continue;
+          }
+
           // Opret ny ticket
           const senderEmail = email.from?.emailAddress?.address || 'unknown@example.com';
           const senderName = email.from?.emailAddress?.name || senderEmail;
