@@ -135,7 +135,7 @@ serve(async (req) => {
       // Erstat base64 billeder med offentligt tilgængeligt logo
       let cleanSignatureHtml = signatureHtml.replace(
         /<img[^>]*src="data:image\/[^;]+;base64,[^"]*"[^>]*>/gi,
-        '<img src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/mm-multipartner-logo.png" alt="MM Multipartner logo" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 8px;" />'
+        '<img src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/company-assets/mm-multipartner-logo.png" alt="MM Multipartner" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 8px;" />'
       );
       
       // Hvis signaturen er tom efter billede-fjernelse, tilføj basic firma info
