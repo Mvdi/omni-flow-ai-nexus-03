@@ -91,7 +91,7 @@ export const Navigation = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${companyLogo ? '' : 'bg-gradient-to-r from-blue-600 to-purple-600'}`}>
                 {companyLogo ? (
                   <img src={companyLogo} alt="Company Logo" className="w-full h-full object-contain rounded-lg" />
                 ) : (
