@@ -37,6 +37,15 @@ const Support = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ticketId = params.get('ticket');
+    
+    // Rens URL'en for følsomme data hvis de findes
+    const hasToken = params.has('__lovable_token');
+    if (hasToken && ticketId) {
+      // Omdiriger til ren URL med kun ticket ID
+      const cleanUrl = `${window.location.pathname}?ticket=${ticketId}`;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+    
     if (ticketId && tickets.length > 0) {
       const ticket = tickets.find(t => t.id === ticketId);
       if (ticket) setSelectedTicket(ticket);
@@ -125,9 +134,9 @@ const Support = () => {
     const ticket = tickets.find(t => t.id === ticketId);
     if (ticket) {
       setSelectedTicket(ticket);
-      const params = new URLSearchParams(window.location.search);
-      params.set('ticket', ticketId);
-      window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
+      // Fjern JWT token og andre følsomme params, behold kun ticket ID
+      const cleanUrl = `${window.location.pathname}?ticket=${ticketId}`;
+      window.history.pushState({}, '', cleanUrl);
     }
   };
 
@@ -164,9 +173,8 @@ const Support = () => {
           <div className="flex items-center justify-between mb-4">
             <Button variant="outline" onClick={() => {
               setSelectedTicket(null);
-              const params = new URLSearchParams(window.location.search);
-              params.delete('ticket');
-              window.history.pushState({}, '', `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`);
+              // Gå tilbage til ren support side uden URL parametre
+              window.history.pushState({}, '', window.location.pathname);
             }} className="flex items-center gap-2">
               ← Tilbage til oversigt
             </Button>

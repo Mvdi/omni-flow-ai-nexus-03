@@ -173,39 +173,46 @@ export const CustomerInfo = ({ ticket, onTicketSelect, currentTicketId }: Custom
 
   const { customer, stats, recentTickets } = data;
 
-  // Hvis customer er null, opret kunden automatisk og reload data
+  // Hvis customer er null, vis en simpel fallback uden at triggere infinite loop
   if (!customer) {
-    // Opret kunden i baggrunden
-    updateCustomer.mutate({
-      email: ticket.customer_email,
-      navn: ticket.customer_name || '',
-      kundetype: 'Ny',
-      score: 0
-    });
-    // Vis loader mens vi venter på at kunden oprettes
     return (
       <div className="space-y-6">
         <Card>
-          <CardContent className="p-6">
-            <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Kunde Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-12 w-12">
+                <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                  {getCustomerInitials(ticket.customer_name, ticket.customer_email)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h3 className="font-semibold">{ticket.customer_name || 'Anonym kunde'}</h3>
+                <p className="text-sm text-gray-600">{ticket.customer_email}</p>
+              </div>
             </div>
+            <p className="text-sm text-gray-500">Kunde ikke fundet i databasen</p>
           </CardContent>
         </Card>
       </div>
     );
-  } else {
-    return (
-      <div className="space-y-6">
-        {/* Customer Profile */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Kunde Information
-              </div>
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Customer Profile */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Kunde Information
+            </div>
               <Dialog open={isEditing} onOpenChange={setIsEditing}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -496,7 +503,6 @@ export const CustomerInfo = ({ ticket, onTicketSelect, currentTicketId }: Custom
 
         {/* Ticket Reminders */}
         <TicketReminders ticketId={ticket.id} />
-      </div>
-    );
-  }
+    </div>
+  );
 };
