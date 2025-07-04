@@ -48,7 +48,8 @@ export const useTickets = () => {
       const { data, error } = await supabase
         .from('support_tickets')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false })
+        .limit(200);
       
       if (error) {
         console.error('Error fetching tickets:', error);
