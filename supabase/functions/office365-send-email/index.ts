@@ -132,11 +132,10 @@ serve(async (req) => {
     let emailHtmlContent = message_content.replace(/\n/g, '<br>');
     
     if (signatureHtml) {
-      // Fjern alle base64 billeder fra signaturen (de virker ikke i emails)
-      // og tilføj eventuelt et simpelt text-baseret logo
+      // Erstat base64 billeder med offentligt tilgængeligt logo
       let cleanSignatureHtml = signatureHtml.replace(
         /<img[^>]*src="data:image\/[^;]+;base64,[^"]*"[^>]*>/gi,
-        ''
+        '<img src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/mm-multipartner-logo.png" alt="MM Multipartner logo" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 8px;" />'
       );
       
       // Hvis signaturen er tom efter billede-fjernelse, tilføj basic firma info
