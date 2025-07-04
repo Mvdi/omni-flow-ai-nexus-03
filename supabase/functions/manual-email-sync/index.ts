@@ -130,7 +130,7 @@ serve(async (req) => {
         for (const email of emails) {
           totalEmailsProcessed++;
 
-          // Tjek om ticket allerede eksisterer
+          // Tjek om ticket allerede eksisterer (baseret på email ID)
           const { data: existingTicket } = await supabase
             .from('support_tickets')
             .select('id')
@@ -139,6 +139,29 @@ serve(async (req) => {
 
           if (existingTicket) {
             console.log(`⏭️ Ticket already exists for email ${email.id}`);
+            continue;
+          }
+
+          // KRITISK DUPLIKAT-TJEK: Tjek om samme email allerede eksisterer baseret på indhold
+          const emailReceivedTime = new Date(email.receivedDateTime);
+          const timeWindowStart = new Date(emailReceivedTime.getTime() - 10 * 60 * 1000); // 10 minutter før
+          const timeWindowEnd = new Date(emailReceivedTime.getTime() + 10 * 60 * 1000); // 10 minutter efter
+          
+          const senderEmail = email.from?.emailAddress?.address || 'unknown@example.com';
+          const emailSubject = email.subject || 'Ingen emne';
+          const emailContent = (email.body?.content || '').substring(0, 200); // Første 200 tegn
+          
+          const { data: duplicateTicket } = await supabase
+            .from('support_tickets')
+            .select('id, ticket_number')
+            .eq('customer_email', senderEmail)
+            .eq('subject', emailSubject)
+            .gte('email_received_at', timeWindowStart.toISOString())
+            .lte('email_received_at', timeWindowEnd.toISOString())
+            .single();
+
+          if (duplicateTicket) {
+            console.log(`🚫 DUPLIKAT FORHINDRET: Email fra ${senderEmail} med emne "${emailSubject}" eksisterer allerede som ${duplicateTicket.ticket_number}`);
             continue;
           }
 
