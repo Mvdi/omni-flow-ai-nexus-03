@@ -14,6 +14,7 @@ import { Send, Bot, User, Clock, Mail, Sparkles, X, Paperclip, Bell, AlertTriang
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AttachmentViewer } from '../support/AttachmentViewer';
+import DOMPurify from 'dompurify';
 
 interface TicketPopupProps {
   ticket: SupportTicket;
@@ -21,9 +22,16 @@ interface TicketPopupProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// SECURE: Return plain text instead of HTML to prevent XSS
-const formatTextForDisplay = (text: string) => {
-  return text; // Return as plain text, whitespace-pre-wrap will handle line breaks
+// SECURE: Sanitize HTML content to prevent XSS while allowing formatting
+const createSafeHtml = (text: string) => {
+  // First, clean the HTML with DOMPurify to remove any malicious content
+  const cleanHtml = DOMPurify.sanitize(text, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'div', 'span', 'img', 'a', 'ul', 'ol', 'li', 'table', 'tr', 'td', 'th', 'thead', 'tbody'],
+    ALLOWED_ATTR: ['style', 'src', 'alt', 'href', 'target', 'class', 'width', 'height'],
+    ALLOW_DATA_ATTR: false
+  });
+  
+  return { __html: cleanHtml };
 };
 
 export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) => {
@@ -406,9 +414,10 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
                           {formatDanishDistance(ticket.created_at)}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                        {ticket.content}
-                      </div>
+                      <div 
+                        className="text-sm text-gray-700"
+                        dangerouslySetInnerHTML={createSafeHtml(ticket.content)}
+                      />
                     </div>
                   </div>
                 </div>
@@ -437,9 +446,10 @@ export const TicketPopup = ({ ticket, open, onOpenChange }: TicketPopupProps) =>
                         </Badge>
                       )}
                     </div>
-                    <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-                      {formatTextForDisplay(message.message_content)}
-                    </div>
+                    <div 
+                      className="prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={createSafeHtml(message.message_content)}
+                    />
                     {message.attachments && message.attachments.length > 0 && (
                       <div className="mt-3">
                         <AttachmentViewer attachments={message.attachments} />
