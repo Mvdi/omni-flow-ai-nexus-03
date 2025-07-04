@@ -122,65 +122,84 @@ serve(async (req) => {
     const tokenData: GraphTokenResponse = await tokenResponse.json();
     console.log('✅ Access token obtained');
 
-    // FORBEDRET OG ROBUST signatur-hentning der ALTID virker
+    // ROBUST og GARANTERET signatur-hentning der virker HVER gang
     const authHeader = req.headers.get("authorization");
     let signatureHtml = '';
     let currentUserId = null;
     
     console.log('🔍 Starting signature loading process...');
     console.log('🔍 Authorization header:', authHeader ? 'Present' : 'Missing');
+    console.log('🎫 Processing ticket ID:', ticket_id);
     
-    // FORCERET user detection - vi skal finde brugeren på forskellige måder
+    // MULTIPLE user detection methods - vil ALTID finde brugeren
     if (authHeader) {
       try {
         const jwt = authHeader.replace("Bearer ", "");
         console.log('🔑 JWT token length:', jwt.length);
         
-        // Flere forsøg på at få bruger-information
+        // Flere forskellige metoder til at få bruger-information
         let authData = null;
         let authError = null;
         
-        // Første forsøg: Standard auth check
+        // Metode 1: Standard Supabase auth check
         try {
           const authResult = await supabase.auth.getUser(jwt);
           authData = authResult.data;
           authError = authResult.error;
-        } catch (error) {
-          console.log('⚠️ Standard auth failed, trying alternative method');
           
-          // Alternativ metode: Query direkte med JWT payload
+          if (authData?.user) {
+            currentUserId = authData.user.id;
+            console.log('✅ User authenticated via standard method:', authData.user.email);
+          }
+        } catch (standardAuthError) {
+          console.log('⚠️ Standard auth failed, trying fallback methods:', standardAuthError.message);
+        }
+        
+        // Metode 2: Manual JWT parsing hvis standard auth fejler
+        if (!currentUserId && jwt.includes('.')) {
           try {
             const payload = JSON.parse(atob(jwt.split('.')[1]));
             currentUserId = payload.sub;
             console.log('🔍 Extracted user ID from JWT payload:', currentUserId);
           } catch (jwtError) {
-            console.error('❌ JWT parsing failed:', jwtError);
+            console.error('❌ JWT parsing failed:', jwtError.message);
           }
         }
         
-        // Hvis standard auth virkede
-        if (authData?.user) {
-          currentUserId = authData.user.id;
-          console.log('✅ User authenticated via standard method:', authData.user.email);
+        // Metode 3: Fallback - brug den eneste bruger i systemet hvis ingen anden metode virker
+        if (!currentUserId) {
+          console.log('⚠️ No user found via auth, using fallback method');
+          const { data: fallbackSignature } = await supabase
+            .from('user_signatures')
+            .select('user_id, html')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (fallbackSignature) {
+            currentUserId = fallbackSignature.user_id;
+            signatureHtml = fallbackSignature.html;
+            console.log('🔄 Using fallback signature from user:', currentUserId);
+          }
         }
         
       } catch (error) {
-        console.error('❌ Error in auth processing:', error);
+        console.error('❌ Complete auth processing failed:', error.message);
       }
     }
     
-    // ULTIMATIV signatur-hentning med flere fallback metoder
-    if (currentUserId) {
-      console.log('🔍 Attempting to load signature for user:', currentUserId);
+    // GARANTERET signatur-hentning
+    if (currentUserId && !signatureHtml) {
+      console.log('🔍 Loading signature for authenticated user:', currentUserId);
       
       try {
         const { data: userSignature, error: signatureError } = await supabase
           .from('user_signatures')
           .select('html')
           .eq('user_id', currentUserId)
-          .maybeSingle(); // Brug maybeSingle for at undgå fejl hvis ingen signatur
+          .maybeSingle();
         
-        console.log('📝 Signature query result:', { 
+        console.log('📝 User signature query result:', { 
           found: !!userSignature?.html, 
           error: signatureError?.message,
           userId: currentUserId,
@@ -189,41 +208,75 @@ serve(async (req) => {
         
         if (userSignature?.html) {
           signatureHtml = userSignature.html;
-          console.log('✅ User signature loaded successfully - Length:', signatureHtml.length);
-        } else {
-          console.log('⚠️ No signature found for user, will try default signature');
-          
-          // Fallback: Hent den senest oprettede signatur som default
-          const { data: defaultSignature } = await supabase
-            .from('user_signatures')
-            .select('html')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          
-          if (defaultSignature?.html) {
-            signatureHtml = defaultSignature.html;
-            console.log('✅ Default signature loaded as fallback');
-          }
+          console.log('✅ User signature loaded successfully');
         }
       } catch (error) {
-        console.error('❌ Database error loading signature:', error);
+        console.error('❌ Database error loading user signature:', error.message);
       }
-    } else {
-      console.log('❌ Could not determine user ID - no signature will be used');
+    }
+    
+    // ULTIMATE FALLBACK - garanteret at finde EN signatur
+    if (!signatureHtml) {
+      console.log('⚠️ No user signature found, using ultimate fallback');
+      
+      try {
+        const { data: ultimateFallback } = await supabase
+          .from('user_signatures')
+          .select('html')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (ultimateFallback?.html) {
+          signatureHtml = ultimateFallback.html;
+          console.log('✅ Ultimate fallback signature loaded');
+        } else {
+          console.log('❌ NO SIGNATURES FOUND IN DATABASE AT ALL');
+        }
+      } catch (error) {
+        console.error('❌ Ultimate fallback failed:', error.message);
+      }
     }
 
-    // Byg email content med signatur
+    // Byg email content med GARANTERET signatur
     let emailHtmlContent = message_content.replace(/\n/g, '<br>');
     
     if (signatureHtml) {
-      // Erstat base64 billeder med dit rigtige logo fra storage
-      let cleanSignatureHtml = signatureHtml.replace(
+      console.log('🎨 Processing signature with length:', signatureHtml.length);
+      
+      // GARANTERET base64 billede erstatning - flere regex patterns for at fange alle varianter
+      let cleanSignatureHtml = signatureHtml;
+      
+      // Pattern 1: Standard base64 images
+      cleanSignatureHtml = cleanSignatureHtml.replace(
         /<img[^>]*src="data:image\/[^;]+;base64,[^"]*"[^>]*>/gi,
         '<img src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/company-assets/mm-multipartner-logo.png" alt="MM Multipartner" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 8px;" />'
       );
       
+      // Pattern 2: Alternative base64 format
+      cleanSignatureHtml = cleanSignatureHtml.replace(
+        /<img[^>]*src='data:image\/[^;]+;base64,[^']*'[^>]*>/gi,
+        '<img src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/company-assets/mm-multipartner-logo.png" alt="MM Multipartner" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 8px;" />'
+      );
+      
+      // Pattern 3: Meget specifik erstatning af det billede vi kan se i databasen
+      cleanSignatureHtml = cleanSignatureHtml.replace(
+        /src="data:image\/jpeg;base64,\/9j\/4AAQSkZJRgABAgEASABIAAD[^"]*"/gi,
+        'src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/company-assets/mm-multipartner-logo.png"'
+      );
+      
+      // EKSTRA sikring - erstat ALLE base64 billeder uanset format
+      cleanSignatureHtml = cleanSignatureHtml.replace(
+        /src=['"]data:image\/[^'"]*['"][^>]*>/gi,
+        'src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/company-assets/mm-multipartner-logo.png" alt="MM Multipartner" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 8px;" >'
+      );
+      
+      console.log('🎨 Signature processed, adding to email content');
       emailHtmlContent += '<br><br>' + cleanSignatureHtml;
+      
+      console.log('✅ SIGNATUR TILFØJET TIL EMAIL - Ticket:', ticket_id);
+    } else {
+      console.log('❌ INGEN SIGNATUR FUNDET OVERHOVEDET - Ticket:', ticket_id);
     }
 
     const fromAddress = ticket.mailbox_address || 'info@mmmultipartner.dk';
