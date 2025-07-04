@@ -427,21 +427,15 @@ export const SignatureSettings = () => {
                     size="sm"
                     onClick={async () => {
                       try {
-                        const user = (await supabase.auth.getUser()).data.user;
-                        if (user && signatureData.images.length > 0) {
+                        if (signatureData.images.length > 0) {
                           const firstImage = signatureData.images[0];
                           
-                          // Convert base64 to blob
-                          const response = await fetch(firstImage.url);
-                          const blob = await response.blob();
-                          
-                          // Upload to storage
-                          const { error } = await supabase.storage
-                            .from('company-assets')
-                            .upload('mm-multipartner-logo.png', blob, {
-                              contentType: 'image/png',
-                              upsert: true
-                            });
+                          // Upload logo to storage via edge function
+                          const { error } = await supabase.functions.invoke('upload-company-logo', {
+                            body: {
+                              imageData: firstImage.url
+                            }
+                          });
 
                           if (error) {
                             throw error;

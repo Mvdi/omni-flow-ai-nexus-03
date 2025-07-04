@@ -132,14 +132,21 @@ serve(async (req) => {
     let emailHtmlContent = message_content.replace(/\n/g, '<br>');
     
     if (signatureHtml) {
+      console.log('🔍 Original signature HTML length:', signatureHtml.length);
+      console.log('🔍 Original signature contains base64 images:', signatureHtml.includes('src="data:image'));
+      
       // Erstat base64 billeder med dit rigtige logo
       let cleanSignatureHtml = signatureHtml.replace(
         /<img[^>]*src="data:image\/[^;]+;base64,[^"]*"[^>]*>/gi,
         '<img src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/company-assets/mm-multipartner-logo.png" alt="MM Multipartner" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 8px;" />'
       );
       
+      console.log('🔍 After replacement - signature HTML length:', cleanSignatureHtml.length);
+      console.log('🔍 After replacement - contains logo URL:', cleanSignatureHtml.includes('company-assets'));
+      
       // Hvis signaturen er tom efter billede-fjernelse, tilføj basic firma info
       if (cleanSignatureHtml.trim().length < 10) {
+        console.log('🔍 Signature was too short, adding fallback');
         cleanSignatureHtml = `
           <div style="font-family: Arial, sans-serif; color: #333; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
             <img src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/company-assets/mm-multipartner-logo.png" alt="MM Multipartner" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 12px;" /><br>
@@ -149,6 +156,7 @@ serve(async (req) => {
         `;
       }
       
+      console.log('🔍 Final signature HTML to be sent:', cleanSignatureHtml.substring(0, 200) + '...');
       emailHtmlContent += '<br><br>' + cleanSignatureHtml;
     }
 
