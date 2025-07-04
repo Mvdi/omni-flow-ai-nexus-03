@@ -10,5 +10,8 @@ verify_jwt = false
 [functions.generate-quote-pdf]
 verify_jwt = true
 
+[functions.office365-send-email]
+verify_jwt = true
+
 [functions.prisberegner-webhook]
 verify_jwt = false
