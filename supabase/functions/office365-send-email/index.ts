@@ -1,16 +1,9 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://deno.land/x/supabase@1.0.0/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'X-Frame-Options': 'DENY',
-  'X-Content-Type-Options': 'nosniff',
-  'X-XSS-Protection': '1; mode=block',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
 };
 
 interface SendEmailRequest {
@@ -20,56 +13,8 @@ interface SendEmailRequest {
   cc_emails?: string[];
 }
 
-interface GraphTokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-}
-
-// Function to convert base64 images to CID attachments
-const processSignatureImages = (htmlContent: string) => {
-  const attachments: any[] = [];
-  let processedHtml = htmlContent;
-  
-  // Find all base64 images in the HTML
-  const base64ImageRegex = /<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"[^>]*>/gi;
-  let match;
-  let imageIndex = 0;
-  
-  while ((match = base64ImageRegex.exec(htmlContent)) !== null) {
-    const [fullMatch, imageType, base64Data] = match;
-    const contentId = `logo${imageIndex}`;
-    
-    console.log(`Converting base64 image ${imageIndex} (${imageType}) to CID attachment`);
-    
-    // Create attachment object for Microsoft Graph
-    const attachment = {
-      "@odata.type": "#microsoft.graph.fileAttachment",
-      "name": `logo${imageIndex}.${imageType}`,
-      "contentType": `image/${imageType}`,
-      "contentBytes": base64Data,
-      "contentId": contentId,
-      "isInline": true
-    };
-    
-    attachments.push(attachment);
-    
-    // Replace the base64 src with cid reference
-    const cidImg = fullMatch.replace(/src="data:image\/[^;]+;base64,[^"]+"/i, `src="cid:${contentId}"`);
-    processedHtml = processedHtml.replace(fullMatch, cidImg);
-    
-    imageIndex++;
-  }
-  
-  console.log(`Processed ${attachments.length} base64 images to CID attachments`);
-  
-  return {
-    html: processedHtml,
-    attachments: attachments
-  };
-};
-
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -77,9 +22,11 @@ serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { 
       status: 405, 
-      headers: corsHeaders 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
+
+  console.log('Office365 send email function called');
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -88,19 +35,22 @@ serve(async (req) => {
     console.error('Missing Supabase configuration');
     return new Response(JSON.stringify({ error: "Server configuration error" }), { 
       status: 500, 
-      headers: corsHeaders 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    const { ticket_id, message_content, sender_name, cc_emails }: SendEmailRequest = await req.json();
+    const requestBody = await req.json();
+    console.log('Request received:', requestBody);
+    
+    const { ticket_id, message_content, sender_name, cc_emails }: SendEmailRequest = requestBody;
 
     if (!ticket_id || !message_content) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), { 
         status: 400, 
-        headers: corsHeaders 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
@@ -117,7 +67,7 @@ serve(async (req) => {
       console.error('Failed to fetch ticket:', ticketError);
       return new Response(JSON.stringify({ error: "Ticket not found" }), { 
         status: 404, 
-        headers: corsHeaders 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
@@ -133,7 +83,7 @@ serve(async (req) => {
       console.error('Missing Office 365 credentials:', secretsError);
       return new Response(JSON.stringify({ error: "Office 365 credentials not configured" }), { 
         status: 400, 
-        headers: corsHeaders 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
@@ -148,7 +98,7 @@ serve(async (req) => {
       console.error('Incomplete Office 365 credentials');
       return new Response(JSON.stringify({ error: "Incomplete Office 365 credentials" }), { 
         status: 400, 
-        headers: corsHeaders 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
@@ -175,23 +125,21 @@ serve(async (req) => {
       console.error('Token request failed:', tokenError);
       return new Response(JSON.stringify({ error: "Failed to authenticate with Microsoft Graph" }), { 
         status: 401, 
-        headers: corsHeaders 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const tokenData: GraphTokenResponse = await tokenResponse.json();
+    const tokenData = await tokenResponse.json();
     console.log('Successfully obtained access token');
 
     // Hent bruger signatur som HTML
     const authHeader = req.headers.get("authorization");
     let signatureHtml = '';
-    let currentUser = null;
     
     if (authHeader) {
       const jwt = authHeader.replace("Bearer ", "");
       const { data: { user } } = await supabase.auth.getUser(jwt);
       if (user) {
-        currentUser = user;
         const { data: userSignature } = await supabase
           .from('user_signatures')
           .select('html')
@@ -204,33 +152,20 @@ serve(async (req) => {
       }
     }
 
-    // Byg email content med ren HTML formatering
+    // Byg email content med HTML formatering
     let emailHtmlContent = message_content.replace(/\n/g, '<br>');
     
-    // Tilføj signatur som flydende HTML (ikke som vedhæftning)
+    // Tilføj signatur
     if (signatureHtml) {
       emailHtmlContent += '<br><br>' + signatureHtml;
     }
 
-    // KRITISK: Process signature images to CID attachments
-    const { html: processedHtml, attachments: imageAttachments } = processSignatureImages(emailHtmlContent);
-    emailHtmlContent = processedHtml;
-
-    // FORBEDRET EMAIL THREADING - byg korrekte headers for reply chain
+    // Email setup
     const fromAddress = ticket.mailbox_address || 'info@mmmultipartner.dk';
     const subject = ticket.subject.startsWith('Re:') ? ticket.subject : `Re: ${ticket.subject}`;
     
-    // Byg References header for korrekt thread handling
-    let referencesHeader = '';
-    if (ticket.email_message_id) {
-      referencesHeader = ticket.email_message_id;
-      if (ticket.last_outgoing_message_id) {
-        referencesHeader = `${ticket.email_message_id} ${ticket.last_outgoing_message_id}`;
-      }
-    }
-
-    // Forbered email med MICROSOFT GRAPH KOMPATIBLE threading headers
-    const emailMessage: any = {
+    // Forbered email
+    const emailMessage = {
       message: {
         subject: subject,
         body: {
@@ -252,44 +187,15 @@ serve(async (req) => {
               name: email.trim()
             }
           }))
-        } : {}),
-        // KRITISK: Brug kun X- prefixed headers som Microsoft Graph accepterer
-        internetMessageHeaders: [
-          // X-In-Reply-To header for at indikere at dette er et svar
-          ...(ticket.email_message_id ? [{
-            name: 'X-In-Reply-To',
-            value: ticket.email_message_id
-          }] : []),
-          // X-References header for hele email tråden
-          ...(referencesHeader ? [{
-            name: 'X-References',
-            value: referencesHeader
-          }] : []),
-          // Thread-Index for Exchange/Outlook kompatibilitet
-          ...(ticket.email_thread_id ? [{
-            name: 'X-Thread-Index',
-            value: ticket.email_thread_id
-          }] : []),
-          // Custom header for ticket tracking
-          {
-            name: 'X-Ticket-Number',
-            value: ticket.ticket_number
-          }
-        ]
+        } : {})
       },
       saveToSentItems: true
     };
 
-    // Add attachments if any images were processed
-    if (imageAttachments.length > 0) {
-      emailMessage.message.attachments = imageAttachments;
-      console.log(`Added ${imageAttachments.length} image attachments to email`);
-    }
-
     // Send email via Microsoft Graph
     const sendUrl = `https://graph.microsoft.com/v1.0/users/${fromAddress}/sendMail`;
 
-    console.log(`Sending REPLY email from ${fromAddress} to ${ticket.customer_email} with ${imageAttachments.length} image attachments`);
+    console.log(`Sending email from ${fromAddress} to ${ticket.customer_email}`);
     
     const sendResponse = await fetch(sendUrl, {
       method: 'POST',
@@ -305,38 +211,13 @@ serve(async (req) => {
       console.error('Failed to send email:', sendError);
       return new Response(JSON.stringify({ error: "Failed to send email", details: sendError }), { 
         status: 500, 
-        headers: corsHeaders 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    console.log('Email sent successfully via Microsoft Graph with CID image attachments');
+    console.log('Email sent successfully via Microsoft Graph');
 
-    // Hent det sendte email's Message-ID fra Microsoft Graph for tracking
-    let sentMessageId = null;
-    try {
-      // Vent kort og hent den sendte email for at få Message-ID
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const sentItemsUrl = `https://graph.microsoft.com/v1.0/users/${fromAddress}/mailFolders/SentItems/messages?$top=1&$orderby=sentDateTime desc&$select=id,internetMessageId`;
-      const sentItemsResponse = await fetch(sentItemsUrl, {
-        headers: {
-          'Authorization': `Bearer ${tokenData.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (sentItemsResponse.ok) {
-        const sentItemsData = await sentItemsResponse.json();
-        if (sentItemsData.value && sentItemsData.value.length > 0) {
-          sentMessageId = sentItemsData.value[0].internetMessageId;
-          console.log('Retrieved sent message ID:', sentMessageId);
-        }
-      }
-    } catch (error) {
-      console.error('Could not retrieve sent message ID:', error);
-    }
-
-    // GEM DEN KOMPLETTE BESKED MED SIGNATUR I DATABASEN så den vises i samtalen
+    // Gem beskeden i databasen
     const messageContentWithSignature = signatureHtml ? 
       `${message_content}\n\n---SIGNATUR---\n${signatureHtml}` : 
       message_content;
@@ -349,48 +230,35 @@ serve(async (req) => {
         sender_name: sender_name || 'Support Agent',
         message_content: messageContentWithSignature,
         message_type: 'outbound_email',
-        email_message_id: sentMessageId,
         is_internal: false
       });
 
     if (messageError) {
       console.error('Failed to save outgoing message:', messageError);
     } else {
-      console.log('Saved complete outgoing message WITH SIGNATURE to database');
+      console.log('Saved outgoing message to database');
     }
 
-    // KRITISK: Opdater ticket med sendte message ID for bedre threading
-    const ticketUpdateData: any = {
-      status: 'I gang',
-      last_response_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    // Gem den sendte message ID for fremtidig threading
-    if (sentMessageId) {
-      ticketUpdateData.last_outgoing_message_id = sentMessageId;
-    }
-
+    // Opdater ticket status
     const { error: ticketUpdateError } = await supabase
       .from('support_tickets')
-      .update(ticketUpdateData)
+      .update({
+        status: 'I gang',
+        last_response_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
       .eq('id', ticket_id);
 
     if (ticketUpdateError) {
       console.error('Failed to update ticket:', ticketUpdateError);
-    } else {
-      console.log('Updated ticket with sent message ID for threading');
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: 'Email sent successfully with CID image attachments',
+      message: 'Email sent successfully',
       from: fromAddress,
       to: ticket.customer_email,
-      subject: subject,
-      messageId: sentMessageId,
-      attachments: imageAttachments.length,
-      threadingEnabled: true
+      subject: subject
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
