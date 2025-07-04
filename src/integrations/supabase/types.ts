@@ -1595,6 +1595,10 @@ export type Database = {
           health_score: number
         }[]
       }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       validate_form_input: {
         Args: { input_data: Json }
         Returns: Json
