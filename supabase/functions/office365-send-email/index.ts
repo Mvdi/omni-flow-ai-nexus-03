@@ -122,24 +122,49 @@ serve(async (req) => {
     const tokenData: GraphTokenResponse = await tokenResponse.json();
     console.log('✅ Access token obtained');
 
-    // Hent bruger signatur
+    // FORBEDRET signatur hentning med bedre debugging
     const authHeader = req.headers.get("authorization");
     let signatureHtml = '';
     
+    console.log('🔍 Checking authorization header:', authHeader ? 'Present' : 'Missing');
+    
     if (authHeader) {
-      const jwt = authHeader.replace("Bearer ", "");
-      const { data: { user } } = await supabase.auth.getUser(jwt);
-      if (user) {
-        const { data: userSignature } = await supabase
-          .from('user_signatures')
-          .select('html')
-          .eq('user_id', user.id)
-          .single();
-        if (userSignature?.html) {
-          signatureHtml = userSignature.html;
-          console.log('📝 User signature loaded');
+      try {
+        const jwt = authHeader.replace("Bearer ", "");
+        console.log('🔑 JWT token extracted:', jwt.substring(0, 50) + '...');
+        
+        const { data: authData, error: authError } = await supabase.auth.getUser(jwt);
+        console.log('👤 Auth check result:', { user: !!authData.user, error: authError?.message });
+        
+        if (authData.user) {
+          console.log('✅ User authenticated:', authData.user.email);
+          
+          const { data: userSignature, error: signatureError } = await supabase
+            .from('user_signatures')
+            .select('html')
+            .eq('user_id', authData.user.id)
+            .single();
+          
+          console.log('📝 Signature query result:', { 
+            found: !!userSignature?.html, 
+            error: signatureError?.message,
+            userId: authData.user.id 
+          });
+          
+          if (userSignature?.html) {
+            signatureHtml = userSignature.html;
+            console.log('✅ User signature loaded successfully');
+          } else {
+            console.log('⚠️ No signature found for user');
+          }
+        } else {
+          console.log('❌ User authentication failed');
         }
+      } catch (error) {
+        console.error('❌ Error processing authorization:', error);
       }
+    } else {
+      console.log('⚠️ No authorization header provided');
     }
 
     // Byg email content med signatur
