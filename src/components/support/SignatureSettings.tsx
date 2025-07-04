@@ -399,67 +399,24 @@ export const SignatureSettings = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label>Logo/Billeder i signatur</Label>
-              <div className="flex gap-2">
-                <div className="relative">
-                  <input
-                    type="file"
-                    id="image-upload"
-                    accept="image/*"
-                    multiple
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => document.getElementById('image-upload')?.click()}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload logo
-                  </Button>
-                </div>
-                
-                {signatureData.images.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        if (signatureData.images.length > 0) {
-                          const firstImage = signatureData.images[0];
-                          
-                          // Upload logo to storage via edge function
-                          const { error } = await supabase.functions.invoke('upload-company-logo', {
-                            body: {
-                              imageData: firstImage.url
-                            }
-                          });
-
-                          if (error) {
-                            throw error;
-                          }
-
-                          toast({
-                            title: 'Logo uploadet til email-brug',
-                            description: 'Dit logo vil nu vises korrekt i emails',
-                          });
-                        }
-                      } catch (error) {
-                        console.error('Error uploading logo to storage:', error);
-                        toast({
-                          title: 'Fejl ved upload',
-                          description: 'Logoet kunne ikke uploades til email-brug',
-                          variant: 'destructive',
-                        });
-                      }
-                    }}
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Upload til emails
-                  </Button>
-                )}
+              <div className="relative">
+                <input
+                  type="file"
+                  id="image-upload"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('image-upload')?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload logo
+                </Button>
               </div>
             </div>
             
