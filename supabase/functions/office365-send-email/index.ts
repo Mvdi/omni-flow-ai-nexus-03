@@ -14,19 +14,26 @@ interface SendEmailRequest {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  try {
+    console.log('=== Office365 Send Email Function Started ===');
+    console.log('Method:', req.method);
+    console.log('Headers:', Object.fromEntries(req.headers.entries()));
 
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), { 
-      status: 405, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
+    // Handle CORS preflight requests
+    if (req.method === 'OPTIONS') {
+      console.log('Handling OPTIONS request');
+      return new Response('ok', { headers: corsHeaders });
+    }
 
-  console.log('Office365 send email function called');
+    if (req.method !== 'POST') {
+      console.log('Invalid method:', req.method);
+      return new Response(JSON.stringify({ error: "Method not allowed" }), { 
+        status: 405, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('✅ Office365 send email function called successfully');
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -265,8 +272,25 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Send email error:', error);
-    return new Response(JSON.stringify({ error: String(error) }), { 
+    console.error('❌ CRITICAL ERROR in office365-send-email:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error', 
+      details: String(error),
+      message: error.message 
+    }), { 
+      status: 500, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  } catch (outerError) {
+    console.error('❌ OUTER CATCH ERROR:', outerError);
+    return new Response(JSON.stringify({ error: 'Critical function error' }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
