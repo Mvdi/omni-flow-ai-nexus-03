@@ -43,14 +43,22 @@ const formatMessageContent = (content: string, isFromSupport: boolean) => {
   const containsHTML = /<[^>]+>/.test(cleanedContent);
   
   if (containsHTML) {
-    // Comprehensive HTML sanitization using DOMPurify
+    // Enhanced HTML sanitization to support rich email content including images
     const sanitizedContent = DOMPurify.sanitize(cleanedContent, {
-      ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div'],
-      ALLOWED_ATTR: ['class', 'style'],
+      ALLOWED_TAGS: [
+        'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'blockquote', 
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'table', 'tr', 'td', 'th', 
+        'tbody', 'thead', 'tfoot', 'img', 'a', 'center', 'del', 'meta', 'html', 'head', 'body'
+      ],
+      ALLOWED_ATTR: [
+        'class', 'style', 'src', 'alt', 'title', 'href', 'target', 'width', 'height', 
+        'cellpadding', 'cellspacing', 'border', 'align', 'valign', 'bgcolor', 'role'
+      ],
       FORBID_TAGS: ['script', 'object', 'embed', 'iframe', 'form', 'input', 'button'],
       FORBID_ATTR: ['onclick', 'onload', 'onerror', 'onmouseover', 'onmouseout', 'onfocus', 'onblur', 'onchange', 'onsubmit'],
       KEEP_CONTENT: true,
-      SANITIZE_DOM: true
+      SANITIZE_DOM: true,
+      ALLOW_DATA_ATTR: false
     });
     
     return sanitizedContent;
@@ -437,9 +445,25 @@ ${messages.slice(-3).map(msg =>
                         {formatDanishDistance(ticket.created_at)} - DANSK TID: {debugTimeConversion(ticket.created_at)}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                      {ticket.content}
-                    </div>
+                    {(() => {
+                      const formattedTicketContent = formatMessageContent(ticket.content || '', false);
+                      const containsHTML = /<[^>]+>/.test(formattedTicketContent);
+                      
+                      if (containsHTML) {
+                        return (
+                          <div 
+                            className="text-sm text-gray-700 email-content"
+                            dangerouslySetInnerHTML={{ __html: formattedTicketContent }}
+                          />
+                        );
+                      } else {
+                        return (
+                          <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                            {formattedTicketContent}
+                          </div>
+                        );
+                      }
+                    })()}
                   </div>
                 </div>
               </div>

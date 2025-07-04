@@ -178,4 +178,29 @@
     content: '';
     @apply absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-muted rounded-full;
   }
+  
+  /* Email content styling for tickets */
+  .email-content {
+    @apply max-w-full overflow-hidden;
+  }
+  
+  .email-content img {
+    @apply max-w-full h-auto;
+  }
+  
+  .email-content table {
+    @apply w-full max-w-full border-collapse;
+  }
+  
+  .email-content td, .email-content th {
+    @apply p-2;
+  }
+  
+  .email-content a {
+    @apply text-blue-600 hover:text-blue-800 underline;
+  }
+  
+  .email-content center {
+    @apply text-center;
+  }
 }
