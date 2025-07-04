@@ -132,11 +132,24 @@ serve(async (req) => {
     let emailHtmlContent = message_content.replace(/\n/g, '<br>');
     
     if (signatureHtml) {
-      // Fjern base64 billeder fra signaturen og erstat med logo URL
+      // Fjern alle base64 billeder fra signaturen (de virker ikke i emails)
+      // og tilføj eventuelt et simpelt text-baseret logo
       let cleanSignatureHtml = signatureHtml.replace(
         /<img[^>]*src="data:image\/[^;]+;base64,[^"]*"[^>]*>/gi,
-        '<img src="https://www.mmmultipartner.dk/logo.png" alt="MM Multipartner logo" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 4px;" />'
+        ''
       );
+      
+      // Hvis signaturen er tom efter billede-fjernelse, tilføj basic firma info
+      if (cleanSignatureHtml.trim().length < 10) {
+        cleanSignatureHtml = `
+          <div style="font-family: Arial, sans-serif; color: #333; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+            <strong>MM Multipartner</strong><br>
+            📧 info@mmmultipartner.dk<br>
+            🌐 www.mmmultipartner.dk
+          </div>
+        `;
+      }
+      
       emailHtmlContent += '<br><br>' + cleanSignatureHtml;
     }
 
