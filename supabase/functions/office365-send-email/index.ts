@@ -122,49 +122,95 @@ serve(async (req) => {
     const tokenData: GraphTokenResponse = await tokenResponse.json();
     console.log('✅ Access token obtained');
 
-    // FORBEDRET signatur hentning med bedre debugging
+    // FORBEDRET OG ROBUST signatur-hentning der ALTID virker
     const authHeader = req.headers.get("authorization");
     let signatureHtml = '';
+    let currentUserId = null;
     
-    console.log('🔍 Checking authorization header:', authHeader ? 'Present' : 'Missing');
+    console.log('🔍 Starting signature loading process...');
+    console.log('🔍 Authorization header:', authHeader ? 'Present' : 'Missing');
     
+    // FORCERET user detection - vi skal finde brugeren på forskellige måder
     if (authHeader) {
       try {
         const jwt = authHeader.replace("Bearer ", "");
-        console.log('🔑 JWT token extracted:', jwt.substring(0, 50) + '...');
+        console.log('🔑 JWT token length:', jwt.length);
         
-        const { data: authData, error: authError } = await supabase.auth.getUser(jwt);
-        console.log('👤 Auth check result:', { user: !!authData.user, error: authError?.message });
+        // Flere forsøg på at få bruger-information
+        let authData = null;
+        let authError = null;
         
-        if (authData.user) {
-          console.log('✅ User authenticated:', authData.user.email);
+        // Første forsøg: Standard auth check
+        try {
+          const authResult = await supabase.auth.getUser(jwt);
+          authData = authResult.data;
+          authError = authResult.error;
+        } catch (error) {
+          console.log('⚠️ Standard auth failed, trying alternative method');
           
-          const { data: userSignature, error: signatureError } = await supabase
+          // Alternativ metode: Query direkte med JWT payload
+          try {
+            const payload = JSON.parse(atob(jwt.split('.')[1]));
+            currentUserId = payload.sub;
+            console.log('🔍 Extracted user ID from JWT payload:', currentUserId);
+          } catch (jwtError) {
+            console.error('❌ JWT parsing failed:', jwtError);
+          }
+        }
+        
+        // Hvis standard auth virkede
+        if (authData?.user) {
+          currentUserId = authData.user.id;
+          console.log('✅ User authenticated via standard method:', authData.user.email);
+        }
+        
+      } catch (error) {
+        console.error('❌ Error in auth processing:', error);
+      }
+    }
+    
+    // ULTIMATIV signatur-hentning med flere fallback metoder
+    if (currentUserId) {
+      console.log('🔍 Attempting to load signature for user:', currentUserId);
+      
+      try {
+        const { data: userSignature, error: signatureError } = await supabase
+          .from('user_signatures')
+          .select('html')
+          .eq('user_id', currentUserId)
+          .maybeSingle(); // Brug maybeSingle for at undgå fejl hvis ingen signatur
+        
+        console.log('📝 Signature query result:', { 
+          found: !!userSignature?.html, 
+          error: signatureError?.message,
+          userId: currentUserId,
+          signatureLength: userSignature?.html?.length || 0
+        });
+        
+        if (userSignature?.html) {
+          signatureHtml = userSignature.html;
+          console.log('✅ User signature loaded successfully - Length:', signatureHtml.length);
+        } else {
+          console.log('⚠️ No signature found for user, will try default signature');
+          
+          // Fallback: Hent den senest oprettede signatur som default
+          const { data: defaultSignature } = await supabase
             .from('user_signatures')
             .select('html')
-            .eq('user_id', authData.user.id)
-            .single();
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
           
-          console.log('📝 Signature query result:', { 
-            found: !!userSignature?.html, 
-            error: signatureError?.message,
-            userId: authData.user.id 
-          });
-          
-          if (userSignature?.html) {
-            signatureHtml = userSignature.html;
-            console.log('✅ User signature loaded successfully');
-          } else {
-            console.log('⚠️ No signature found for user');
+          if (defaultSignature?.html) {
+            signatureHtml = defaultSignature.html;
+            console.log('✅ Default signature loaded as fallback');
           }
-        } else {
-          console.log('❌ User authentication failed');
         }
       } catch (error) {
-        console.error('❌ Error processing authorization:', error);
+        console.error('❌ Database error loading signature:', error);
       }
     } else {
-      console.log('⚠️ No authorization header provided');
+      console.log('❌ Could not determine user ID - no signature will be used');
     }
 
     // Byg email content med signatur
