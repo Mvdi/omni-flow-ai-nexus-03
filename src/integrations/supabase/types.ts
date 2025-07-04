@@ -1529,13 +1529,11 @@ export type Database = {
         Returns: number
       }
       calculate_next_due_date: {
-        Args:
-          | Record<PropertyKey, never>
-          | {
-              start_date: string
-              interval_weeks: number
-              last_order_date: string
-            }
+        Args: {
+          start_date: string
+          interval_weeks: number
+          last_order_date: string
+        }
         Returns: string
       }
       check_rate_limit: {
