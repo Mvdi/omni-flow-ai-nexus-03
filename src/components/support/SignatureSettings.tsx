@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import { User, Upload, X, Eye } from 'lucide-react';
+import { User, Upload, X, Eye, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const FONT_OPTIONS = [
@@ -399,24 +399,73 @@ export const SignatureSettings = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label>Logo/Billeder i signatur</Label>
-              <div className="relative">
-                <input
-                  type="file"
-                  id="image-upload"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => document.getElementById('image-upload')?.click()}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload logo
-                </Button>
+              <div className="flex gap-2">
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="image-upload"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById('image-upload')?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload logo
+                  </Button>
+                </div>
+                
+                {signatureData.images.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const user = (await supabase.auth.getUser()).data.user;
+                        if (user && signatureData.images.length > 0) {
+                          const firstImage = signatureData.images[0];
+                          
+                          // Convert base64 to blob
+                          const response = await fetch(firstImage.url);
+                          const blob = await response.blob();
+                          
+                          // Upload to storage
+                          const { error } = await supabase.storage
+                            .from('company-assets')
+                            .upload('mm-multipartner-logo.png', blob, {
+                              contentType: 'image/png',
+                              upsert: true
+                            });
+
+                          if (error) {
+                            throw error;
+                          }
+
+                          toast({
+                            title: 'Logo uploadet til email-brug',
+                            description: 'Dit logo vil nu vises korrekt i emails',
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Error uploading logo to storage:', error);
+                        toast({
+                          title: 'Fejl ved upload',
+                          description: 'Logoet kunne ikke uploades til email-brug',
+                          variant: 'destructive',
+                        });
+                      }
+                    }}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Upload til emails
+                  </Button>
+                )}
               </div>
             </div>
             
