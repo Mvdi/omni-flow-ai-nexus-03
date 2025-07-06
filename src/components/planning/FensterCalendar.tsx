@@ -21,9 +21,9 @@ import { useEmployees } from '@/hooks/useEmployees';
 import { useWorkSchedules } from '@/hooks/useWorkSchedules';
 import { useBlockedTimeSlots } from '@/hooks/useBlockedTimeSlots';
 import { useAuth } from '@/hooks/useAuth';
+import { useSmartPlanner } from '@/hooks/useSmartPlanner';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 
 interface TimeSlot {
   time: string;
@@ -59,35 +59,17 @@ export const FensterCalendar = () => {
   const { workSchedules } = useWorkSchedules();
   const { blockedSlots, createBlockedSlot, deleteBlockedSlot } = useBlockedTimeSlots();
   const { user } = useAuth();
+  
+  // Use smart planner for automatic order assignment
+  const { isPlanning, planNewOrders, hasOrdersNeedingPlanning, ordersNeedingPlanningCount } = useSmartPlanner();
 
-  // Auto-assign unassigned orders to available employees
-  const autoAssignOrders = async () => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('assign-order-to-employee', {
-        body: { userId: user.id },
-      });
-      
-      if (error) {
-        console.error('Assignment error:', error);
-        toast.error('Fejl ved automatisk tildeling');
-        return;
-      }
-      
-      if (data?.success && data?.assigned > 0) {
-        toast.success(`${data.assigned} ordrer tildelt til ${data.employees.join(', ')}`);
-        refetchOrders();
-      }
-    } catch (error) {
-      console.error('Auto-assign error:', error);
-    }
-  };
-
-  // Auto-assign on component mount
+  // Auto-trigger smart planning when needed
   useEffect(() => {
-    autoAssignOrders();
-  }, [user]);
+    if (hasOrdersNeedingPlanning() && !isPlanning) {
+      console.log(`🤖 Auto-triggering smart planning for ${ordersNeedingPlanningCount} unplanned orders`);
+      planNewOrders(false); // Silent planning without toast
+    }
+  }, [orders.length, hasOrdersNeedingPlanning, isPlanning, ordersNeedingPlanningCount, planNewOrders]);
 
   // Generate time slots based on work schedules
   useEffect(() => {
