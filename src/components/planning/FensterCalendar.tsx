@@ -144,24 +144,16 @@ export const FensterCalendar = () => {
         currentDate.setDate(monday.getDate() + i);
         const dateString = currentDate.toISOString().split('T')[0];
         
-        // Filter orders for this day and employee
+        // Find ALL orders for this specific date, regardless of scheduled_week
         const dayOrders = orders.filter(order => {
-          // Primary: Check direct date match
-          if (order.scheduled_date === dateString) {
-            if (selectedEmployee !== 'all') {
-              return order.assigned_employee_id === selectedEmployee;
-            }
-            return true;
-          }
-          
-          return false;
+          const matchesDate = order.scheduled_date === dateString;
+          const matchesEmployee = selectedEmployee === 'all' || order.assigned_employee_id === selectedEmployee;
+          return matchesDate && matchesEmployee;
         }).sort((a, b) => {
           const timeA = a.scheduled_time || '00:00';
           const timeB = b.scheduled_time || '00:00';
           return timeA.localeCompare(timeB);
         });
-
-        console.log(`📅 Day ${dateString} (${dayNames[i]}): ${dayOrders.length} orders`, dayOrders.map(o => o.customer));
 
         const revenue = dayOrders.reduce((sum, order) => sum + order.price, 0);
         
@@ -189,15 +181,6 @@ export const FensterCalendar = () => {
 
   const goToCurrentWeek = () => {
     setSelectedWeek(new Date());
-  };
-
-  // Navigate to specific week number
-  const goToWeek = (weekNumber: number, year: number = 2025) => {
-    // Calculate the Monday of the given ISO week
-    const jan4 = new Date(year, 0, 4);
-    const mondayOfWeek1 = new Date(jan4.getTime() - ((jan4.getDay() + 6) % 7) * 86400000);
-    const targetWeek = new Date(mondayOfWeek1.getTime() + (weekNumber - 1) * 7 * 86400000);
-    setSelectedWeek(targetWeek);
   };
 
 
@@ -352,10 +335,6 @@ export const FensterCalendar = () => {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={goToCurrentWeek}>
             I dag
-          </Button>
-          
-          <Button variant="outline" size="sm" onClick={() => goToWeek(28)}>
-            UGE 28 (Ordrer)
           </Button>
           
           <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
