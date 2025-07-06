@@ -11,56 +11,34 @@ export const useDashboardData = () => {
   const { employees = [] } = useEmployees();
 
   const dashboardQuery = useQuery({
-    queryKey: ['dashboard-data', tickets, orders, leads, employees],
+    queryKey: [
+      'dashboard-data', 
+      tickets.length, 
+      orders.length, 
+      leads.length, 
+      employees.length
+    ],
     queryFn: async () => {
-      console.log('=== DASHBOARD DATA DEBUG ===');
-      console.log('Processing data - Leads:', leads.length, 'Orders:', orders.length, 'Tickets:', tickets.length, 'Employees:', employees.length);
-
       const currentDate = new Date();
       const currentMonth = currentDate.getMonth();
       const currentYear = currentDate.getFullYear();
 
       // Active leads calculation
-      console.log('=== LEADS SUMMARY ===');
       const activeLeads = leads.filter(lead => {
-        const isActive = !['closed-won', 'closed-lost'].includes(lead.status || '');
-        console.log(`Lead ${lead.navn} status: "${lead.status}", isActive: ${isActive}`);
-        return isActive;
+        return !['closed-won', 'closed-lost'].includes(lead.status || '');
       });
-
-      console.log('Total leads:', leads.length);
-      console.log('Active leads:', activeLeads.length);
 
       // Calculate conversion rate
       const convertedLeads = leads.filter(l => l.status === 'closed-won').length;
-      console.log('Converted leads:', convertedLeads);
 
-      // Monthly revenue from ORDERS (not leads)
-      console.log('=== MONTHLY REVENUE DEBUG ===');
-      console.log('Current date:', currentDate.toISOString());
-      console.log('Looking for month:', currentMonth, '(juni), year:', currentYear);
-
+      // Monthly revenue from ORDERS
       const monthlyRevenue = orders
         .filter(order => {
           const orderDate = new Date(order.created_at);
-          const isCurrentMonth = orderDate.getMonth() === currentMonth && 
+          return orderDate.getMonth() === currentMonth && 
                  orderDate.getFullYear() === currentYear;
-          console.log(`Order: ${order.customer}, Date: ${order.created_at}, Month: ${orderDate.getMonth()}, Year: ${orderDate.getFullYear()}, IsCurrentMonth: ${isCurrentMonth}, Price: ${order.price}`);
-          
-          if (isCurrentMonth) {
-            console.log('Adding order price:', order.price);
-          }
-          
-          return isCurrentMonth;
         })
         .reduce((sum, order) => sum + (order.price || 0), 0);
-
-      console.log('=== MONTHLY REVENUE RESULT ===');
-      console.log('Orders in current month:', orders.filter(order => {
-        const orderDate = new Date(order.created_at);
-        return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
-      }).length);
-      console.log('Total monthly revenue:', monthlyRevenue, 'kr');
 
       // Tickets data
       const openTickets = tickets.filter(t => t.status === 'Åben').length;
@@ -77,8 +55,6 @@ export const useDashboardData = () => {
       const totalLeadsEver = leads.length;
       const conversionRate = totalLeadsEver > 0 ? (convertedLeads / totalLeadsEver) * 100 : 0;
 
-      console.log(`Open tickets: ${openTickets}, Route efficiency: ${routeEfficiency}%, Avg response time: ${Math.round(avgResponseTime)}h`);
-
       const stats = {
         activeLeads: activeLeads.length,
         monthlyRevenue,
@@ -89,9 +65,6 @@ export const useDashboardData = () => {
         totalCustomers: leads.length,
         completedOrders: completedOrders
       };
-
-      console.log('=== FINAL DASHBOARD STATS ===');
-      console.log('Stats:', stats);
 
       // Generate dynamic chart data based on actual data
       const leadsChartData = [
