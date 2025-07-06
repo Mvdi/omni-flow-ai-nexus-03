@@ -152,7 +152,10 @@ export const FensterCalendar = () => {
           
           // ALSO check by week number if no direct date
           if (!order.scheduled_date && order.scheduled_week) {
-            const currentWeekNum = Math.ceil((currentDate.getTime() - new Date(currentDate.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+            // Use ISO week calculation to match database
+            const thursday = new Date(currentDate.getTime() + (3 - ((currentDate.getDay() + 6) % 7)) * 86400000);
+            const january4th = new Date(thursday.getFullYear(), 0, 4);
+            const currentWeekNum = Math.floor(1 + ((thursday.getTime() - january4th.getTime()) / 86400000 - 3 + ((january4th.getDay() + 6) % 7)) / 7);
             if (order.scheduled_week === currentWeekNum) {
               // For week-based orders, distribute them across the week
               const orderDayIndex = orders.filter(o => o.scheduled_week === currentWeekNum).indexOf(order) % 5;

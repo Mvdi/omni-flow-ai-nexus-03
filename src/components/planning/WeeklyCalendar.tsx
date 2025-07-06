@@ -82,9 +82,10 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   };
 
   const getWeekNumber = (date: Date) => {
-    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+    // Use ISO week calculation to match database
+    const thursday = new Date(date.getTime() + (3 - ((date.getDay() + 6) % 7)) * 86400000);
+    const january4th = new Date(thursday.getFullYear(), 0, 4);
+    return Math.floor(1 + ((thursday.getTime() - january4th.getTime()) / 86400000 - 3 + ((january4th.getDay() + 6) % 7)) / 7);
   };
 
   const weekDates = getWeekDates(selectedWeek);
