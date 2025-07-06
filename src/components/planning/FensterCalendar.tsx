@@ -260,10 +260,18 @@ export const FensterCalendar = () => {
 
   const getOrderForTimeSlot = (date: string, time: string) => {
     const column = weekColumns.find(col => col.date === date);
-    if (!column) return null;
+    if (!column) {
+      console.log(`❌ No column found for date ${date}`);
+      return null;
+    }
+    
+    console.log(`🔍 Checking time slot ${date} ${time}:`, column.orders.map(o => `${o.customer} at ${o.scheduled_time}`));
     
     return column.orders.find(order => {
-      if (!order.scheduled_time) return false;
+      if (!order.scheduled_time) {
+        console.log(`⚠️ Order ${order.customer} has no scheduled_time`);
+        return false;
+      }
       const orderTime = order.scheduled_time.substring(0, 5);
       
       // Check if this time slot is within the order's duration
@@ -271,7 +279,13 @@ export const FensterCalendar = () => {
       const slotMinutes = timeToMinutes(time);
       const orderDuration = order.estimated_duration || 60;
       
-      return slotMinutes >= orderStartMinutes && slotMinutes < orderStartMinutes + orderDuration;
+      const matches = slotMinutes >= orderStartMinutes && slotMinutes < orderStartMinutes + orderDuration;
+      
+      if (matches) {
+        console.log(`✅ Order ${order.customer} matches slot ${time} (order at ${orderTime}, duration ${orderDuration}min)`);
+      }
+      
+      return matches;
     });
   };
 
