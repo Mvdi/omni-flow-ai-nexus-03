@@ -312,6 +312,13 @@ export const FensterCalendar = () => {
     };
   };
 
+  // Navigate to specific ISO week where orders actually exist
+  const goToWeekWithOrders = () => {
+    // Week 28 orders are on July 7-11, 2025 - navigate to Monday July 7
+    const july7_2025 = new Date(2025, 6, 7); // Month is 0-indexed, so 6 = July
+    setSelectedWeek(july7_2025);
+  };
+
   const weekInfo = getWeekInfo();
   const activeEmployees = employees.filter(e => e.is_active);
 
@@ -335,6 +342,10 @@ export const FensterCalendar = () => {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={goToCurrentWeek}>
             I dag
+          </Button>
+          
+          <Button variant="outline" size="sm" onClick={goToWeekWithOrders}>
+            UGE 28
           </Button>
           
           <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
