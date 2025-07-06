@@ -139,6 +139,8 @@ export const FensterCalendar = () => {
       const dayNames = ['MAN.', 'TIR.', 'ONS.', 'TOR.', 'FRE.'];
       const today = new Date();
       
+      console.log(`📅 Total orders available: ${orders.length}`, orders.map(o => `${o.customer} ${o.scheduled_date} (uge ${o.scheduled_week})`));
+      
       for (let i = 0; i < 5; i++) {
         const currentDate = new Date(monday);
         currentDate.setDate(monday.getDate() + i);
@@ -154,6 +156,8 @@ export const FensterCalendar = () => {
           const timeB = b.scheduled_time || '00:00';
           return timeA.localeCompare(timeB);
         });
+
+        console.log(`📅 Date ${dateString} (${dayNames[i]}): ${dayOrders.length} orders found`, dayOrders.map(o => `${o.customer} - ${o.price}kr`));
 
         const revenue = dayOrders.reduce((sum, order) => sum + order.price, 0);
         
@@ -302,10 +306,18 @@ export const FensterCalendar = () => {
   };
 
   const getWeekInfo = () => {
-    // Use ISO week calculation to match database
-    const thursday = new Date(selectedWeek.getTime() + (3 - ((selectedWeek.getDay() + 6) % 7)) * 86400000);
+    // Korrekt ISO uge beregning - juli 7-11 2025 er uge 28
+    const monday = new Date(selectedWeek);
+    monday.setDate(selectedWeek.getDate() - selectedWeek.getDay() + 1);
+    
+    // ISO week calculation
+    const thursday = new Date(monday.getTime() + 3 * 86400000);
     const january4th = new Date(thursday.getFullYear(), 0, 4);
-    const weekNum = Math.floor(1 + ((thursday.getTime() - january4th.getTime()) / 86400000 - 3 + ((january4th.getDay() + 6) % 7)) / 7);
+    const jan4Thursday = new Date(january4th.getTime() + (3 - ((january4th.getDay() + 6) % 7)) * 86400000);
+    const weekNum = Math.floor(1 + (thursday.getTime() - jan4Thursday.getTime()) / (7 * 86400000));
+    
+    console.log(`📅 Week calculation: Monday=${monday.toISOString().split('T')[0]}, Thursday=${thursday.toISOString().split('T')[0]}, Week=${weekNum}`);
+    
     return {
       weekNumber: weekNum,
       month: selectedWeek.toLocaleDateString('da-DK', { month: 'long', year: 'numeric' })
@@ -342,10 +354,6 @@ export const FensterCalendar = () => {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={goToCurrentWeek}>
             I dag
-          </Button>
-          
-          <Button variant="outline" size="sm" onClick={goToWeekWithOrders}>
-            UGE 28
           </Button>
           
           <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
