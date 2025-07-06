@@ -3,99 +3,59 @@ import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProfessionalCalendar } from '@/components/planning/ProfessionalCalendar';
-import { useAdvancedPlanner } from '@/hooks/useAdvancedPlanner';
+import { useSmartPlanner } from '@/hooks/useSmartPlanner';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { Brain, TrendingUp, Zap, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { toast } from 'sonner';
 
 const Planning = () => {
   const [showAIPanel, setShowAIPanel] = useState(false);
-  const [isAutoPlanning, setIsAutoPlanning] = useState(false);
   const { user } = useAuth();
   
   const { 
-    getPlanningStats,
-    hasOrdersNeedingOptimization 
-  } = useAdvancedPlanner();
+    isPlanning,
+    planNewOrders,
+    hasOrdersNeedingPlanning,
+    ordersNeedingPlanningCount
+  } = useSmartPlanner();
   
   const { orders } = useOrders();
   
-  const stats = getPlanningStats();
+  // Calculate stats locally
+  const stats = {
+    totalOrders: orders.length,
+    optimizationRate: orders.length > 0 ? Math.round(((orders.length - ordersNeedingPlanningCount) / orders.length) * 100) : 0,
+    activeEmployees: 1, // From console logs we see 1 active employee
+    totalRevenue: orders.reduce((sum, order) => sum + order.price, 0)
+  };
 
-  // Automatically trigger intelligent planning when component mounts or orders change
+  // Automatically trigger smart planning when component mounts if needed
   useEffect(() => {
-    const triggerIntelligentPlanning = async () => {
-      if (!user) return;
-      
-      // Check for unplanned orders
-      const unplannedOrders = orders.filter(order => 
-        order.status === 'Ikke planlagt' || 
-        !order.assigned_employee_id || 
-        !order.scheduled_week
-      );
-
-      if (unplannedOrders.length > 0) {
-        console.log(`🤖 Auto-triggering intelligent planning for ${unplannedOrders.length} unplanned orders`);
-        
-        try {
-          const response = await supabase.functions.invoke('intelligent-auto-planner', {
-            body: { userId: user.id }
-          });
-          
-          if (response.data?.success) {
-            console.log('✅ Intelligent planning completed:', response.data);
-            // Refresh orders after planning
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000);
-          }
-        } catch (error) {
-          console.error('❌ Error in automatic intelligent planning:', error);
-        }
-      }
-    };
-
-    // Run immediately and then after a delay
-    if (orders.length > 0) {
-      triggerIntelligentPlanning();
+    if (hasOrdersNeedingPlanning() && !isPlanning) {
+      console.log(`🤖 Auto-triggering smart planning for ${ordersNeedingPlanningCount} unplanned orders`);
+      planNewOrders(false); // Silent planning without toast
     }
-  }, [user, orders]);
+  }, [orders.length]);
 
-  // Manual trigger for intelligent planning
+  // Manual trigger for smart planning
   const handleManualAutoPlanning = async () => {
     if (!user) {
       toast.error('Du skal være logget ind');
       return;
     }
-
-    setIsAutoPlanning(true);
     
     try {
-      console.log('🎯 Manuelt trigger af intelligent auto-planlægning');
+      console.log('🎯 Manuelt trigger af smart planlægning');
+      const result = await planNewOrders(true); // Show success toast
       
-      const response = await supabase.functions.invoke('intelligent-auto-planner', {
-        body: { userId: user.id }
-      });
-      
-      if (response.data?.success) {
-        toast.success(`✅ ${response.data.planned} ordrer blev planlagt intelligent`);
-        console.log('✅ Manual intelligent planning completed:', response.data);
-        
-        // Refresh page to show updated orders
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      } else {
-        toast.info('Ingen ordrer at planlagt');
+      if (result.plannedOrders === 0) {
+        toast.info('Ingen ordrer at planlagt - alle er allerede planlagt');
       }
     } catch (error) {
-      console.error('❌ Error in manual intelligent planning:', error);
+      console.error('❌ Error in manual smart planning:', error);
       toast.error('Fejl ved auto-planlægning');
-    } finally {
-      setIsAutoPlanning(false);
     }
   };
 
@@ -117,12 +77,12 @@ const Planning = () => {
           <div className="flex items-center gap-2">
             <Button
               onClick={handleManualAutoPlanning}
-              disabled={isAutoPlanning}
+              disabled={isPlanning}
               variant="default"
               size="sm"
               className="bg-primary hover:bg-primary/90"
             >
-              {isAutoPlanning ? (
+              {isPlanning ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                   Planlægger...
@@ -130,14 +90,14 @@ const Planning = () => {
               ) : (
                 <>
                   <Zap className="h-4 w-4 mr-2" />
-                  Auto-tildel Ordrer
+                  {hasOrdersNeedingPlanning() ? `Planlæg ${ordersNeedingPlanningCount} Ordrer` : 'Auto-tildel Ordrer'}
                 </>
               )}
             </Button>
             
-            {hasOrdersNeedingOptimization && (
+            {hasOrdersNeedingPlanning() && (
               <Badge variant="default" className="bg-primary text-xs animate-pulse">
-                AI arbejder...
+                {ordersNeedingPlanningCount} nye ordrer
               </Badge>
             )}
             
