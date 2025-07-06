@@ -21,6 +21,7 @@ import { useEmployees } from '@/hooks/useEmployees';
 import { useWorkSchedules } from '@/hooks/useWorkSchedules';
 import { useBlockedTimeSlots } from '@/hooks/useBlockedTimeSlots';
 import { useAuth } from '@/hooks/useAuth';
+import { useIntelligentScheduler } from '@/hooks/useIntelligentScheduler';
 import { useSmartPlanner } from '@/hooks/useSmartPlanner';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'sonner';
@@ -62,6 +63,9 @@ export const FensterCalendar = () => {
   
   // Use smart planner for automatic order assignment
   const { isPlanning, planNewOrders, hasOrdersNeedingPlanning, ordersNeedingPlanningCount } = useSmartPlanner();
+
+  // ALSO use intelligent scheduler for route optimization
+  useIntelligentScheduler();
 
   // Auto-trigger smart planning when needed
   useEffect(() => {
@@ -157,6 +161,8 @@ export const FensterCalendar = () => {
           return timeA.localeCompare(timeB);
         });
 
+        console.log(`📅 Day ${dateString} (${dayNames[i]}): ${dayOrders.length} orders`, dayOrders.map(o => o.customer));
+
         const revenue = dayOrders.reduce((sum, order) => sum + order.price, 0);
         
         columns.push({
@@ -184,6 +190,16 @@ export const FensterCalendar = () => {
   const goToCurrentWeek = () => {
     setSelectedWeek(new Date());
   };
+
+  // Navigate to specific week number
+  const goToWeek = (weekNumber: number, year: number = 2025) => {
+    // Calculate the Monday of the given ISO week
+    const jan4 = new Date(year, 0, 4);
+    const mondayOfWeek1 = new Date(jan4.getTime() - ((jan4.getDay() + 6) % 7) * 86400000);
+    const targetWeek = new Date(mondayOfWeek1.getTime() + (weekNumber - 1) * 7 * 86400000);
+    setSelectedWeek(targetWeek);
+  };
+
 
   // Drag and drop handler
   const handleDragEnd = async (result: any) => {
@@ -336,6 +352,10 @@ export const FensterCalendar = () => {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={goToCurrentWeek}>
             I dag
+          </Button>
+          
+          <Button variant="outline" size="sm" onClick={() => goToWeek(28)}>
+            UGE 28 (Ordrer)
           </Button>
           
           <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
