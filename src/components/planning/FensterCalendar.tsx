@@ -321,7 +321,10 @@ export const FensterCalendar = () => {
   };
 
   const getWeekInfo = () => {
-    const weekNum = Math.ceil((selectedWeek.getTime() - new Date(selectedWeek.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+    // Use ISO week calculation to match database
+    const thursday = new Date(selectedWeek.getTime() + (3 - ((selectedWeek.getDay() + 6) % 7)) * 86400000);
+    const january4th = new Date(thursday.getFullYear(), 0, 4);
+    const weekNum = Math.floor(1 + ((thursday.getTime() - january4th.getTime()) / 86400000 - 3 + ((january4th.getDay() + 6) % 7)) / 7);
     return {
       weekNumber: weekNum,
       month: selectedWeek.toLocaleDateString('da-DK', { month: 'long', year: 'numeric' })
