@@ -185,9 +185,7 @@ export const useIntelligentScheduler = () => {
 
         if (scheduledOrders > 0) {
           const avgScore = Math.round(optimizedRoutes.reduce((sum, r) => sum + r.optimization_score, 0) / optimizedRoutes.length);
-          toast.success(
-            `🤖 Dynamisk optimering: ${scheduledOrders} ordrer med realistisk timing på ${createdRoutes} ruter (${avgScore}% effektivitet)`
-          );
+          // SILENT SUCCESS - no spam notifications
           console.log(`✅ Dynamic scheduling completed: ${scheduledOrders} orders with realistic timing`);
         }
 

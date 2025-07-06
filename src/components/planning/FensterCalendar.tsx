@@ -140,14 +140,32 @@ export const FensterCalendar = () => {
         currentDate.setDate(monday.getDate() + i);
         const dateString = currentDate.toISOString().split('T')[0];
         
-        // Filter orders for this day and employee
+        // Filter orders for this day and employee - ALSO check scheduled_week
         const dayOrders = orders.filter(order => {
-          if (order.scheduled_date !== dateString) return false;
-          // Show unassigned orders when viewing "all employees"
-          if (selectedEmployee !== 'all') {
-            return order.assigned_employee_id === selectedEmployee;
+          // Check direct date match first
+          if (order.scheduled_date === dateString) {
+            if (selectedEmployee !== 'all') {
+              return order.assigned_employee_id === selectedEmployee;
+            }
+            return true;
           }
-          return true; // Show all orders including unassigned when viewing "all"
+          
+          // ALSO check by week number if no direct date
+          if (!order.scheduled_date && order.scheduled_week) {
+            const currentWeekNum = Math.ceil((currentDate.getTime() - new Date(currentDate.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+            if (order.scheduled_week === currentWeekNum) {
+              // For week-based orders, distribute them across the week
+              const orderDayIndex = orders.filter(o => o.scheduled_week === currentWeekNum).indexOf(order) % 5;
+              if (orderDayIndex === i) {
+                if (selectedEmployee !== 'all') {
+                  return order.assigned_employee_id === selectedEmployee;
+                }
+                return true;
+              }
+            }
+          }
+          
+          return false;
         }).sort((a, b) => {
           const timeA = a.scheduled_time || '00:00';
           const timeB = b.scheduled_time || '00:00';
