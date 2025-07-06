@@ -23,6 +23,7 @@ import { OrderDebugInfo } from './OrderDebugInfo';
 import { LiveView } from './LiveView';
 import { VRPOptimizer } from '@/utils/vrpOptimizer';
 import { useSmartPlanner } from '@/hooks/useSmartPlanner';
+import { useIntelligentScheduler } from '@/hooks/useIntelligentScheduler';
 
 interface WeeklyCalendarProps {
   currentWeek?: Date;
@@ -46,6 +47,9 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ currentWeek = ne
   
   // Use SMART planner (Fenster-style) instead of complex VRP
   const { isPlanning, planNewOrders, hasOrdersNeedingPlanning, ordersNeedingPlanningCount } = useSmartPlanner();
+  
+  // ALSO use intelligent scheduler for advanced route optimization
+  useIntelligentScheduler();
 
   // FENSTER-STYLE: Silent auto-refresh - NO notifications, NO automatic planning
   useAutoRefresh({

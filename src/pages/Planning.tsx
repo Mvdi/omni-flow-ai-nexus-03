@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProfessionalCalendar } from '@/components/planning/ProfessionalCalendar';
 import { useSmartPlanner } from '@/hooks/useSmartPlanner';
+import { useIntelligentScheduler } from '@/hooks/useIntelligentScheduler';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { Brain, TrendingUp, Zap, RefreshCw } from 'lucide-react';
@@ -20,6 +21,9 @@ const Planning = () => {
     hasOrdersNeedingPlanning,
     ordersNeedingPlanningCount
   } = useSmartPlanner();
+  
+  // ALSO use intelligent scheduler for route optimization
+  useIntelligentScheduler();
   
   const { orders } = useOrders();
   
