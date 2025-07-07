@@ -34,7 +34,28 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('🔄 STARTING MANUAL EMAIL SYNC');
+    console.log('🔄 STARTING AUTOMATIC EMAIL SYNC');
+
+    // Start sync log
+    const { data: syncLogData, error: syncLogError } = await supabase
+      .from('email_sync_log')
+      .insert({
+        mailbox_address: 'AUTO_SYNC_2MIN',
+        status: 'running',
+        sync_started_at: new Date().toISOString(),
+        emails_processed: 0,
+        errors_count: 0,
+        facebook_leads_created: 0
+      })
+      .select()
+      .single();
+
+    if (syncLogError) {
+      console.error('Failed to create sync log:', syncLogError);
+      throw new Error("Failed to initialize sync log");
+    }
+
+    const syncLogId = syncLogData.id;
 
     // Hent Office 365 credentials
     const { data: secrets, error: secretsError } = await supabase
@@ -43,6 +64,14 @@ serve(async (req) => {
       .eq('provider', 'office365');
 
     if (secretsError || !secrets || secrets.length === 0) {
+      await supabase
+        .from('email_sync_log')
+        .update({
+          status: 'failed',
+          sync_completed_at: new Date().toISOString(),
+          error_details: 'Office 365 credentials not configured'
+        })
+        .eq('id', syncLogId);
       throw new Error("Office 365 credentials not configured");
     }
 
@@ -54,6 +83,14 @@ serve(async (req) => {
     const { client_id, client_secret, tenant_id } = credentialsMap;
 
     if (!client_id || !client_secret || !tenant_id) {
+      await supabase
+        .from('email_sync_log')
+        .update({
+          status: 'failed',
+          sync_completed_at: new Date().toISOString(),
+          error_details: 'Incomplete Office 365 credentials'
+        })
+        .eq('id', syncLogId);
       throw new Error("Incomplete Office 365 credentials");
     }
 
@@ -77,6 +114,14 @@ serve(async (req) => {
 
     if (!tokenResponse.ok) {
       const tokenError = await tokenResponse.text();
+      await supabase
+        .from('email_sync_log')
+        .update({
+          status: 'failed',
+          sync_completed_at: new Date().toISOString(),
+          error_details: `Failed to authenticate: ${tokenError}`
+        })
+        .eq('id', syncLogId);
       throw new Error(`Failed to authenticate: ${tokenError}`);
     }
 
@@ -90,23 +135,33 @@ serve(async (req) => {
       .eq('is_active', true);
 
     if (!mailboxes || mailboxes.length === 0) {
+      await supabase
+        .from('email_sync_log')
+        .update({
+          status: 'failed',
+          sync_completed_at: new Date().toISOString(),
+          error_details: 'No active mailboxes found'
+        })
+        .eq('id', syncLogId);
       throw new Error("No active mailboxes found");
     }
 
     let totalEmailsProcessed = 0;
     let totalTicketsCreated = 0;
+    let totalFacebookLeads = 0;
+    let totalErrors = 0;
 
     // Sync hver mailbox
     for (const mailbox of mailboxes) {
       console.log(`📧 Syncing mailbox: ${mailbox.email_address}`);
       
       try {
-        // Hent emails fra sidste 7 dage
+        // Hent emails fra sidste 24 timer for automatisk sync
         const since = new Date();
-        since.setDate(since.getDate() - 7);
+        since.setHours(since.getHours() - 24);
         const sinceISO = since.toISOString();
 
-        const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages?$filter=receivedDateTime ge ${sinceISO}&$top=50&$orderby=receivedDateTime desc`;
+        const messagesUrl = `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages?$filter=receivedDateTime ge ${sinceISO}&$top=100&$orderby=receivedDateTime desc`;
         
         console.log(`🔍 Fetching emails since ${sinceISO}`);
         
@@ -119,6 +174,7 @@ serve(async (req) => {
 
         if (!messagesResponse.ok) {
           console.error(`Failed to fetch emails for ${mailbox.email_address}: ${messagesResponse.status}`);
+          totalErrors++;
           continue;
         }
 
@@ -149,7 +205,6 @@ serve(async (req) => {
           
           const senderEmail = email.from?.emailAddress?.address || 'unknown@example.com';
           const emailSubject = email.subject || 'Ingen emne';
-          const emailContent = (email.body?.content || '').substring(0, 200); // Første 200 tegn
           
           const { data: duplicateTicket } = await supabase
             .from('support_tickets')
@@ -165,6 +220,40 @@ serve(async (req) => {
             continue;
           }
 
+          // Tjek for Facebook leads
+          const emailContent = email.body?.content || '';
+          const isFromFacebook = senderEmail.includes('facebookmail.com') || 
+                                emailSubject.toLowerCase().includes('lead') ||
+                                emailContent.toLowerCase().includes('facebook lead');
+
+          if (isFromFacebook) {
+            try {
+              // Opret Facebook lead
+              const { data: newLead, error: leadError } = await supabase
+                .from('leads')
+                .insert({
+                  navn: email.from?.emailAddress?.name || 'Facebook Lead',
+                  email: senderEmail,
+                  kilde: 'Facebook',
+                  noter: `Automatisk oprettet fra Facebook lead email: ${emailSubject}`,
+                  status: 'Ny',
+                  ai_enriched_data: {
+                    source_email: senderEmail,
+                    original_subject: emailSubject
+                  }
+                })
+                .select()
+                .single();
+
+              if (!leadError) {
+                totalFacebookLeads++;
+                console.log(`✅ Created Facebook lead for ${senderEmail}`);
+              }
+            } catch (error) {
+              console.error('Error creating Facebook lead:', error);
+            }
+          }
+
           // Tjek om dette er et svar til eksisterende ticket (baseret på thread ID)
           const { data: existingThreadTicket } = await supabase
             .from('support_tickets')
@@ -175,7 +264,6 @@ serve(async (req) => {
           if (existingThreadTicket) {
             console.log(`📧 New reply to existing ticket ${existingThreadTicket.ticket_number}`);
             
-            const senderEmail = email.from?.emailAddress?.address || 'unknown@example.com';
             const senderName = email.from?.emailAddress?.name || senderEmail;
             
             // Skip emails from our own domain
@@ -190,7 +278,7 @@ serve(async (req) => {
                 ticket_id: existingThreadTicket.id,
                 sender_email: senderEmail,
                 sender_name: senderName,
-                message_content: email.body?.content || '',
+                message_content: emailContent,
                 message_type: 'inbound_email',
                 is_internal: false,
                 email_message_id: email.id
@@ -203,59 +291,60 @@ serve(async (req) => {
                 status: 'Nyt svar',
                 last_response_at: email.receivedDateTime,
                 updated_at: new Date().toISOString(),
-                email_message_id: email.id // Opdater til nyeste email ID
+                email_message_id: email.id
               })
               .eq('id', existingThreadTicket.id);
 
             console.log(`✅ Added reply to ticket ${existingThreadTicket.ticket_number} - status set to "Nyt svar"`);
-            totalEmailsProcessed++;
             continue;
           }
 
-          // Opret ny ticket
-          const senderEmail = email.from?.emailAddress?.address || 'unknown@example.com';
-          const senderName = email.from?.emailAddress?.name || senderEmail;
-          
-          // Skip emails from our own domain
-          if (senderEmail.includes('@mmmultipartner.dk')) {
-            continue;
+          // Opret ny ticket (kun hvis ikke Facebook lead)
+          if (!isFromFacebook) {
+            const senderName = email.from?.emailAddress?.name || senderEmail;
+            
+            // Skip emails from our own domain
+            if (senderEmail.includes('@mmmultipartner.dk')) {
+              continue;
+            }
+
+            const { data: newTicket, error: ticketError } = await supabase
+              .from('support_tickets')
+              .insert({
+                ticket_number: '', // Will be auto-generated
+                subject: emailSubject,
+                content: emailContent,
+                customer_email: senderEmail,
+                customer_name: senderName,
+                status: 'Åben',
+                priority: null,
+                source: 'office365',
+                email_message_id: email.id,
+                email_thread_id: email.conversationId,
+                email_received_at: email.receivedDateTime,
+                mailbox_address: mailbox.email_address,
+                category: 'Generel'
+              })
+              .select()
+              .single();
+
+            if (ticketError) {
+              console.error(`Failed to create ticket for email ${email.id}:`, ticketError);
+              totalErrors++;
+              continue;
+            }
+
+            totalTicketsCreated++;
+            console.log(`✅ Created ticket ${newTicket.ticket_number} for ${senderEmail}`);
+
+            // Upsert customer
+            await supabase
+              .from('customers')
+              .upsert({
+                email: senderEmail,
+                navn: senderName
+              }, { onConflict: 'email', ignoreDuplicates: true });
           }
-
-          const { data: newTicket, error: ticketError } = await supabase
-            .from('support_tickets')
-            .insert({
-              ticket_number: '', // Will be auto-generated
-              subject: email.subject || 'Ingen emne',
-              content: email.body?.content || '',
-              customer_email: senderEmail,
-              customer_name: senderName,
-              status: 'Åben',
-              priority: null,
-              source: 'office365',
-              email_message_id: email.id,
-              email_thread_id: email.conversationId,
-              email_received_at: email.receivedDateTime,
-              mailbox_address: mailbox.email_address,
-              category: 'Generel'
-            })
-            .select()
-            .single();
-
-          if (ticketError) {
-            console.error(`Failed to create ticket for email ${email.id}:`, ticketError);
-            continue;
-          }
-
-          totalTicketsCreated++;
-          console.log(`✅ Created ticket ${newTicket.ticket_number} for ${senderEmail}`);
-
-          // Upsert customer
-          await supabase
-            .from('customers')
-            .upsert({
-              email: senderEmail,
-              navn: senderName
-            }, { onConflict: 'email', ignoreDuplicates: true });
         }
 
         // Opdater last_sync_at for mailbox
@@ -266,39 +355,41 @@ serve(async (req) => {
 
       } catch (error) {
         console.error(`Error syncing mailbox ${mailbox.email_address}:`, error);
+        totalErrors++;
       }
     }
 
-    // Log sync result
+    // Update sync log with completion
     await supabase
       .from('email_sync_log')
-      .insert({
-        mailbox_address: 'MANUAL_SYNC',
+      .update({
         status: 'completed',
-        emails_processed: totalEmailsProcessed,
-        sync_started_at: new Date().toISOString(),
         sync_completed_at: new Date().toISOString(),
-        errors_count: 0,
-        facebook_leads_created: 0
-      });
+        emails_processed: totalEmailsProcessed,
+        errors_count: totalErrors,
+        facebook_leads_created: totalFacebookLeads
+      })
+      .eq('id', syncLogId);
 
-    console.log(`🎉 MANUAL SYNC COMPLETED: ${totalEmailsProcessed} emails processed, ${totalTicketsCreated} tickets created`);
+    console.log(`🎉 AUTOMATIC SYNC COMPLETED: ${totalEmailsProcessed} emails processed, ${totalTicketsCreated} tickets created, ${totalFacebookLeads} Facebook leads created`);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: 'Manual email sync completed',
+      message: 'Automatic email sync completed',
       emailsProcessed: totalEmailsProcessed,
-      ticketsCreated: totalTicketsCreated
+      ticketsCreated: totalTicketsCreated,
+      facebookLeadsCreated: totalFacebookLeads,
+      errorsCount: totalErrors
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error: any) {
-    console.error('❌ MANUAL SYNC ERROR:', error.message);
+    console.error('❌ AUTOMATIC SYNC ERROR:', error.message);
     
     return new Response(JSON.stringify({ 
-      error: 'Manual sync failed', 
+      error: 'Automatic sync failed', 
       details: error.message 
     }), { 
       status: 500, 
