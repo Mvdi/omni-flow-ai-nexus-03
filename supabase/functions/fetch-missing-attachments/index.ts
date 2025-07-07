@@ -352,7 +352,7 @@ serve(async (req) => {
         attachments: attachments
       }), {
         status: 200,
-        headers: corsHeaders
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     } else {
       console.log(`No attachments found for ticket ${ticketId}`);
@@ -361,7 +361,7 @@ serve(async (req) => {
         message: "No attachments found for this message"
       }), {
         status: 200,
-        headers: corsHeaders
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
