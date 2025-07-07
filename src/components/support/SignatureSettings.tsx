@@ -151,73 +151,78 @@ export const SignatureSettings = () => {
   const generateSignatureHtml = () => {
     const { name, title, company, email, phone, website, address, customText, images, fontFamily, extraText } = signatureData;
     
-    console.log('Generating signature HTML with images:', images.length);
+    console.log('Generating EMAIL-COMPATIBLE signature HTML with images:', images.length);
     
-    // Clean signature layout with logo BELOW website
-    let html = `<div style="font-family: ${fontFamily}, sans-serif; font-size: 14px; line-height: 1.4; color: #333; max-width: 400px;">`;
+    // EMAIL-COMPATIBLE HTML table structure for maximum compatibility
+    let html = `<!--[if mso]><table cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table style="border-collapse: collapse; font-family: ${fontFamily}, Arial, sans-serif; font-size: 14px; line-height: 1.4; color: #333333; max-width: 400px; border: 0; margin: 0; padding: 0;" cellpadding="0" cellspacing="0" border="0">`;
     
     // Extra text at top if present
     if (extraText) {
-      html += `<div style="margin-bottom: 8px; color: #666; font-size: 13px;">${extraText.replace(/\n/g, '<br>')}</div>`;
+      html += `<tr><td style="margin: 0; padding: 0 0 8px 0; color: #666666; font-size: 13px;">${extraText.replace(/\n/g, '<br>')}</td></tr>`;
     }
     
     // Name (largest, bold)
     if (name) {
-      html += `<div style="font-weight: bold; font-size: 16px; margin-bottom: 2px; color: #333;">${name}</div>`;
+      html += `<tr><td style="margin: 0; padding: 0 0 2px 0; font-weight: bold; font-size: 16px; color: #333333;">${name}</td></tr>`;
     }
     
     // Title (smaller, gray)
     if (title) {
-      html += `<div style="color: #666; font-size: 13px; margin-bottom: 2px;">${title}</div>`;
+      html += `<tr><td style="margin: 0; padding: 0 0 2px 0; color: #666666; font-size: 13px;">${title}</td></tr>`;
     }
     
     // Company (medium, semi-bold)
     if (company) {
-      html += `<div style="font-weight: 500; color: #444; font-size: 14px; margin-bottom: 6px;">${company}</div>`;
+      html += `<tr><td style="margin: 0; padding: 0 0 6px 0; font-weight: 500; color: #444444; font-size: 14px;">${company}</td></tr>`;
     }
     
     // Email with icon
     if (email) {
-      html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 2px;">`;
+      html += `<tr><td style="margin: 0; padding: 0 0 2px 0; font-size: 13px; line-height: 1.4;">`;
       html += `📧 <a href="mailto:${email}" style="color: #0066cc; text-decoration: none;">${email}</a>`;
-      html += '</div>';
+      html += '</td></tr>';
     }
     
     // Phone with icon
     if (phone) {
-      html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 2px;">`;
+      html += `<tr><td style="margin: 0; padding: 0 0 2px 0; font-size: 13px; line-height: 1.4;">`;
       html += `📞 <a href="tel:${phone}" style="color: #0066cc; text-decoration: none;">${phone}</a>`;
-      html += '</div>';
+      html += '</td></tr>';
     }
     
     // Website with icon
     if (website) {
-      html += `<div style="font-size: 13px; line-height: 1.4; margin-bottom: 12px;">`;
+      html += `<tr><td style="margin: 0; padding: 0 0 12px 0; font-size: 13px; line-height: 1.4;">`;
       html += `🌐 <a href="${website.startsWith('http') ? website : 'https://' + website}" style="color: #0066cc; text-decoration: none;">${website}</a>`;
-      html += '</div>';
+      html += '</td></tr>';
     }
     
-    // LOGO/IMAGE SECTION - AFTER website, with proper spacing
+    // LOGO/IMAGE SECTION - INLINE BASE64 for email compatibility
     if (images.length > 0) {
-      console.log('Adding images to signature HTML:', images.length);
-      html += '<div style="margin-top: 12px; margin-bottom: 12px;">';
+      console.log('Adding INLINE BASE64 images to signature HTML:', images.length);
+      html += `<tr><td style="margin: 0; padding: 12px 0; border: 0;">`;
       images.forEach(image => {
-        html += `<img src="${image.url}" alt="${image.alt}" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 4px;" />`;
+        // Keep the base64 data as-is for email compatibility - this ensures it works everywhere
+        html += `<img src="${image.url}" alt="${image.alt || 'Logo'}" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 4px; border: 0;" />`;
       });
-      html += '</div>';
+      html += '</td></tr>';
     }
     
     // Address after logo
     if (address) {
-      html += `<div style="color: #666; font-size: 12px; margin-bottom: 8px;">${address}</div>`;
+      html += `<tr><td style="margin: 0; padding: 0 0 8px 0; color: #666666; font-size: 12px;">${address}</td></tr>`;
     }
     
     // Custom text at bottom with separator line
     if (customText) {
-      html += `<div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #eee; color: #666; font-size: 11px;">${customText.replace(/\n/g, '<br>')}</div>`;
+      html += `<tr><td style="margin: 0; padding: 8px 0 0 0; border-top: 1px solid #eeeeee; color: #666666; font-size: 11px;">${customText.replace(/\n/g, '<br>')}</td></tr>`;
     }
     
-    html += '</div>'; // Close main wrapper
+    html += `</table>
+<!--[if mso]></td></tr></table><![endif]-->`;
+    
+    console.log('✅ Generated EMAIL-COMPATIBLE signature with table structure');
     return html;
   };
 

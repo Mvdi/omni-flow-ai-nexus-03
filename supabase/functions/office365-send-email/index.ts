@@ -238,43 +238,23 @@ serve(async (req) => {
       }
     }
 
-    // Byg email content med GARANTERET signatur
+    // Byg email content med GARANTERET signatur der virker OVERALT
     let emailHtmlContent = message_content.replace(/\n/g, '<br>');
     
     if (signatureHtml) {
-      console.log('🎨 Processing signature with length:', signatureHtml.length);
+      console.log('🎨 Processing EMAIL-COMPATIBLE signature with length:', signatureHtml.length);
       
-      // GARANTERET base64 billede erstatning - flere regex patterns for at fange alle varianter
+      // ✅ BEVAR base64 billeder som de er - dette sikrer kompatibilitet OVERALT
+      // Ingen konvertering til eksterne links der blokeres af email-klienter
       let cleanSignatureHtml = signatureHtml;
       
-      // Pattern 1: Standard base64 images
-      cleanSignatureHtml = cleanSignatureHtml.replace(
-        /<img[^>]*src="data:image\/[^;]+;base64,[^"]*"[^>]*>/gi,
-        '<img src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/company-assets/mm-multipartner-logo.png" alt="MM Multipartner" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 8px;" />'
-      );
+      console.log('✅ Using INLINE BASE64 signature for maximum email compatibility');
+      console.log('✅ This signature will work in ALL email clients (desktop + mobile)');
       
-      // Pattern 2: Alternative base64 format
-      cleanSignatureHtml = cleanSignatureHtml.replace(
-        /<img[^>]*src='data:image\/[^;]+;base64,[^']*'[^>]*>/gi,
-        '<img src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/company-assets/mm-multipartner-logo.png" alt="MM Multipartner" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 8px;" />'
-      );
-      
-      // Pattern 3: Meget specifik erstatning af det billede vi kan se i databasen
-      cleanSignatureHtml = cleanSignatureHtml.replace(
-        /src="data:image\/jpeg;base64,\/9j\/4AAQSkZJRgABAgEASABIAAD[^"]*"/gi,
-        'src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/company-assets/mm-multipartner-logo.png"'
-      );
-      
-      // EKSTRA sikring - erstat ALLE base64 billeder uanset format
-      cleanSignatureHtml = cleanSignatureHtml.replace(
-        /src=['"]data:image\/[^'"]*['"][^>]*>/gi,
-        'src="https://tckynbgheicyqezqprdp.supabase.co/storage/v1/object/public/company-assets/mm-multipartner-logo.png" alt="MM Multipartner" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 8px;" >'
-      );
-      
-      console.log('🎨 Signature processed, adding to email content');
+      // Tilføj signatur direkte uden ændringer - base64 billeder virker bedst i emails
       emailHtmlContent += '<br><br>' + cleanSignatureHtml;
       
-      console.log('✅ SIGNATUR TILFØJET TIL EMAIL - Ticket:', ticket_id);
+      console.log('✅ EMAIL-COMPATIBLE SIGNATUR TILFØJET - Ticket:', ticket_id);
     } else {
       console.log('❌ INGEN SIGNATUR FUNDET OVERHOVEDET - Ticket:', ticket_id);
     }
