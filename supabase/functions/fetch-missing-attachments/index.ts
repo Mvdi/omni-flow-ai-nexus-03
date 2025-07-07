@@ -174,9 +174,15 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    const { ticketId } = await req.json();
+    console.log('📎 Starting fetch-missing-attachments function');
+    
+    const requestBody = await req.json();
+    const { ticketId } = requestBody;
+    
+    console.log('Request body:', requestBody);
     
     if (!ticketId) {
+      console.error('Missing ticketId in request');
       return new Response(JSON.stringify({ error: "ticketId is required" }), {
         status: 400,
         headers: corsHeaders
@@ -311,9 +317,11 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error('Error in fetch-missing-attachments function:', error);
+    console.error('❌ Error in fetch-missing-attachments function:', error);
+    console.error('Error stack:', error.stack);
     return new Response(JSON.stringify({ 
-      error: error.message || "Internal server error" 
+      error: error.message || "Internal server error",
+      details: error.stack
     }), {
       status: 500,
       headers: corsHeaders

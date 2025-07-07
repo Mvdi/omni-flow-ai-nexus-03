@@ -6,6 +6,119 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const retryWithExponentialBackoff = async <T>(
+  fn: () => Promise<T>,
+  retries: number = MAX_RETRIES
+): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries <= 0) throw error;
+    
+    const delay = RETRY_DELAY * Math.pow(2, MAX_RETRIES - retries);
+    console.log(`Retrying in ${delay}ms... (${retries} retries left)`);
+    await sleep(delay);
+    return retryWithExponentialBackoff(fn, retries - 1);
+  }
+};
+
+const processMessageAttachments = async (messageId: string, mailboxAddress: string, accessToken: string, supabase: any): Promise<any[]> => {
+  try {
+    console.log(`Fetching attachments for message ${messageId} from mailbox ${mailboxAddress}`);
+    
+    const attachmentsUrl = `https://graph.microsoft.com/v1.0/users/${mailboxAddress}/messages/${messageId}/attachments`;
+    
+    const attachmentsResponse = await retryWithExponentialBackoff(() =>
+      fetch(attachmentsUrl, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      })
+    );
+
+    if (!attachmentsResponse.ok) {
+      console.error(`Failed to fetch attachments for message ${messageId}: ${attachmentsResponse.status}`);
+      return [];
+    }
+
+    const attachmentsData = await attachmentsResponse.json();
+    const attachments = attachmentsData.value || [];
+    
+    console.log(`Found ${attachments.length} attachments for message ${messageId}`);
+
+    const processedAttachments = [];
+
+    for (const attachment of attachments) {
+      try {
+        console.log(`Processing attachment: ${attachment.name} (type: ${attachment['@odata.type']})`);
+        
+        // Only process file attachments (not inline/embedded ones)
+        if (attachment['@odata.type'] === '#microsoft.graph.fileAttachment') {
+          const fileName = attachment.name;
+          const contentType = attachment.contentType;
+          const size = attachment.size;
+          const contentBytes = attachment.contentBytes;
+
+          console.log(`Processing file attachment: ${fileName}, size: ${size}, type: ${contentType}`);
+
+          // Generate unique file name
+          const timestamp = new Date().getTime();
+          const uniqueFileName = `${timestamp}_${fileName}`;
+          const filePath = `attachments/${uniqueFileName}`;
+
+          // Convert base64 to bytes
+          const fileData = Uint8Array.from(atob(contentBytes), c => c.charCodeAt(0));
+
+          // Upload to Supabase Storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('ticket-attachments')
+            .upload(filePath, fileData, {
+              contentType: contentType,
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error(`Failed to upload attachment ${fileName}:`, uploadError);
+            continue;
+          }
+
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('ticket-attachments')
+            .getPublicUrl(filePath);
+
+          processedAttachments.push({
+            id: `attachment_${timestamp}_${Math.random().toString(36).substr(2, 9)}`,
+            name: fileName,
+            size: size,
+            contentType: contentType,
+            url: publicUrl,
+            path: filePath,
+            uploaded_at: new Date().toISOString()
+          });
+
+          console.log(`Successfully processed attachment: ${fileName} -> ${publicUrl}`);
+        } else {
+          console.log(`Skipping attachment ${attachment.name} (type: ${attachment['@odata.type']})`);
+        }
+      } catch (attachmentError) {
+        console.error(`Error processing attachment ${attachment.name}:`, attachmentError);
+      }
+    }
+
+    return processedAttachments;
+  } catch (error) {
+    console.error(`Error processing attachments for message ${messageId}:`, error);
+    return [];
+  }
+};
+
 interface GraphTokenResponse {
   access_token: string;
   token_type: string;
@@ -271,6 +384,14 @@ serve(async (req) => {
               continue;
             }
 
+            // Process attachments for this email
+            const attachments = await processMessageAttachments(
+              email.id, 
+              mailbox.email_address, 
+              tokenData.access_token, 
+              supabase
+            );
+
             // Tilføj besked til ticket
             await supabase
               .from('ticket_messages')
@@ -281,7 +402,8 @@ serve(async (req) => {
                 message_content: emailContent,
                 message_type: 'inbound_email',
                 is_internal: false,
-                email_message_id: email.id
+                email_message_id: email.id,
+                attachments: attachments.length > 0 ? attachments : null
               });
 
             // Opdater ticket status til "Nyt svar" og last_response_at
@@ -307,6 +429,14 @@ serve(async (req) => {
             if (senderEmail.includes('@mmmultipartner.dk')) {
               continue;
             }
+
+            // Process attachments for this email
+            const attachments = await processMessageAttachments(
+              email.id, 
+              mailbox.email_address, 
+              tokenData.access_token, 
+              supabase
+            );
 
             const { data: newTicket, error: ticketError } = await supabase
               .from('support_tickets')
@@ -334,8 +464,24 @@ serve(async (req) => {
               continue;
             }
 
+            // Create initial ticket message with attachments
+            if (attachments.length > 0) {
+              await supabase
+                .from('ticket_messages')
+                .insert({
+                  ticket_id: newTicket.id,
+                  sender_email: senderEmail,
+                  sender_name: senderName,
+                  message_content: emailContent,
+                  message_type: 'inbound_email',
+                  is_internal: false,
+                  email_message_id: email.id,
+                  attachments: attachments
+                });
+            }
+
             totalTicketsCreated++;
-            console.log(`✅ Created ticket ${newTicket.ticket_number} for ${senderEmail}`);
+            console.log(`✅ Created ticket ${newTicket.ticket_number} for ${senderEmail} with ${attachments.length} attachments`);
 
             // Upsert customer
             await supabase
