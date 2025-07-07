@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://deno.land/x/supabase@1.0.0/mod.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -206,7 +206,7 @@ serve(async (req) => {
       });
     }
 
-    // Get the original message for this ticket
+    // Get the original message for this ticket - try ticket_messages first, then fall back to ticket data
     const { data: originalMessage, error: messageError } = await supabase
       .from('ticket_messages')
       .select('email_message_id, attachments')
@@ -214,23 +214,39 @@ serve(async (req) => {
       .eq('message_type', 'inbound_email')
       .order('created_at', { ascending: true })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (messageError || !originalMessage) {
-      console.error('Failed to fetch original message:', messageError);
-      return new Response(JSON.stringify({ error: "Original message not found" }), {
+    console.log('Found ticket message:', originalMessage);
+
+    let emailMessageId = null;
+    let existingAttachments = null;
+
+    if (originalMessage) {
+      // Found a ticket message
+      emailMessageId = originalMessage.email_message_id;
+      existingAttachments = originalMessage.attachments;
+    } else {
+      // No ticket message found, use ticket's email_message_id directly
+      console.log('No ticket message found, using ticket email_message_id');
+      emailMessageId = ticket.email_message_id;
+      existingAttachments = null;
+    }
+
+    if (!emailMessageId) {
+      console.error('No email message ID found for ticket');
+      return new Response(JSON.stringify({ error: "No email message ID found for this ticket" }), {
         status: 404,
         headers: corsHeaders
       });
     }
 
     // Check if attachments already exist
-    if (originalMessage.attachments && originalMessage.attachments.length > 0) {
+    if (existingAttachments && existingAttachments.length > 0) {
       console.log('Attachments already exist for this message');
       return new Response(JSON.stringify({ 
         success: true, 
         message: "Attachments already exist",
-        attachments: originalMessage.attachments
+        attachments: existingAttachments
       }), {
         status: 200,
         headers: corsHeaders
@@ -274,25 +290,49 @@ serve(async (req) => {
 
     // Process attachments for the original message
     const attachments = await processMessageAttachments(
-      originalMessage.email_message_id, 
+      emailMessageId, 
       ticket.mailbox_address, 
       accessToken, 
       supabase
     );
 
     if (attachments.length > 0) {
-      // Update the message with the attachments
-      const { error: updateError } = await supabase
-        .from('ticket_messages')
-        .update({ attachments: attachments })
-        .eq('email_message_id', originalMessage.email_message_id);
+      // Update the message with the attachments (if a message exists) or create one
+      if (originalMessage) {
+        const { error: updateError } = await supabase
+          .from('ticket_messages')
+          .update({ attachments: attachments })
+          .eq('email_message_id', emailMessageId);
 
-      if (updateError) {
-        console.error('Failed to update message with attachments:', updateError);
-        return new Response(JSON.stringify({ error: "Failed to update message" }), {
-          status: 500,
-          headers: corsHeaders
-        });
+        if (updateError) {
+          console.error('Failed to update message with attachments:', updateError);
+          return new Response(JSON.stringify({ error: "Failed to update message" }), {
+            status: 500,
+            headers: corsHeaders
+          });
+        }
+      } else {
+        // Create a new ticket message for this ticket
+        const { error: insertError } = await supabase
+          .from('ticket_messages')
+          .insert({
+            ticket_id: ticketId,
+            sender_email: ticket.customer_email,
+            sender_name: ticket.customer_name,
+            message_content: ticket.content,
+            message_type: 'inbound_email',
+            is_internal: false,
+            email_message_id: emailMessageId,
+            attachments: attachments
+          });
+
+        if (insertError) {
+          console.error('Failed to create message with attachments:', insertError);
+          return new Response(JSON.stringify({ error: "Failed to create message" }), {
+            status: 500,
+            headers: corsHeaders
+          });
+        }
       }
 
       console.log(`✅ Successfully processed ${attachments.length} attachments for ticket ${ticketId}`);
