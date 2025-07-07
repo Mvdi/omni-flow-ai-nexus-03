@@ -167,7 +167,7 @@ serve(async (req) => {
     console.error('Missing Supabase configuration');
     return new Response(JSON.stringify({ error: "Server configuration error" }), { 
       status: 500, 
-      headers: corsHeaders 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 
@@ -176,16 +176,25 @@ serve(async (req) => {
   try {
     console.log('📎 Starting fetch-missing-attachments function');
     
-    const requestBody = await req.json();
-    const { ticketId } = requestBody;
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return new Response(JSON.stringify({ error: "Invalid JSON in request body" }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
     
+    const { ticketId } = requestBody;
     console.log('Request body:', requestBody);
     
     if (!ticketId) {
       console.error('Missing ticketId in request');
       return new Response(JSON.stringify({ error: "ticketId is required" }), {
         status: 400,
-        headers: corsHeaders
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
@@ -194,7 +203,7 @@ serve(async (req) => {
     // Get ticket and message information
     const { data: ticket, error: ticketError } = await supabase
       .from('support_tickets')
-      .select('email_message_id, mailbox_address, subject')
+      .select('email_message_id, mailbox_address, subject, customer_email, customer_name, content')
       .eq('id', ticketId)
       .single();
 
