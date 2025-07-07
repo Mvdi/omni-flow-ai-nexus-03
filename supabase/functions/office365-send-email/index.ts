@@ -244,21 +244,14 @@ serve(async (req) => {
     if (signatureHtml) {
       console.log('🎨 Processing EMAIL-COMPATIBLE signature with length:', signatureHtml.length);
       
-      // ✅ KONVERTER base64 billeder til eksterne URLs for bedre kompatibilitet
+      // ✅ BEVAR base64 billeder som de er - dette virker bedst på tværs af email-klienter
+      // Mac Mail og Outlook viser base64 billeder korrekt
       let cleanSignatureHtml = signatureHtml;
       
-      // Konverter base64 billede til extern URL - virker bedre i Gmail
-      if (cleanSignatureHtml.includes('data:image/')) {
-        console.log('🔄 Converting base64 image to external URL for email compatibility');
-        cleanSignatureHtml = cleanSignatureHtml.replace(
-          /<img[^>]*src="data:image\/[^"]*"[^>]*>/gi,
-          '<img src="https://5abb5ee6-c539-4c8d-8635-3785cb770598.lovableproject.com/mm-multipartner-logo.png" alt="MM Multipartner logo" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 4px;" />'
-        );
-      }
+      console.log('✅ Using INLINE BASE64 signature for maximum email compatibility');
+      console.log('✅ This signature works in Mac Mail, Outlook and most email clients');
       
-      console.log('✅ Using EXTERNAL URL signature for maximum email client compatibility');
-      
-      // Tilføj signatur med ekstern logo-URL
+      // Tilføj signatur direkte uden ændringer - base64 billeder virker bedst
       emailHtmlContent += '<br><br>' + cleanSignatureHtml;
       
       console.log('✅ EMAIL-COMPATIBLE SIGNATUR TILFØJET - Ticket:', ticket_id);
