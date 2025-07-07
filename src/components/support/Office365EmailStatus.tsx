@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { RefreshCw, Mail, Clock, CheckCircle, XCircle, AlertCircle, Activity, Shield } from 'lucide-react';
-import { ManualEmailSync } from './ManualEmailSync';
+
 import { ReliableEmailSyncMonitor } from './ReliableEmailSyncMonitor';
 
 interface EmailSyncLog {
@@ -30,7 +30,7 @@ export const Office365EmailStatus = () => {
   const [syncLogs, setSyncLogs] = useState<EmailSyncLog[]>([]);
   const [mailboxes, setMailboxes] = useState<MonitoredMailbox[]>([]);
   const [loading, setLoading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  
   const [lastSyncResult, setLastSyncResult] = useState<any>(null);
   const { toast } = useToast();
 
@@ -68,49 +68,6 @@ export const Office365EmailStatus = () => {
     }
   };
 
-  const triggerSync = async () => {
-    setSyncing(true);
-    setLastSyncResult(null);
-    try {
-      const session = (await supabase.auth.getSession()).data.session;
-      if (!session) {
-        throw new Error('Du skal være logget ind');
-      }
-
-      console.log('Triggering enhanced email sync with intelligent catch-up...');
-      
-      const { data, error } = await supabase.functions.invoke('office365-email-sync', {
-        body: { source: 'manual', debug: true },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      setLastSyncResult(data);
-      
-      toast({
-        title: 'Email sync completed',
-        description: `Processed ${data.processed} emails, ${data.caughtUp} caught-up. ${data.errors} errors.`,
-        variant: data.errors > 0 ? 'destructive' : 'default',
-      });
-
-      // Opdater data efter 3 sekunder for at se nye tickets
-      setTimeout(fetchData, 3000);
-    } catch (error: any) {
-      console.error('Failed to trigger sync:', error);
-      toast({
-        title: 'Sync fejl',
-        description: error.message || 'Kunne ikke starte email sync',
-        variant: 'destructive',
-      });
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   useEffect(() => {
     fetchData();
@@ -186,9 +143,6 @@ export const Office365EmailStatus = () => {
       {/* BULLETPROOF System Monitor - This is the new primary monitoring system */}
       <ReliableEmailSyncMonitor />
 
-      {/* Manual Historical Sync */}
-      <ManualEmailSync />
-
       {/* Last Sync Result */}
       {lastSyncResult && (
         <Card>
@@ -260,14 +214,14 @@ export const Office365EmailStatus = () => {
           </div>
           
           <div className="flex gap-2">
-            <Button onClick={triggerSync} disabled={syncing || loading} variant="outline">
-              <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Legacy Sync (Ikke anbefalet)'}
-            </Button>
             <Button variant="outline" onClick={fetchData} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Opdater Status
             </Button>
+            <div className="text-sm text-green-600 flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Email sync kører automatisk hver 2. minut
+            </div>
           </div>
         </CardContent>
       </Card>

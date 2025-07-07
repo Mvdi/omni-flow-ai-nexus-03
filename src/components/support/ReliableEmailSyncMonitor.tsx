@@ -354,30 +354,21 @@ export const ReliableEmailSyncMonitor = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
-              <h4 className="font-medium text-gray-900">Email Sync Kontrol</h4>
-              <div className="flex flex-wrap gap-2">
-                <Button 
-                  onClick={triggerSync} 
-                  disabled={isTesting}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Zap className={`h-4 w-4 mr-2 ${isTesting ? 'animate-spin' : ''}`} />
-                  Manuel Sync (6h)
-                </Button>
-                
-                <Button 
-                  onClick={triggerEmergencyCatchupSync} 
-                  disabled={isTesting}
-                  variant="destructive"
-                >
-                  <AlertTriangle className={`h-4 w-4 mr-2 ${isTesting ? 'animate-spin' : ''}`} />
-                  Nød-Sync (24h)
-                </Button>
+              <h4 className="font-medium text-gray-900">Automatisk Email Sync</h4>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <Activity className="h-5 w-5 text-green-600" />
+                  <div>
+                    <div className="font-medium text-green-800">Systemet kører automatisk</div>
+                    <div className="text-sm text-green-600">Email sync hver 2. minut - ingen manuel handling nødvendig</div>
+                  </div>
+                </div>
                 
                 <Button 
                   variant="outline" 
                   onClick={refreshData} 
                   disabled={isLoading}
+                  className="w-fit"
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                   Opdater Status
