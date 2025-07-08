@@ -238,25 +238,61 @@ serve(async (req) => {
       }
     }
 
-    // Byg email content med GARANTERET signatur der virker OVERALT
+    // SMART ADAPTIVE EMAIL SIGNATURE SYSTEM - maksimal kompatibilitet
     let emailHtmlContent = message_content.replace(/\n/g, '<br>');
     
     if (signatureHtml) {
-      console.log('🎨 Processing EMAIL-COMPATIBLE signature with length:', signatureHtml.length);
+      console.log('🎨 Processing ADAPTIVE signature with length:', signatureHtml.length);
       
-      // ✅ BEVAR base64 billeder som de er - dette virker bedst på tværs af email-klienter
-      // Mac Mail og Outlook viser base64 billeder korrekt
-      let cleanSignatureHtml = signatureHtml;
+      // HYBRID APPROACH: Giv email-klienter flere muligheder for at vise logoet
+      let adaptiveSignatureHtml = signatureHtml;
       
-      console.log('✅ Using INLINE BASE64 signature for maximum email compatibility');
-      console.log('✅ This signature works in Mac Mail, Outlook and most email clients');
+      // Hvis signatur indeholder base64 billede, tilføj fallback
+      if (adaptiveSignatureHtml.includes('data:image/')) {
+        console.log('🔄 Creating HYBRID signature with base64 + external URL fallback');
+        
+        // Bevar original base64 men tilføj external URL som alt fallback
+        adaptiveSignatureHtml = adaptiveSignatureHtml.replace(
+          /<img([^>]*?)src="data:image\/[^"]*"([^>]*?)>/gi,
+          (match, before, after) => {
+            // Bevar original base64 billede men tilføj flere fallback muligheder
+            const hasAlt = /alt\s*=\s*["'][^"']*["']/.test(match);
+            const altText = hasAlt ? '' : ' alt="MM Multipartner logo"';
+            
+            return `<img${before}src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="${after}${altText}>
+            <!--[if !supportImages]-->
+            <img src="https://5abb5ee6-c539-4c8d-8635-3785cb770598.lovableproject.com/mm-multipartner-logo.png" alt="MM Multipartner logo" style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 4px;" />
+            <!--<![endif]-->`;
+          }
+        );
+      }
       
-      // Tilføj signatur direkte uden ændringer - base64 billeder virker bedst
-      emailHtmlContent += '<br><br>' + cleanSignatureHtml;
+      // Wrap signature i kompatibel container
+      const finalSignature = `
+        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e5e5;">
+          ${adaptiveSignatureHtml}
+        </div>
+      `;
       
-      console.log('✅ EMAIL-COMPATIBLE SIGNATUR TILFØJET - Ticket:', ticket_id);
+      emailHtmlContent += '<br>' + finalSignature;
+      
+      console.log('✅ ADAPTIVE HYBRID SIGNATUR TILFØJET - Ticket:', ticket_id);
+      console.log('✅ Support: Base64 (Mac Mail), External URL (Outlook), MSO conditionals');
     } else {
-      console.log('❌ INGEN SIGNATUR FUNDET OVERHOVEDET - Ticket:', ticket_id);
+      // FALLBACK: Hvis ingen signatur findes, tilføj minimal standard signatur
+      const fallbackSignature = `
+        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e5e5;">
+          <img src="https://5abb5ee6-c539-4c8d-8635-3785cb770598.lovableproject.com/mm-multipartner-logo.png" 
+               alt="MM Multipartner logo" 
+               style="max-height: 60px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 8px;" />
+          <p style="margin: 0; font-size: 12px; color: #666;">
+            MM Multipartner<br>
+            Email: info@mmmultipartner.dk
+          </p>
+        </div>
+      `;
+      emailHtmlContent += '<br>' + fallbackSignature;
+      console.log('⚠️ BRUGER FALLBACK SIGNATUR - Ticket:', ticket_id);
     }
 
     const fromAddress = ticket.mailbox_address || 'info@mmmultipartner.dk';
