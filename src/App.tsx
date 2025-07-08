@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Leads from "./pages/Leads";
 import Support from "./pages/Support";
+import EnhancedSupport from "./pages/EnhancedSupport";
 import Planning from "./pages/Planning";
 import Orders from "./pages/Orders";
 import Subscriptions from "./pages/Subscriptions";
@@ -42,6 +43,11 @@ const App = () => (
           <Route path="/support" element={
             <ProtectedRoute>
               <Support />
+            </ProtectedRoute>
+          } />
+          <Route path="/enhanced-support" element={
+            <ProtectedRoute>
+              <EnhancedSupport />
             </ProtectedRoute>
           } />
           <Route path="/planning" element={
